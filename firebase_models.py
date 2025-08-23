@@ -90,6 +90,34 @@ class User(UserMixin):
                     created_at=data.get('created_at')
                 )
         return None
+    
+    @staticmethod
+    def get_all_users(limit=100):
+        """Get all users for admin dashboard"""
+        db = get_db()
+        users = []
+        if db:
+            docs = db.collection('users').limit(limit).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                users.append(User(
+                    id=doc.id,
+                    email=data.get('email'),
+                    username=data.get('username'),
+                    password_hash=data.get('password_hash'),
+                    is_admin=data.get('is_admin', False),
+                    created_at=data.get('created_at')
+                ))
+        return users
+    
+    @staticmethod
+    def get_user_count():
+        """Get total number of users"""
+        db = get_db()
+        if db:
+            users = list(db.collection('users').stream())
+            return len(users)
+        return 0
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 
@@ -154,7 +182,6 @@ class Project:
         db = get_db()
         projects = []
         if db:
-            # Simple query without ordering to avoid index requirement
             docs = db.collection('projects').where('user_id', '==', user_id)\
                     .limit(limit).stream()
             
@@ -172,9 +199,55 @@ class Project:
                     updated_at=data.get('updated_at')
                 ))
             
-            # Sort in Python instead of Firestore to avoid index requirement
             projects.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
         return projects
+    
+    @staticmethod
+    def get_all_projects(limit=100):
+        """Get all projects for admin dashboard"""
+        db = get_db()
+        projects = []
+        if db:
+            docs = db.collection('projects').limit(limit).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                projects.append(Project(
+                    id=doc.id,
+                    title=data.get('title'),
+                    repo_url=data.get('repo_url'),
+                    repo_owner=data.get('repo_owner'),
+                    repo_name=data.get('repo_name'),
+                    project_proposal=data.get('project_proposal', {}),
+                    user_id=data.get('user_id'),
+                    created_at=data.get('created_at'),
+                    updated_at=data.get('updated_at')
+                ))
+            
+            projects.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
+        return projects
+    
+    @staticmethod
+    def get_project_count():
+        """Get total number of projects"""
+        db = get_db()
+        if db:
+            projects = list(db.collection('projects').stream())
+            return len(projects)
+        return 0
+    
+    @staticmethod
+    def get_generation_count():
+        """Get total number of AI generations (projects with proposals)"""
+        db = get_db()
+        if db:
+            projects = list(db.collection('projects').stream())
+            count = 0
+            for project in projects:
+                data = project.to_dict()
+                if data.get('project_proposal') and len(data.get('project_proposal', {})) > 0:
+                    count += 1
+            return count
+        return 0
     
     @staticmethod
     def search_by_user(user_id, query, limit=20):
