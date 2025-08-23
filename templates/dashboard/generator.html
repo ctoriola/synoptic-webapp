@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Proposal Generator - Synoptic{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">AI Proposal Generator</h1>
+        <p class="mt-1 text-sm text-gray-600">Transform any GitHub repository into a comprehensive project proposal using AI.</p>
+    </div>
+
+    <!-- Generator Form -->
+    <div class="bg-white shadow rounded-lg mb-8">
+        <div class="px-6 py-8">
+            <form id="repo-form" class="space-y-6">
+                <div>
+                    <label for="repoUrl" class="block text-sm font-medium text-gray-700 mb-2">
+                        GitHub Repository URL
+                    </label>
+                    <div class="relative">
+                        <input id="repoUrl" 
+                               name="repoUrl" 
+                               type="url" 
+                               placeholder="https://github.com/owner/repository" 
+                               required 
+                               class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                        <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                            <i class="fab fa-github text-gray-400"></i>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-sm text-gray-500">
+                        Enter the URL of any public GitHub repository to analyze
+                    </p>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <button type="submit" 
+                            class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                        <i class="fas fa-magic mr-2"></i>
+                        <span id="button-text">Generate Proposal</span>
+                    </button>
+                    
+                    <div class="text-sm text-gray-500">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Usually takes 10-30 seconds
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status" class="mb-6" style="display: none;">
+        <div class="rounded-md bg-blue-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-spinner fa-spin text-blue-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-blue-800" id="status-text">
+                        Processing your request...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Messages -->
+    <div id="error" class="mb-6" style="display: none;">
+        <div class="rounded-md bg-red-50 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-exclamation-circle text-red-400"></i>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium text-red-800" id="error-text">
+                        An error occurred
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generated Proposal -->
+    <div id="proposal" class="bg-white shadow rounded-lg" style="display: none;">
+        <div class="px-6 py-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="proposal-title" class="text-xl font-bold text-gray-900">Project Proposal</h2>
+                <div class="flex space-x-2">
+                    <button id="copy-btn" 
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i class="fas fa-copy mr-1"></i>
+                        Copy
+                    </button>
+                    <button id="export-btn" 
+                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i class="fas fa-download mr-1"></i>
+                        Export
+                    </button>
+                </div>
+            </div>
+
+            <div class="prose max-w-none">
+                <div class="space-y-8">
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Introduction
+                        </h3>
+                        <div id="pp_introduction" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Problem Statement
+                        </h3>
+                        <div id="pp_problem_statement" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Proposed Solution
+                        </h3>
+                        <div id="pp_solution" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Target Audience
+                        </h3>
+                        <div id="pp_target_audience" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Technology Stack
+                        </h3>
+                        <div id="pp_technology_stack" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+
+                    <section>
+                        <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">
+                            Future Scope
+                        </h3>
+                        <div id="pp_future_scope" class="text-gray-700 whitespace-pre-wrap"></div>
+                    </section>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-200">
+                <div class="flex items-center justify-between">
+                    <p class="text-sm text-gray-500">
+                        <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                        Proposal saved to your projects
+                    </p>
+                    <a id="view-project-btn" 
+                       href="#" 
+                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i class="fas fa-eye mr-2"></i>
+                        View in Projects
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- How it Works -->
+    <div class="mt-12 bg-gray-50 rounded-lg p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">How it works</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-search text-primary-600"></i>
+                </div>
+                <h4 class="font-medium text-gray-900 mb-2">Repository Analysis</h4>
+                <p class="text-sm text-gray-600">We fetch and analyze your README, code structure, and repository metadata</p>
+            </div>
+            <div class="text-center">
+                <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-brain text-primary-600"></i>
+                </div>
+                <h4 class="font-medium text-gray-900 mb-2">AI Processing</h4>
+                <p class="text-sm text-gray-600">Advanced AI understands your project and generates comprehensive content</p>
+            </div>
+            <div class="text-center">
+                <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-file-alt text-primary-600"></i>
+                </div>
+                <h4 class="font-medium text-gray-900 mb-2">Professional Output</h4>
+                <p class="text-sm text-gray-600">Receive a structured, professional proposal ready for presentation</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('repo-form');
+    const input = document.getElementById('repoUrl');
+    const statusDiv = document.getElementById('status');
+    const statusText = document.getElementById('status-text');
+    const errorDiv = document.getElementById('error');
+    const errorText = document.getElementById('error-text');
+    const proposalDiv = document.getElementById('proposal');
+    const buttonText = document.getElementById('button-text');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    const fields = {
+        title: document.getElementById('proposal-title'),
+        introduction: document.getElementById('pp_introduction'),
+        problem_statement: document.getElementById('pp_problem_statement'),
+        solution: document.getElementById('pp_solution'),
+        target_audience: document.getElementById('pp_target_audience'),
+        technology_stack: document.getElementById('pp_technology_stack'),
+        future_scope: document.getElementById('pp_future_scope'),
+    };
+
+    function showStatus(message) {
+        statusText.textContent = message;
+        statusDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+        proposalDiv.style.display = 'none';
+    }
+
+    function showError(message) {
+        errorText.textContent = message;
+        errorDiv.style.display = 'block';
+        statusDiv.style.display = 'none';
+    }
+
+    function hideMessages() {
+        statusDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+    }
+
+    function setLoading(loading) {
+        submitBtn.disabled = loading;
+        buttonText.textContent = loading ? 'Generating...' : 'Generate Proposal';
+    }
+
+    function showProposal(data) {
+        const proposal = data.project_proposal_json || {};
+        
+        fields.title.textContent = proposal.title || 'Project Proposal';
+        fields.introduction.textContent = proposal.introduction || 'Not available';
+        fields.problem_statement.textContent = proposal.problem_statement || 'Not available';
+        fields.solution.textContent = proposal.solution || 'Not available';
+        fields.target_audience.textContent = proposal.target_audience || 'Not available';
+        fields.technology_stack.textContent = proposal.technology_stack || 'Not available';
+        fields.future_scope.textContent = proposal.future_scope || 'Not available';
+        
+        // Update view project button
+        if (data.project_id) {
+            const viewBtn = document.getElementById('view-project-btn');
+            viewBtn.href = `/dashboard/projects/${data.project_id}`;
+        }
+        
+        hideMessages();
+        proposalDiv.style.display = 'block';
+        
+        // Scroll to proposal
+        proposalDiv.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const repoUrl = input.value.trim();
+        if (!repoUrl) {
+            showError('Please enter a GitHub repository URL');
+            return;
+        }
+
+        setLoading(true);
+        showStatus('Fetching repository information...');
+
+        try {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ repo_url: repoUrl })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to generate proposal');
+            }
+
+            showProposal(data);
+        } catch (error) {
+            console.error('Error:', error);
+            showError(error.message || 'An unexpected error occurred');
+        } finally {
+            setLoading(false);
+        }
+    });
+
+    // Copy functionality
+    document.getElementById('copy-btn').addEventListener('click', function() {
+        const proposal = Array.from(document.querySelectorAll('#proposal section')).map(section => {
+            const title = section.querySelector('h3').textContent;
+            const content = section.querySelector('div').textContent;
+            return `${title}\n${content}\n`;
+        }).join('\n');
+
+        navigator.clipboard.writeText(proposal).then(() => {
+            this.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
+            setTimeout(() => {
+                this.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
+            }, 2000);
+        });
+    });
+
+    // Export functionality
+    document.getElementById('export-btn').addEventListener('click', function() {
+        const proposal = Array.from(document.querySelectorAll('#proposal section')).map(section => {
+            const title = section.querySelector('h3').textContent;
+            const content = section.querySelector('div').textContent;
+            return `# ${title}\n\n${content}\n\n`;
+        }).join('');
+
+        const blob = new Blob([proposal], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'project-proposal.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}My Projects - Synoptic{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">My Projects</h1>
+            <p class="mt-1 text-sm text-gray-600">Manage and view all your generated project proposals</p>
+        </div>
+        <a href="{{ url_for('dashboard.generator') }}" 
+           class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            <i class="fas fa-plus mr-2"></i>
+            New Proposal
+        </a>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="bg-white shadow rounded-lg mb-6">
+        <div class="p-6">
+            <div class="flex flex-col sm:flex-row gap-4">
+                <div class="flex-1">
+                    <label for="search" class="sr-only">Search projects</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fas fa-search text-gray-400"></i>
+                        </div>
+                        <input id="search" 
+                               type="text" 
+                               placeholder="Search projects..." 
+                               class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <select class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
+                        <option>All Projects</option>
+                        <option>Recent</option>
+                        <option>Older</option>
+                    </select>
+                    <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects List -->
+    {% if projects.items %}
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">
+                {{ projects.total }} Project{{ 's' if projects.total != 1 else '' }}
+            </h3>
+        </div>
+        <ul class="divide-y divide-gray-200">
+            {% for project in projects.items %}
+            <li class="px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex-shrink-0">
+                            <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
+                                <i class="fab fa-github text-white text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center space-x-2">
+                                <h4 class="text-sm font-medium text-gray-900 truncate">
+                                    {{ project.title }}
+                                </h4>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Complete
+                                </span>
+                            </div>
+                            <div class="flex items-center space-x-4 mt-1">
+                                <p class="text-sm text-gray-500">
+                                    <i class="fab fa-github mr-1"></i>
+                                    {{ project.repo_owner }}/{{ project.repo_name }}
+                                </p>
+                                <p class="text-sm text-gray-500">
+                                    <i class="fas fa-calendar mr-1"></i>
+                                    {{ project.created_at.strftime('%b %d, %Y') }}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <a href="{{ project.repo_url }}" 
+                           target="_blank"
+                           class="text-gray-400 hover:text-gray-600"
+                           data-tooltip="View Repository">
+                            <i class="fas fa-external-link-alt"></i>
+                        </a>
+                        <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
+                           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-eye mr-1"></i>
+                            View
+                        </a>
+                        <div class="relative group">
+                            <button class="inline-flex items-center p-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
+                                <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
+                                   class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-eye mr-2"></i> View Details
+                                </a>
+                                <button onclick="copyProjectUrl('{{ url_for('dashboard.project_detail', project_id=project.id, _external=True) }}')"
+                                        class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                    <i class="fas fa-link mr-2"></i> Copy Link
+                                </button>
+                                <form method="POST" action="{{ url_for('dashboard.delete_project', project_id=project.id) }}" 
+                                      onsubmit="return confirm('Are you sure you want to delete this project?')" class="block">
+                                    <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-red-50">
+                                        <i class="fas fa-trash mr-2"></i> Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <!-- Pagination -->
+        {% if projects.pages > 1 %}
+        <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+            <div class="flex-1 flex justify-between sm:hidden">
+                {% if projects.has_prev %}
+                <a href="{{ url_for('dashboard.projects', page=projects.prev_num) }}" 
+                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Previous
+                </a>
+                {% endif %}
+                {% if projects.has_next %}
+                <a href="{{ url_for('dashboard.projects', page=projects.next_num) }}" 
+                   class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                    Next
+                </a>
+                {% endif %}
+            </div>
+            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-sm text-gray-700">
+                        Showing {{ (projects.page - 1) * projects.per_page + 1 }} to 
+                        {{ projects.page * projects.per_page if projects.page * projects.per_page < projects.total else projects.total }} 
+                        of {{ projects.total }} results
+                    </p>
+                </div>
+                <div>
+                    <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                        {% if projects.has_prev %}
+                        <a href="{{ url_for('dashboard.projects', page=projects.prev_num) }}" 
+                           class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                        {% endif %}
+                        
+                        {% for page_num in projects.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != projects.page %}
+                                <a href="{{ url_for('dashboard.projects', page=page_num) }}" 
+                                   class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                    {{ page_num }}
+                                </a>
+                                {% else %}
+                                <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-primary-50 text-sm font-medium text-primary-600">
+                                    {{ page_num }}
+                                </span>
+                                {% endif %}
+                            {% else %}
+                            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                ...
+                            </span>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if projects.has_next %}
+                        <a href="{{ url_for('dashboard.projects', page=projects.next_num) }}" 
+                           class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                        {% endif %}
+                    </nav>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <!-- Empty State -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-12 text-center">
+            <div class="mx-auto h-12 w-12 text-gray-400 mb-4">
+                <i class="fas fa-folder-open text-4xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+            <p class="text-gray-500 mb-6">Get started by generating your first project proposal from a GitHub repository.</p>
+            <a href="{{ url_for('dashboard.generator') }}" 
+               class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-magic mr-2"></i>
+                Generate First Proposal
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyProjectUrl(url) {
+    navigator.clipboard.writeText(url).then(() => {
+        SynopticUtils.showNotification('Project link copied to clipboard!', 'success');
+    }).catch(() => {
+        SynopticUtils.showNotification('Failed to copy link', 'error');
+    });
+}
+
+// Search functionality
+document.getElementById('search').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const projectItems = document.querySelectorAll('li[class*="px-6 py-4"]');
+    
+    projectItems.forEach(item => {
+        const title = item.querySelector('h4').textContent.toLowerCase();
+        const repo = item.querySelector('p').textContent.toLowerCase();
+        
+        if (title.includes(searchTerm) || repo.includes(searchTerm)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

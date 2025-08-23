@@ -1,0 +1,448 @@
+import os
+import re
+import json
+from urllib.parse import urlparse
+from datetime import datetime
+from io import BytesIO
+
+import requests
+from flask import Blueprint, jsonify, request, send_file
+from flask_login import login_required, current_user
+import google.generativeai as genai
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from docx import Document
+from docx.shared import Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+
+from models import Project, db
+
+api_bp = Blueprint('api', __name__)
+
+# Configuration
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# Constants from original app
+essential_readme_paths = [
+    "README.md", "README.MD", "Readme.md", "README",
+    "docs/README.md", "docs/README"
+]
+
+common_branches = ["main", "master", "develop"]
+
+def parse_github_repo(url: str):
+    """Return (owner, repo) if URL looks like a GitHub repo; else (None, None)."""
+    if not url:
+        return None, None
+    try:
+        u = urlparse(url)
+    except Exception:
+        return None, None
+
+    host = (u.netloc or '').lower()
+    if host not in {"github.com", "www.github.com"}:
+        return None, None
+
+    parts = [p for p in (u.path or '').split('/') if p]
+    if len(parts) < 2:
+        return None, None
+
+    owner, repo = parts[0], parts[1]
+    if repo.endswith('.git'):
+        repo = repo[:-4]
+    return owner, repo
+
+def try_fetch_readme_raw(owner: str, repo: str):
+    """Try common branches and README paths from raw.githubusercontent.com."""
+    for br in common_branches:
+        for p in essential_readme_paths:
+            raw = f"https://raw.githubusercontent.com/{owner}/{repo}/{br}/{p}"
+            try:
+                r = requests.get(raw, timeout=12)
+                if r.status_code == 200 and r.text.strip():
+                    return r.text, raw
+            except requests.RequestException:
+                continue
+    return None, None
+
+def try_fetch_readme_api(owner: str, repo: str):
+    """Fallback to GitHub API to get the default README if possible."""
+    api = f"https://api.github.com/repos/{owner}/{repo}/readme"
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "synoptic-saas",
+    }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    try:
+        r = requests.get(api, headers=headers, timeout=12)
+        if r.status_code == 200:
+            j = r.json()
+            download_url = j.get("download_url")
+            if download_url:
+                rr = requests.get(download_url, timeout=12)
+                if rr.status_code == 200 and rr.text.strip():
+                    return rr.text, download_url
+    except requests.RequestException:
+        pass
+    return None, None
+
+def fetch_additional_repo_signals(owner: str, repo: str) -> str:
+    """Collect extra signals to help infer problem_statement and future_scope when README is sparse."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "synoptic-saas",
+    }
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+
+    parts = []
+
+    # Repo metadata
+    try:
+        repo_api = f"https://api.github.com/repos/{owner}/{repo}"
+        r = requests.get(repo_api, headers=headers, timeout=12)
+        if r.status_code == 200:
+            j = r.json()
+            desc = j.get("description") or ""
+            topics = j.get("topics") or []
+            if desc:
+                parts.append(f"Repo Description: {desc}")
+            if topics:
+                parts.append("Topics: " + ", ".join(topics))
+    except requests.RequestException:
+        pass
+
+    # Languages
+    try:
+        langs_api = f"https://api.github.com/repos/{owner}/{repo}/languages"
+        r = requests.get(langs_api, headers=headers, timeout=12)
+        if r.status_code == 200:
+            langs = r.json() or {}
+            if isinstance(langs, dict) and langs:
+                top = sorted(langs.items(), key=lambda kv: kv[1], reverse=True)[:6]
+                lang_list = ", ".join([f"{k} ({v})" for k, v in top])
+                parts.append("Languages (bytes): " + lang_list)
+    except requests.RequestException:
+        pass
+
+    return "\n\n".join(parts).strip()
+
+def build_gemini_prompt(readme_content: str, extra_context: str = None) -> str:
+    parts = [
+        "You are a specialized AI assistant for a web application. Your task is to analyze the provided GitHub README content and generate a project proposal in a strict JSON format. ",
+        "This JSON will be used to populate a web UI. The proposal must be based only on the information in the README. ",
+        "If any information is missing for a section, set the value to 'Not available in README.'\n\n",
+        "Instructions:\n\n",
+        "1. Format: Your entire response must be a single, valid JSON object. No extra text, no markdown outside the JSON.\n",
+        "2. Structure: The JSON object must have the following keys:\n",
+        "   - title: (string) The project's title.\n",
+        "   - introduction: (string) A brief overview (6-10 sentences, ~120-250 words).\n",
+        "   - problem_statement: (string) The problem the project solves (6-10 sentences, ~120-250 words).\n",
+        "   - solution: (string) The proposed solution (8-14 sentences, ~160-350 words).\n",
+        "   - target_audience: (string) Who the project is for (2-4 sentences).\n",
+        "   - technology_stack: (string) The tech used with explanations (4-10 elements).\n",
+        "   - future_scope: (string) Potential future features (8-12 concrete items).\n\n",
+        "README Content to Analyze:\n\n```\n",
+        readme_content,
+        "\n```\n\n",
+        ("Additional Repository Signals:\n\n```\n" + extra_context.strip() + "\n```\n\n" if extra_context and extra_context.strip() else ""),
+        "Generated JSON Output:",
+    ]
+    return "".join(parts)
+
+def call_gemini(readme_content: str, extra_context: str = None) -> dict:
+    if not GOOGLE_API_KEY:
+        raise RuntimeError("GOOGLE_API_KEY is not set. Please configure it in your environment.")
+
+    genai.configure(api_key=GOOGLE_API_KEY)
+
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config={
+            "response_mime_type": "application/json",
+            "max_output_tokens": 4096,
+        },
+    )
+
+    prompt = build_gemini_prompt(readme_content, extra_context=extra_context)
+    resp = model.generate_content(prompt)
+
+    text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
+    if not text:
+        raise RuntimeError("Gemini API returned an empty response.")
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        m = re.search(r"\{[\s\S]*\}", text)
+        if not m:
+            raise
+        parsed = json.loads(m.group(0))
+
+    return parsed
+
+@api_bp.route('/fetch-readme', methods=['POST'])
+@login_required
+def api_fetch_readme():
+    data = request.get_json(silent=True) or {}
+    repo_url = (data.get("repo_url") or "").strip()
+
+    owner, repo = parse_github_repo(repo_url)
+    if not owner:
+        return jsonify({"validation_status": False, "error": "Invalid GitHub repository URL."}), 400
+
+    content, source = try_fetch_readme_raw(owner, repo)
+    if not content:
+        content, source = try_fetch_readme_api(owner, repo)
+
+    if not content:
+        return jsonify({"validation_status": False, "error": "README not found in repository."}), 404
+
+    return jsonify({
+        "validation_status": True,
+        "readme_content": content,
+        "source": source,
+    })
+
+@api_bp.route('/generate', methods=['POST'])
+@login_required
+def api_generate():
+    data = request.get_json(silent=True) or {}
+    repo_url = (data.get("repo_url") or "").strip()
+
+    owner, repo = parse_github_repo(repo_url)
+    if not owner:
+        return jsonify({"error": "Invalid GitHub repository URL."}), 400
+
+    content, _ = try_fetch_readme_raw(owner, repo)
+    if not content:
+        content, _ = try_fetch_readme_api(owner, repo)
+
+    if not content:
+        return jsonify({"error": "README not found in repository."}), 404
+
+    try:
+        extra = fetch_additional_repo_signals(owner, repo)
+        proposal = call_gemini(content, extra_context=extra)
+        
+        # Ensure all required legacy keys exist and convert lists to strings for database
+        legacy_keys = [
+            "title", "introduction", "problem_statement", "solution",
+            "target_audience", "technology_stack", "future_scope"
+        ]
+        
+        # Handle data type conversion for legacy fields
+        normalized = {}
+        for k in legacy_keys:
+            value = proposal.get(k, "Not available in README.")
+            # Convert lists to formatted strings for legacy database columns
+            if isinstance(value, list):
+                if k == "future_scope":
+                    normalized[k] = "\n".join([f"• {item}" for item in value])
+                else:
+                    normalized[k] = ", ".join(value) if value else "Not available in README."
+            else:
+                normalized[k] = value if value else "Not available in README."
+        
+        # Store the complete proposal data exactly as generated (including all fields)
+        # This ensures saved projects show the same information as the generator display
+        complete_proposal_data = {
+            # Core proposal sections (what's displayed in generator)
+            "title": normalized.get("title"),
+            "introduction": normalized.get("introduction"),
+            "problem_statement": normalized.get("problem_statement"),
+            "solution": normalized.get("solution"),
+            "target_audience": normalized.get("target_audience"),
+            "technology_stack": normalized.get("technology_stack"),
+            "future_scope": normalized.get("future_scope"),
+            
+            # Extended structured data for detailed project view
+            "project_overview": normalized.get("introduction"),
+            "key_features": proposal.get("key_features", []),
+            "technical_stack": proposal.get("technical_stack", {}),
+            "implementation_plan": proposal.get("implementation_plan", []),
+            "potential_challenges": proposal.get("potential_challenges", []),
+            "success_metrics": proposal.get("success_metrics", []),
+            "timeline": proposal.get("timeline", "Not specified")
+        }
+        
+        # Save to database with both legacy and new format
+        project = Project(
+            title=normalized.get("title", f"{owner}/{repo}"),
+            repo_url=repo_url,
+            repo_owner=owner,
+            repo_name=repo,
+            # Legacy fields for backward compatibility (all strings)
+            introduction=normalized.get("introduction"),
+            problem_statement=normalized.get("problem_statement"),
+            solution=normalized.get("solution"),
+            target_audience=normalized.get("target_audience"),
+            technology_stack=normalized.get("technology_stack"),
+            future_scope=normalized.get("future_scope"),
+            user_id=current_user.id
+        )
+        
+        # Set the complete proposal data using the property setter
+        project.proposal_data = complete_proposal_data
+        
+        db.session.add(project)
+        db.session.commit()
+        
+        return jsonify({
+            "project_proposal_json": normalized,
+            "project_id": project.id
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/projects/<int:project_id>', methods=['GET'])
+@login_required
+def get_project(project_id):
+    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
+    return jsonify(project.to_dict())
+
+@api_bp.route('/projects/<int:project_id>/export/pdf', methods=['GET'])
+@login_required
+def export_project_pdf(project_id):
+    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
+    
+    # Create PDF in memory
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Get styles
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=30,
+        alignment=1  # Center alignment
+    )
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=12,
+        spaceBefore=20
+    )
+    
+    # Build PDF content
+    story = []
+    
+    # Title
+    story.append(Paragraph(project.title, title_style))
+    story.append(Spacer(1, 20))
+    
+    # Repository info
+    story.append(Paragraph(f"<b>Repository:</b> {project.repo_owner}/{project.repo_name}", styles['Normal']))
+    story.append(Paragraph(f"<b>URL:</b> {project.repo_url}", styles['Normal']))
+    story.append(Paragraph(f"<b>Generated:</b> {project.created_at.strftime('%B %d, %Y')}", styles['Normal']))
+    story.append(Spacer(1, 20))
+    
+    # Proposal sections
+    if project.proposal_data:
+        proposal = project.proposal_data
+        
+        sections = [
+            ("Project Overview", proposal.get("project_overview") or proposal.get("introduction")),
+            ("Problem Statement", proposal.get("problem_statement")),
+            ("Solution", proposal.get("solution")),
+            ("Target Audience", proposal.get("target_audience")),
+            ("Technology Stack", proposal.get("technology_stack")),
+            ("Future Scope", proposal.get("future_scope"))
+        ]
+        
+        for section_title, content in sections:
+            if content and content != "Not available in README.":
+                story.append(Paragraph(section_title, heading_style))
+                story.append(Paragraph(content, styles['Normal']))
+                story.append(Spacer(1, 12))
+        
+        # Key Features
+        if proposal.get("key_features"):
+            story.append(Paragraph("Key Features", heading_style))
+            for feature in proposal["key_features"]:
+                story.append(Paragraph(f"• {feature}", styles['Normal']))
+            story.append(Spacer(1, 12))
+        
+        # Success Metrics
+        if proposal.get("success_metrics"):
+            story.append(Paragraph("Success Metrics", heading_style))
+            for metric in proposal["success_metrics"]:
+                story.append(Paragraph(f"• {metric}", styles['Normal']))
+            story.append(Spacer(1, 12))
+    
+    # Build PDF
+    doc.build(story)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_proposal.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+
+@api_bp.route('/projects/<int:project_id>/export/docx', methods=['GET'])
+@login_required
+def export_project_docx(project_id):
+    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
+    
+    # Create DOCX document
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(project.title, 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Repository info
+    doc.add_paragraph()
+    doc.add_paragraph(f"Repository: {project.repo_owner}/{project.repo_name}")
+    doc.add_paragraph(f"URL: {project.repo_url}")
+    doc.add_paragraph(f"Generated: {project.created_at.strftime('%B %d, %Y')}")
+    doc.add_paragraph()
+    
+    # Proposal sections
+    if project.proposal_data:
+        proposal = project.proposal_data
+        
+        sections = [
+            ("Project Overview", proposal.get("project_overview") or proposal.get("introduction")),
+            ("Problem Statement", proposal.get("problem_statement")),
+            ("Solution", proposal.get("solution")),
+            ("Target Audience", proposal.get("target_audience")),
+            ("Technology Stack", proposal.get("technology_stack")),
+            ("Future Scope", proposal.get("future_scope"))
+        ]
+        
+        for section_title, content in sections:
+            if content and content != "Not available in README.":
+                doc.add_heading(section_title, level=1)
+                doc.add_paragraph(content)
+                doc.add_paragraph()
+        
+        # Key Features
+        if proposal.get("key_features"):
+            doc.add_heading("Key Features", level=1)
+            for feature in proposal["key_features"]:
+                p = doc.add_paragraph()
+                p.add_run(f"• {feature}")
+            doc.add_paragraph()
+        
+        # Success Metrics
+        if proposal.get("success_metrics"):
+            doc.add_heading("Success Metrics", level=1)
+            for metric in proposal["success_metrics"]:
+                p = doc.add_paragraph()
+                p.add_run(f"• {metric}")
+            doc.add_paragraph()
+    
+    # Save to buffer
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_proposal.docx"
+    return send_file(buffer, as_attachment=True, download_name=filename, 
+                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
