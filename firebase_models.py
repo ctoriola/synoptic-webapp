@@ -2,6 +2,7 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 from firebase_config import get_db
+from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
