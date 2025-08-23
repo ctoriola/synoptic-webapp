@@ -49,18 +49,22 @@ def register():
         elif User.query.filter_by(username=username).first():
             flash('Username already taken', 'error')
         else:
-            # Create new user
-            user = User(
-                username=username,
-                email=email,
-                password_hash=generate_password_hash(password)
-            )
-            db.session.add(user)
-            db.session.commit()
-            
-            login_user(user)
-            flash('Registration successful! Welcome to Synoptic.', 'success')
-            return redirect(url_for('dashboard.index'))
+            try:
+                # Create new user
+                user = User(
+                    username=username,
+                    email=email,
+                    password_hash=generate_password_hash(password)
+                )
+                db.session.add(user)
+                db.session.commit()
+                
+                login_user(user)
+                flash('Registration successful! Welcome to Synoptic.', 'success')
+                return redirect(url_for('dashboard.index'))
+            except Exception as e:
+                db.session.rollback()
+                flash('Registration failed. Database may not be initialized. Please contact support.', 'error')
     
     return render_template('auth/register.html')
 
