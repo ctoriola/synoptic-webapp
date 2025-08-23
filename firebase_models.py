@@ -149,8 +149,8 @@ class Project:
         db = get_db()
         projects = []
         if db:
+            # Simple query without ordering to avoid index requirement
             docs = db.collection('projects').where('user_id', '==', user_id)\
-                    .order_by('created_at', direction=firestore.Query.DESCENDING)\
                     .limit(limit).stream()
             
             for doc in docs:
@@ -166,6 +166,9 @@ class Project:
                     created_at=data.get('created_at'),
                     updated_at=data.get('updated_at')
                 ))
+            
+            # Sort in Python instead of Firestore to avoid index requirement
+            projects.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
         return projects
     
     @staticmethod
