@@ -104,6 +104,11 @@ class Project:
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
     
+    @property
+    def proposal_data(self):
+        """Alias for project_proposal to maintain template compatibility"""
+        return self.project_proposal or {}
+    
     def save(self):
         """Save project to Firestore"""
         db = get_db()
