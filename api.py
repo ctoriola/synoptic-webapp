@@ -164,7 +164,6 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
     model = genai.GenerativeModel(
         model_name="gemini-1.5-flash",
         generation_config={
-            "response_mime_type": "application/json",
             "max_output_tokens": 4096,
         },
     )
