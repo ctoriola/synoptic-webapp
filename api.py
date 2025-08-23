@@ -289,13 +289,26 @@ def api_generate():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@api_bp.route('/projects/<int:project_id>', methods=['GET'])
+@api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
 def get_project(project_id):
-    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
-    return jsonify(project.to_dict())
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    return jsonify({
+        'id': project.id,
+        'title': project.title,
+        'repo_url': project.repo_url,
+        'repo_owner': project.repo_owner,
+        'repo_name': project.repo_name,
+        'project_proposal': project.project_proposal,
+        'user_id': project.user_id,
+        'created_at': project.created_at.isoformat() if project.created_at else None,
+        'updated_at': project.updated_at.isoformat() if project.updated_at else None
+    })
 
-@api_bp.route('/projects/<int:project_id>/export/pdf', methods=['GET'])
+@api_bp.route('/projects/<project_id>/export/pdf', methods=['GET'])
 @login_required
 def export_project_pdf(project_id):
     # PDF export temporarily disabled due to reportlab build issues on Vercel
@@ -304,10 +317,12 @@ def export_project_pdf(project_id):
         'message': 'Please use DOCX export or copy the content manually'
     }), 503
 
-@api_bp.route('/projects/<int:project_id>/export/docx', methods=['GET'])
+@api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
 @login_required
 def export_project_docx(project_id):
-    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
     
     # Create DOCX document
     doc = Document()
