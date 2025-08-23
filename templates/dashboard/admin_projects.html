@@ -138,14 +138,8 @@
                         </div>
                         <div class="ml-5 w-0 flex-1">
                             <dl>
-                                <dt class="text-sm font-medium text-gray-500 truncate">Recent (7 days)</dt>
+                                <dt class="text-sm font-medium text-gray-500 truncate">With Created Date</dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {% set recent_count = 0 %}
-                                    {% for project in projects %}
-                                        {% if project.created_at and (project.created_at > (moment().subtract(7, 'days'))) %}
-                                            {% set recent_count = recent_count + 1 %}
-                                        {% endif %}
-                                    {% endfor %}
                                     {{ projects|selectattr('created_at')|list|length }}
                                 </dd>
                             </dl>
