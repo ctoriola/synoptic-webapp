@@ -18,7 +18,7 @@ from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
-from models import Project, db
+from firebase_models import Project
 
 api_bp = Blueprint('api', __name__)
 
@@ -271,27 +271,17 @@ def api_generate():
             "timeline": proposal.get("timeline", "Not specified")
         }
         
-        # Save to database with both legacy and new format
+        # Save to database
         project = Project(
             title=normalized.get("title", f"{owner}/{repo}"),
             repo_url=repo_url,
             repo_owner=owner,
             repo_name=repo,
-            # Legacy fields for backward compatibility (all strings)
-            introduction=normalized.get("introduction"),
-            problem_statement=normalized.get("problem_statement"),
-            solution=normalized.get("solution"),
-            target_audience=normalized.get("target_audience"),
-            technology_stack=normalized.get("technology_stack"),
-            future_scope=normalized.get("future_scope"),
+            project_proposal=complete_proposal_data,
             user_id=current_user.id
         )
         
-        # Set the complete proposal data using the property setter
-        project.proposal_data = complete_proposal_data
-        
-        db.session.add(project)
-        db.session.commit()
+        project.save()
         
         return jsonify({
             "project_proposal_json": normalized,

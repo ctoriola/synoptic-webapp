@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from werkzeug.security import check_password_hash, generate_password_hash
-from models import User, db
+from firebase_models import User
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -15,9 +14,9 @@ def login():
         password = request.form.get('password')
         remember = bool(request.form.get('remember'))
         
-        user = User.query.filter_by(email=email).first()
+        user = User.get_by_email(email)
         
-        if user and check_password_hash(user.password_hash, password):
+        if user and user.check_password(password):
             login_user(user, remember=remember)
             next_page = request.args.get('next')
             return redirect(next_page) if next_page else redirect(url_for('dashboard.index'))
@@ -44,27 +43,27 @@ def register():
             flash('Passwords do not match', 'error')
         elif len(password) < 6:
             flash('Password must be at least 6 characters long', 'error')
-        elif User.query.filter_by(email=email).first():
+        elif User.get_by_email(email):
             flash('Email already registered', 'error')
-        elif User.query.filter_by(username=username).first():
+        elif User.get_by_username(username):
             flash('Username already taken', 'error')
         else:
             try:
                 # Create new user
                 user = User(
                     username=username,
-                    email=email,
-                    password_hash=generate_password_hash(password)
+                    email=email
                 )
-                db.session.add(user)
-                db.session.commit()
+                user.set_password(password)
                 
-                login_user(user)
-                flash('Registration successful! Welcome to Synoptic.', 'success')
-                return redirect(url_for('dashboard.index'))
+                if user.save():
+                    login_user(user)
+                    flash('Registration successful! Welcome to Synoptic.', 'success')
+                    return redirect(url_for('dashboard.index'))
+                else:
+                    flash('Registration failed. Please try again.', 'error')
             except Exception as e:
-                db.session.rollback()
-                flash('Registration failed. Database may not be initialized. Please contact support.', 'error')
+                flash('Registration failed. Please try again.', 'error')
     
     return render_template('auth/register.html')
 
