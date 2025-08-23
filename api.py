@@ -9,10 +9,11 @@ import requests
 from flask import Blueprint, jsonify, request, send_file
 from flask_login import login_required, current_user
 import google.generativeai as genai
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
+# PDF generation temporarily disabled for Vercel compatibility
+# from reportlab.lib.pagesizes import letter, A4
+# from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+# from reportlab.lib.units import inch
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -308,81 +309,11 @@ def get_project(project_id):
 @api_bp.route('/projects/<int:project_id>/export/pdf', methods=['GET'])
 @login_required
 def export_project_pdf(project_id):
-    project = Project.query.filter_by(id=project_id, user_id=current_user.id).first_or_404()
-    
-    # Create PDF in memory
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
-    
-    # Get styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        spaceAfter=30,
-        alignment=1  # Center alignment
-    )
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=16,
-        spaceAfter=12,
-        spaceBefore=20
-    )
-    
-    # Build PDF content
-    story = []
-    
-    # Title
-    story.append(Paragraph(project.title, title_style))
-    story.append(Spacer(1, 20))
-    
-    # Repository info
-    story.append(Paragraph(f"<b>Repository:</b> {project.repo_owner}/{project.repo_name}", styles['Normal']))
-    story.append(Paragraph(f"<b>URL:</b> {project.repo_url}", styles['Normal']))
-    story.append(Paragraph(f"<b>Generated:</b> {project.created_at.strftime('%B %d, %Y')}", styles['Normal']))
-    story.append(Spacer(1, 20))
-    
-    # Proposal sections
-    if project.proposal_data:
-        proposal = project.proposal_data
-        
-        sections = [
-            ("Project Overview", proposal.get("project_overview") or proposal.get("introduction")),
-            ("Problem Statement", proposal.get("problem_statement")),
-            ("Solution", proposal.get("solution")),
-            ("Target Audience", proposal.get("target_audience")),
-            ("Technology Stack", proposal.get("technology_stack")),
-            ("Future Scope", proposal.get("future_scope"))
-        ]
-        
-        for section_title, content in sections:
-            if content and content != "Not available in README.":
-                story.append(Paragraph(section_title, heading_style))
-                story.append(Paragraph(content, styles['Normal']))
-                story.append(Spacer(1, 12))
-        
-        # Key Features
-        if proposal.get("key_features"):
-            story.append(Paragraph("Key Features", heading_style))
-            for feature in proposal["key_features"]:
-                story.append(Paragraph(f"• {feature}", styles['Normal']))
-            story.append(Spacer(1, 12))
-        
-        # Success Metrics
-        if proposal.get("success_metrics"):
-            story.append(Paragraph("Success Metrics", heading_style))
-            for metric in proposal["success_metrics"]:
-                story.append(Paragraph(f"• {metric}", styles['Normal']))
-            story.append(Spacer(1, 12))
-    
-    # Build PDF
-    doc.build(story)
-    buffer.seek(0)
-    
-    filename = f"{project.title.replace(' ', '_')}_proposal.pdf"
-    return send_file(buffer, as_attachment=True, download_name=filename, mimetype='application/pdf')
+    # PDF export temporarily disabled due to reportlab build issues on Vercel
+    return jsonify({
+        'error': 'PDF export temporarily unavailable',
+        'message': 'Please use DOCX export or copy the content manually'
+    }), 503
 
 @api_bp.route('/projects/<int:project_id>/export/docx', methods=['GET'])
 @login_required
