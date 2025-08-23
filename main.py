@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, jsonify
 from flask_login import current_user
-from models import db, User
-from werkzeug.security import generate_password_hash
+from firebase_models import User
 import os
 
 main_bp = Blueprint('main', __name__)
@@ -14,28 +13,27 @@ def index():
 
 @main_bp.route('/init-db')
 def init_database():
-    """Initialize database tables for production deployment"""
+    """Initialize Firebase database for production deployment"""
     try:
-        # Create all tables
-        db.create_all()
-        
         # Create admin user if it doesn't exist
-        admin = User.query.filter_by(email='admin@synoptic.com').first()
+        admin = User.get_by_email('admin@synoptic.com')
         if not admin:
             admin = User(
                 email='admin@synoptic.com',
                 username='admin',
-                password_hash=generate_password_hash('admin123'),
                 is_admin=True
             )
-            db.session.add(admin)
-            db.session.commit()
+            admin.set_password('admin123')
+            admin.save()
             
         return jsonify({
             'status': 'success',
-            'message': 'Database initialized successfully',
-            'tables_created': True,
-            'admin_user_created': True
+            'message': 'Firebase database initialized successfully',
+            'admin_user_created': True,
+            'admin_credentials': {
+                'email': 'admin@synoptic.com',
+                'password': 'admin123'
+            }
         })
     except Exception as e:
         return jsonify({
