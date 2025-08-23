@@ -7,4 +7,4 @@ requests==2.31.0
 google-generativeai==0.3.2
 python-dotenv==1.0.0
 python-docx==0.8.11
-pg8000==1.29.4
+psycopg2-binary==2.9.5
