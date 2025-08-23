@@ -21,11 +21,15 @@ def create_app():
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     
     # Database configuration - handle both local and production
-    database_url = os.getenv('DATABASE_URL', 'sqlite:///synoptic.db')
-    if database_url.startswith('postgres://'):
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        # Local development fallback
+        database_url = 'sqlite:///synoptic.db'
+    elif database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
     elif database_url.startswith('postgresql://'):
         database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -58,21 +62,23 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
     
-    # Create tables
-    with app.app_context():
-        db.create_all()
-        
-        # Create admin user if it doesn't exist
-        admin = User.query.filter_by(email='admin@synoptic.com').first()
-        if not admin:
-            admin = User(
-                email='admin@synoptic.com',
-                username='admin',
-                password_hash=generate_password_hash('admin123'),
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
+    # Create tables and admin user only for non-production environments
+    # Vercel has read-only filesystem, so we skip this for production
+    if not os.getenv('VERCEL'):
+        with app.app_context():
+            db.create_all()
+            
+            # Create admin user if it doesn't exist
+            admin = User.query.filter_by(email='admin@synoptic.com').first()
+            if not admin:
+                admin = User(
+                    email='admin@synoptic.com',
+                    username='admin',
+                    password_hash=generate_password_hash('admin123'),
+                    is_admin=True
+                )
+                db.session.add(admin)
+                db.session.commit()
     
     return app
 
