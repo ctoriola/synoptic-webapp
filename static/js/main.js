@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeDropdowns();
     initializeModals();
     initializeAnimations();
+    initializeMobileMenu();
 });
 
 // Tooltip initialization
@@ -14,6 +15,28 @@ function initializeTooltips() {
     tooltipElements.forEach(element => {
         element.addEventListener('mouseenter', showTooltip);
         element.addEventListener('mouseleave', hideTooltip);
+    });
+}
+
+// Mobile menu (hamburger) toggle
+function initializeMobileMenu() {
+    const button = document.getElementById('mobile-menu-button');
+    const menu = document.getElementById('mobile-menu');
+    if (!button || !menu) return;
+
+    button.addEventListener('click', function() {
+        const isHidden = menu.classList.contains('hidden');
+        menu.classList.toggle('hidden');
+        button.setAttribute('aria-expanded', String(isHidden));
+    });
+
+    // Close menu when a link inside it is clicked
+    menu.addEventListener('click', function(e) {
+        const target = e.target.closest('a');
+        if (target) {
+            menu.classList.add('hidden');
+            button.setAttribute('aria-expanded', 'false');
+        }
     });
 }
 
