@@ -5,10 +5,10 @@
 {% block content %}
 <!-- Hero Section -->
 <div class="relative bg-white overflow-hidden">
-    <div class="max-w-7xl mx-auto">
-        <div class="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:max-w-2xl lg:w-full lg:pb-28 xl:pb-32">
+    <div class="w-full">
+        <div class="relative z-10 pb-8 bg-white sm:pb-16 md:pb-20 lg:pb-28 xl:pb-32">
             <main class="mt-10 mx-auto max-w-7xl px-4 sm:mt-12 sm:px-6 md:mt-16 lg:mt-20 lg:px-8 xl:mt-28">
-                <div class="sm:text-center lg:text-left">
+                <div class="text-center">
                     <h1 class="text-4xl tracking-tight font-extrabold text-gray-900 sm:text-5xl md:text-6xl">
                         <span class="block xl:inline">Transform GitHub repos into</span>
                         <span class="block text-primary-600 xl:inline">professional proposals</span>
@@ -17,7 +17,7 @@
                         Leverage AI to automatically generate comprehensive project proposals from GitHub repositories. 
                         Save hours of documentation work and create compelling presentations for stakeholders.
                     </p>
-                    <div class="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start">
+                    <div class="mt-5 sm:mt-8 sm:flex sm:justify-center">
                         <div class="rounded-md shadow">
                             <a href="{{ url_for('auth.register') }}" class="w-full flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 md:py-4 md:text-lg md:px-10 transition-colors">
                                 Get started free
@@ -32,15 +32,7 @@
                 </div>
             </main>
         </div>
-    </div>
-    <div class="lg:absolute lg:inset-y-0 lg:right-0 lg:w-1/2">
-        <div class="h-56 w-full bg-gradient-to-br from-primary-400 to-primary-600 sm:h-72 md:h-96 lg:w-full lg:h-full flex items-center justify-center">
-            <div class="text-white text-center">
-                <img src="{{ url_for('static', filename='synoptic-main.png') }}" alt="Synoptic" class="h-20 mb-4 mx-auto opacity-90">
-                <p class="text-xl font-semibold opacity-90">AI-Powered Analysis</p>
-            </div>
-        </div>
-    </div>
+    </div>  
 </div>
 
 <!-- Features Section -->

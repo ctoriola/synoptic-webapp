@@ -163,6 +163,22 @@
     --primary-900: #7d2d28;
 }
 
+/* Force coral colors in dark mode */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --primary-50: #fef7f6 !important;
+        --primary-100: #fdeeed !important;
+        --primary-200: #fbd5d2 !important;
+        --primary-300: #f8b5af !important;
+        --primary-400: #f48c82 !important;
+        --primary-500: #ed6b5f !important;
+        --primary-600: #da4c3f !important;
+        --primary-700: #b73a2f !important;
+        --primary-800: #97312a !important;
+        --primary-900: #7d2d28 !important;
+    }
+}
+
 /* Override Tailwind primary colors with coral */
 .bg-primary-50 { background-color: var(--primary-50) !important; }
 .bg-primary-100 { background-color: var(--primary-100) !important; }
