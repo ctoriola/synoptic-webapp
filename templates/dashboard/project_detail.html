@@ -29,11 +29,21 @@
                         </p>
                         <!-- Mobile action buttons -->
                         <div class="flex sm:hidden items-center space-x-2 mt-2">
-                            <button onclick="copyProposal()" 
-                                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                                <i class="fas fa-copy mr-2"></i>
-                                Copy
-                            </button>
+                            <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
+                               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-file-alt mr-2"></i>
+                                View Proposal
+                            </a>
+                            <a href="{{ url_for('dashboard.documentation', project_id=project.id) }}" 
+                               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-book mr-2"></i>
+                                View Documentation
+                            </a>
+                            <a href="{{ url_for('dashboard.user_guide', project_id=project.id) }}" 
+                               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-question-circle mr-2"></i>
+                                View User Guide
+                            </a>
                             <div class="relative group">
                                 <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                                     <i class="fas fa-download mr-2"></i>
@@ -41,13 +51,17 @@
                                     <i class="fas fa-chevron-down ml-1"></i>
                                 </button>
                                 <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
-                                    <a href="/api/projects/{{ project.id }}/export/pdf" 
-                                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                        <i class="fas fa-file-pdf mr-2 text-red-600"></i> Export as PDF
-                                    </a>
                                     <a href="/api/projects/{{ project.id }}/export/docx" 
                                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                         <i class="fas fa-file-word mr-2 text-blue-600"></i> Export as DOCX
+                                    </a>
+                                    <a href="/api/generate-documentation/{{ project.id }}/export" 
+                                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-book mr-2 text-green-600"></i> Export Documentation
+                                    </a>
+                                    <a href="/api/generate-user-guide/{{ project.id }}/export" 
+                                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-question-circle mr-2 text-purple-600"></i> Export User Guide
                                     </a>
                                 </div>
                             </div>
@@ -56,11 +70,21 @@
                 </div>
             </div>
             <div class="hidden sm:flex items-center space-x-2">
-            <button onclick="copyProposal()" 
-                    class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                <i class="fas fa-copy mr-2"></i>
-                Copy
-            </button>
+            <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
+               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-file-alt mr-2"></i>
+                View Proposal
+            </a>
+            <a href="{{ url_for('dashboard.documentation', project_id=project.id) }}" 
+               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-book mr-2"></i>
+                View Documentation
+            </a>
+            <a href="{{ url_for('dashboard.user_guide', project_id=project.id) }}" 
+               class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-question-circle mr-2"></i>
+                View User Guide
+            </a>
             <div class="relative group">
                 <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                     <i class="fas fa-download mr-2"></i>
@@ -69,22 +93,16 @@
                 </button>
                 <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
                     <a href="{{ url_for('api.export_project', project_id=project.id, format='docx') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-word mr-2"></i> Export as DOCX
+                        <i class="fas fa-file-word mr-2 text-blue-600"></i> Export as DOCX
                     </a>
-                    <a href="{{ url_for('api.export_project_pdf', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-pdf mr-2"></i> Export as PDF
+                    <a href="/api/generate-documentation/{{ project.id }}/export" 
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-book mr-2 text-green-600"></i> Export Documentation
                     </a>
-                    <div class="border-t border-gray-100"></div>
-                    <a href="{{ url_for('dashboard.documentation', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-book mr-2"></i> View Documentation
+                    <a href="/api/generate-user-guide/{{ project.id }}/export" 
+                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-question-circle mr-2 text-purple-600"></i> Export User Guide
                     </a>
-                    <a href="{{ url_for('dashboard.user_guide', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-question-circle mr-2"></i> View User Guide
-                    </a>
-                    <button onclick="exportProposalJSON()"
-                            class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-code mr-2 text-green-600"></i> Export as JSON
-                    </button>
                 </div>
             </div>
             <div class="relative group">
@@ -311,19 +329,6 @@ function copyProposal() {
     });
 }
 
-function exportProposalJSON() {
-    const proposalData = {{ project.proposal_data | tojson | safe }};
-    const blob = new Blob([JSON.stringify(proposalData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `{{ project.title.replace(' ', '_') }}_proposal.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    SynopticUtils.showNotification('Proposal exported successfully!', 'success');
-}
 
 function shareProject() {
     const url = window.location.href;
