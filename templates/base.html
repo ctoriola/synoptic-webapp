@@ -166,10 +166,8 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 <div class="col-span-1 md:col-span-2">
                     <div class="flex items-center space-x-2 mb-4">
-                        <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
-                            <i class="fas fa-chart-line text-white text-sm"></i>
-                        </div>
-                        <span class="text-xl font-bold text-gray-900">Synoptic</span>
+                        <img src="{{ url_for('static', filename='synoptic-icon.png') }}" alt="Synoptic" class="w-8 h-8">
+                        <img src="{{ url_for('static', filename='synoptic-dark.png') }}" alt="Synoptic" class="h-6">
                     </div>
                     <p class="text-gray-600 text-sm max-w-md">
                         Transform GitHub repositories into professional project proposals using AI. 
