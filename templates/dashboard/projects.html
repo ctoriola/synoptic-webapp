@@ -8,12 +8,12 @@
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">My Projects</h1>
-            <p class="mt-1 text-sm text-gray-600">Manage and view all your generated project proposals</p>
+            <p class="mt-1 text-sm text-gray-600">Manage and view all your generated projects</p>
         </div>
         <a href="{{ url_for('dashboard.generator') }}" 
            class="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 w-full sm:w-auto">
             <i class="fas fa-plus mr-2"></i>
-            New Proposal
+            New Project
         </a>
     </div>
 
@@ -107,7 +107,7 @@
                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-eye mr-2"></i> View Details
                                 </a>
-                                <button onclick="copyProjectUrl('{{ url_for('dashboard.project_detail', project_id=project.id, _external=True) }}')"
+                                <button onclick="copyProjectUrl('{{ url_for(\'dashboard.project_detail\', project_id=project.id, _external=True) }}')" 
                                         class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-link mr-2"></i> Copy Link
                                 </button>
@@ -198,11 +198,11 @@
                 <i class="fas fa-folder-open text-4xl"></i>
             </div>
             <h3 class="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
-            <p class="text-gray-500 mb-6">Get started by generating your first project proposal from a GitHub repository.</p>
+            <p class="text-gray-500 mb-6">Get started by generating your first project from a GitHub repository.</p>
             <a href="{{ url_for('dashboard.generator') }}" 
                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                 <i class="fas fa-magic mr-2"></i>
-                Generate First Proposal
+                Generate First Project
             </a>
         </div>
     </div>
