@@ -579,6 +579,17 @@ def admin_change_user_plan():
     else:
         return jsonify({'success': False, 'error': 'Plan change failed'}), 500
 
+@api_bp.route('/export/<project_id>/<format>')
+@login_required
+def export_project(project_id, format):
+    """Export project proposal in various formats"""
+    if format == 'docx':
+        return export_project_docx(project_id)
+    elif format == 'pdf':
+        return export_project_pdf(project_id)
+    else:
+        return jsonify({'error': 'Unsupported format'}), 400
+
 @api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
 @login_required
 def export_project_docx(project_id):
