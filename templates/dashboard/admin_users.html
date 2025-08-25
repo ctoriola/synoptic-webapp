@@ -70,7 +70,7 @@
                                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
                                         </svg>
                                     </button>
-                                    <div id="plan-menu-{{ user.id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                                    <div id="plan-menu-{{ user.id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 origin-top-right">
                                         <button onclick="changePlan('{{ user.id }}', 'free')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                             Change to Free (3 tokens)
                                         </button>
@@ -163,12 +163,37 @@
 <script>
 function togglePlanMenu(userId) {
     const menu = document.getElementById(`plan-menu-${userId}`);
+    const button = menu.previousElementSibling;
+    
     // Close all other menus first
     document.querySelectorAll('[id^="plan-menu-"]').forEach(otherMenu => {
         if (otherMenu.id !== `plan-menu-${userId}`) {
             otherMenu.classList.add('hidden');
+            otherMenu.classList.remove('-translate-y-full');
         }
     });
+    
+    // Check if menu would be cut off at bottom of viewport
+    const rect = button.getBoundingClientRect();
+    const menuHeight = 120; // Approximate height of 3 menu items
+    const spaceBelow = window.innerHeight - rect.bottom;
+    
+    if (spaceBelow < menuHeight && rect.top > menuHeight) {
+        // Position menu above the button
+        menu.classList.add('-translate-y-full');
+        menu.style.bottom = '100%';
+        menu.style.top = 'auto';
+        menu.style.marginTop = '0';
+        menu.style.marginBottom = '0.5rem';
+    } else {
+        // Position menu below the button (default)
+        menu.classList.remove('-translate-y-full');
+        menu.style.top = '100%';
+        menu.style.bottom = 'auto';
+        menu.style.marginTop = '0.5rem';
+        menu.style.marginBottom = '0';
+    }
+    
     menu.classList.toggle('hidden');
 }
 
