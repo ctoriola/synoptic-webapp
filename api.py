@@ -350,6 +350,37 @@ def upgrade_account():
     else:
         return jsonify({'success': False, 'error': 'Upgrade failed'}), 500
 
+@api_bp.route('/admin/change-user-plan', methods=['POST'])
+@login_required
+def admin_change_user_plan():
+    """Admin endpoint to change user account plans"""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    new_tier = data.get('tier')
+    
+    if not user_id or new_tier not in ['free', 'basic', 'pro']:
+        return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+    
+    # Get the user to modify
+    from firebase_models import User
+    user = User.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    # Change the user's plan
+    if user.upgrade_account(new_tier):
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'tier': user.account_tier,
+            'tokens': user.tokens
+        })
+    else:
+        return jsonify({'success': False, 'error': 'Plan change failed'}), 500
+
 @api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
 @login_required
 def export_project_docx(project_id):
