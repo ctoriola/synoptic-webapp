@@ -731,20 +731,70 @@ def export_user_guide_docx(project_id):
     if project.user_guide:
         user_guide = project.user_guide
         
-        sections = [
-            ("Getting Started", user_guide.get("getting_started")),
-            ("Installation", user_guide.get("installation")),
-            ("Basic Usage", user_guide.get("basic_usage")),
-            ("Advanced Features", user_guide.get("advanced_features")),
-            ("Troubleshooting", user_guide.get("troubleshooting")),
-            ("FAQ", user_guide.get("faq"))
-        ]
-        
-        for section_title, content in sections:
-            if content and content != "Not available in README.":
-                doc.add_heading(section_title, level=1)
-                doc.add_paragraph(content)
-                doc.add_paragraph()
+        # Check if user guide has content field (new format) or individual sections (old format)
+        if 'content' in user_guide:
+            # New format - single content field
+            content = user_guide.get('content', '')
+            if content and content.strip():
+                # Split content by markdown headers and add to document
+                lines = content.split('\n')
+                current_section = ""
+                current_content = []
+                
+                for line in lines:
+                    if line.startswith('**') and line.endswith('**'):
+                        # Save previous section
+                        if current_section and current_content:
+                            doc.add_heading(current_section, level=1)
+                            doc.add_paragraph('\n'.join(current_content))
+                            doc.add_paragraph()
+                        
+                        # Start new section
+                        current_section = line.strip('*').strip()
+                        current_content = []
+                    elif line.startswith('#'):
+                        # Save previous section
+                        if current_section and current_content:
+                            doc.add_heading(current_section, level=1)
+                            doc.add_paragraph('\n'.join(current_content))
+                            doc.add_paragraph()
+                        
+                        # Start new section
+                        current_section = line.lstrip('#').strip()
+                        current_content = []
+                    else:
+                        if line.strip():
+                            current_content.append(line)
+                
+                # Add final section
+                if current_section and current_content:
+                    doc.add_heading(current_section, level=1)
+                    doc.add_paragraph('\n'.join(current_content))
+                    doc.add_paragraph()
+                
+                # If no sections were found, add all content as one block
+                if not current_section:
+                    doc.add_heading("User Guide", level=1)
+                    doc.add_paragraph(content)
+                    doc.add_paragraph()
+            else:
+                doc.add_paragraph("User guide content is empty.")
+        else:
+            # Old format - individual sections
+            sections = [
+                ("Getting Started", user_guide.get("getting_started")),
+                ("Installation", user_guide.get("installation")),
+                ("Basic Usage", user_guide.get("basic_usage")),
+                ("Advanced Features", user_guide.get("advanced_features")),
+                ("Troubleshooting", user_guide.get("troubleshooting")),
+                ("FAQ", user_guide.get("faq"))
+            ]
+            
+            for section_title, content in sections:
+                if content and content != "Not available in README.":
+                    doc.add_heading(section_title, level=1)
+                    doc.add_paragraph(content)
+                    doc.add_paragraph()
     else:
         doc.add_paragraph("User guide not yet generated for this project.")
     
