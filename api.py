@@ -677,8 +677,8 @@ def export_documentation_docx(project_id):
     doc.add_paragraph()
     
     # Documentation sections
-    if project.documentation_data:
-        documentation = project.documentation_data
+    if project.documentation:
+        documentation = project.documentation
         
         sections = [
             ("Architecture Overview", documentation.get("architecture_overview")),
@@ -728,8 +728,8 @@ def export_user_guide_docx(project_id):
     doc.add_paragraph()
     
     # User guide sections
-    if project.user_guide_data:
-        user_guide = project.user_guide_data
+    if project.user_guide:
+        user_guide = project.user_guide
         
         sections = [
             ("Getting Started", user_guide.get("getting_started")),
