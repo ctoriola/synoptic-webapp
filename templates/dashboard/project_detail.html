@@ -68,13 +68,18 @@
                     <i class="fas fa-chevron-down ml-1"></i>
                 </button>
                 <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
-                    <a href="/api/projects/{{ project.id }}/export/pdf" 
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-pdf mr-2 text-red-600"></i> Export as PDF
+                    <a href="{{ url_for('api.export_project', project_id=project.id, format='docx') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-file-word mr-2"></i> Export as DOCX
                     </a>
-                    <a href="/api/projects/{{ project.id }}/export/docx" 
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        <i class="fas fa-file-word mr-2 text-blue-600"></i> Export as DOCX
+                    <a href="{{ url_for('api.export_project_pdf', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-file-pdf mr-2"></i> Export as PDF
+                    </a>
+                    <div class="border-t border-gray-100"></div>
+                    <a href="{{ url_for('dashboard.documentation', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-book mr-2"></i> View Documentation
+                    </a>
+                    <a href="{{ url_for('dashboard.user_guide', project_id=project.id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <i class="fas fa-question-circle mr-2"></i> View User Guide
                     </a>
                     <button onclick="exportProposalJSON()"
                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">

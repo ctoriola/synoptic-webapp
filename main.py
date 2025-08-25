@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, jsonify
 from flask_login import current_user
 from firebase_models import User
 import os
+import markdown
 
 main_bp = Blueprint('main', __name__)
 

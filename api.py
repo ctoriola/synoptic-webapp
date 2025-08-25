@@ -298,8 +298,206 @@ def api_generate():
             "project_id": project.id,
             "tokens_remaining": current_user.tokens
         })
+    
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@api_bp.route('/generate-documentation/<project_id>')
+@login_required
+def generate_documentation(project_id):
+    """Generate technical documentation for a project"""
+    project = Project.get(project_id)
+    
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found or access denied'}), 404
+    
+    if not current_user.can_generate_proposal():
+        return jsonify({'error': 'No tokens available for documentation generation'}), 400
+    
+    try:
+        # Configure Gemini AI
+        if not GOOGLE_API_KEY:
+            return jsonify({'error': 'AI service not configured'}), 500
+        
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Get repository content for context
+        repo_content = ""
+        if project.repo_owner and project.repo_name:
+            readme_content, _ = try_fetch_readme_raw(project.repo_owner, project.repo_name)
+            if not readme_content:
+                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name)
+            if readme_content:
+                repo_content = f"README Content:\n{readme_content}\n\n"
+        
+        # Create documentation generation prompt
+        prompt = f"""Generate comprehensive technical documentation for the following project:
+
+Project: {project.title}
+Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
+
+{repo_content}
+
+Please generate detailed technical documentation that includes:
+
+1. **Architecture Overview**
+   - System architecture and design patterns
+   - Technology stack and dependencies
+   - Database schema (if applicable)
+
+2. **API Documentation**
+   - Endpoints and their purposes
+   - Request/response formats
+   - Authentication requirements
+
+3. **Installation & Setup**
+   - Prerequisites and requirements
+   - Step-by-step installation guide
+   - Configuration instructions
+
+4. **Development Guide**
+   - Project structure explanation
+   - Coding standards and conventions
+   - Testing procedures
+
+5. **Deployment**
+   - Deployment requirements
+   - Environment configuration
+   - Production considerations
+
+6. **Troubleshooting**
+   - Common issues and solutions
+   - Debug procedures
+   - Performance optimization
+
+Format the response as structured markdown with clear headings and code examples where appropriate.
+"""
+        
+        # Generate documentation
+        response = model.generate_content(prompt)
+        documentation_content = response.text
+        
+        # Save documentation to project
+        project.documentation = {
+            'content': documentation_content,
+            'generated_at': datetime.utcnow().isoformat(),
+            'version': '1.0'
+        }
+        
+        # Use a token for documentation generation
+        current_user.use_token()
+        project.save()
+        
+        return jsonify({
+            'success': True,
+            'documentation': project.documentation,
+            'tokens_remaining': current_user.tokens
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Documentation generation failed: {str(e)}'}), 500
+
+@api_bp.route('/generate-user-guide/<project_id>')
+@login_required
+def generate_user_guide(project_id):
+    """Generate user guide for a project"""
+    project = Project.get(project_id)
+    
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found or access denied'}), 404
+    
+    if not current_user.can_generate_proposal():
+        return jsonify({'error': 'No tokens available for user guide generation'}), 400
+    
+    try:
+        # Configure Gemini AI
+        if not GOOGLE_API_KEY:
+            return jsonify({'error': 'AI service not configured'}), 500
+        
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Get repository content for context
+        repo_content = ""
+        if project.repo_owner and project.repo_name:
+            readme_content, _ = try_fetch_readme_raw(project.repo_owner, project.repo_name)
+            if not readme_content:
+                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name)
+            if readme_content:
+                repo_content = f"README Content:\n{readme_content}\n\n"
+        
+        # Create user guide generation prompt
+        prompt = f"""Generate a comprehensive user guide for the following project:
+
+Project: {project.title}
+Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
+
+{repo_content}
+
+Please generate a user-friendly guide that includes:
+
+1. **Getting Started**
+   - What this application does
+   - Who should use it
+   - System requirements
+
+2. **Installation Guide**
+   - Simple installation steps
+   - Initial setup and configuration
+   - First-time user setup
+
+3. **User Interface Guide**
+   - Navigation overview
+   - Main features and functions
+   - Screenshots or descriptions of key screens
+
+4. **Step-by-Step Tutorials**
+   - Common use cases with detailed steps
+   - Example workflows
+   - Tips and best practices
+
+5. **Features Reference**
+   - Complete feature list with descriptions
+   - Settings and customization options
+   - Advanced features
+
+6. **Troubleshooting & FAQ**
+   - Common user issues and solutions
+   - Frequently asked questions
+   - Where to get help
+
+7. **Tips & Best Practices**
+   - How to get the most out of the application
+   - Performance tips
+   - Security considerations for users
+
+Write in a friendly, accessible tone suitable for end users. Use clear headings, bullet points, and step-by-step instructions.
+"""
+        
+        # Generate user guide
+        response = model.generate_content(prompt)
+        user_guide_content = response.text
+        
+        # Save user guide to project
+        project.user_guide = {
+            'content': user_guide_content,
+            'generated_at': datetime.utcnow().isoformat(),
+            'version': '1.0'
+        }
+        
+        # Use a token for user guide generation
+        current_user.use_token()
+        project.save()
+        
+        return jsonify({
+            'success': True,
+            'user_guide': project.user_guide,
+            'tokens_remaining': current_user.tokens
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'User guide generation failed: {str(e)}'}), 500
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required

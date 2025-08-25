@@ -165,13 +165,15 @@ class User(UserMixin):
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 
-                 project_proposal=None, user_id=None, created_at=None, updated_at=None):
+                 project_proposal=None, documentation=None, user_guide=None, user_id=None, created_at=None, updated_at=None):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.repo_url = repo_url
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.project_proposal = project_proposal or {}
+        self.documentation = documentation or {}
+        self.user_guide = user_guide or {}
         self.user_id = user_id
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
@@ -191,6 +193,8 @@ class Project:
                 'repo_owner': self.repo_owner,
                 'repo_name': self.repo_name,
                 'project_proposal': self.project_proposal,
+                'documentation': self.documentation,
+                'user_guide': self.user_guide,
                 'user_id': self.user_id,
                 'created_at': self.created_at,
                 'updated_at': datetime.utcnow()
@@ -214,6 +218,8 @@ class Project:
                     repo_owner=data.get('repo_owner'),
                     repo_name=data.get('repo_name'),
                     project_proposal=data.get('project_proposal', {}),
+                    documentation=data.get('documentation', {}),
+                    user_guide=data.get('user_guide', {}),
                     user_id=data.get('user_id'),
                     created_at=data.get('created_at'),
                     updated_at=data.get('updated_at')
@@ -315,6 +321,8 @@ class Project:
                         repo_owner=data.get('repo_owner'),
                         repo_name=data.get('repo_name'),
                         project_proposal=data.get('project_proposal', {}),
+                        documentation=data.get('documentation', {}),
+                        user_guide=data.get('user_guide', {}),
                         user_id=data.get('user_id'),
                         created_at=data.get('created_at'),
                         updated_at=data.get('updated_at')

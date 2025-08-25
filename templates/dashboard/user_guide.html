@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}User Guide - {{ project.title }} - Synoptic{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">User Guide</h1>
+                <p class="mt-2 text-gray-600">{{ project.title }}</p>
+            </div>
+            <div class="flex space-x-4">
+                <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Project
+                </a>
+            </div>
+        </div>
+
+        <!-- User Guide Content -->
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            {% if project.user_guide and project.user_guide.content %}
+                <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-lg leading-6 font-medium text-gray-900">User Guide</h3>
+                            <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                                Generated on {{ project.user_guide.generated_at[:10] if project.user_guide.generated_at else 'Unknown' }}
+                            </p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="copyToClipboard()" class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                Copy
+                            </button>
+                            <button onclick="regenerateUserGuide()" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                                Regenerate
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="px-4 py-5 sm:px-6">
+                    <div id="user-guide-content" class="prose max-w-none">
+                        {{ project.user_guide.content | markdown | safe }}
+                    </div>
+                </div>
+            {% else %}
+                <div class="px-4 py-12 text-center">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">No user guide generated</h3>
+                    <p class="mt-1 text-sm text-gray-500">Generate a user-friendly guide for this project.</p>
+                    <div class="mt-6">
+                        <button onclick="generateUserGuide()" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                            </svg>
+                            Generate User Guide
+                        </button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100">
+                <svg class="animate-spin h-6 w-6 text-primary-600" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mt-2">Generating User Guide</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500">This may take a few moments...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function generateUserGuide() {
+    showLoadingModal();
+    
+    fetch(`/api/generate-user-guide/{{ project.id }}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideLoadingModal();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error generating user guide: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        hideLoadingModal();
+        console.error('Error:', error);
+        alert('Error generating user guide: ' + error.message);
+    });
+}
+
+function regenerateUserGuide() {
+    if (confirm('Are you sure you want to regenerate the user guide? This will replace the current content and use a token.')) {
+        generateUserGuide();
+    }
+}
+
+function copyToClipboard() {
+    const content = document.getElementById('user-guide-content').innerText;
+    navigator.clipboard.writeText(content).then(() => {
+        // Show success message
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>Copied!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function showLoadingModal() {
+    document.getElementById('loadingModal').classList.remove('hidden');
+}
+
+function hideLoadingModal() {
+    document.getElementById('loadingModal').classList.add('hidden');
+}
+</script>
+{% endblock %}

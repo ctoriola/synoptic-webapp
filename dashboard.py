@@ -36,6 +36,30 @@ def index():
 def generator():
     return render_template('dashboard/generator.html')
 
+@dashboard_bp.route('/documentation/<project_id>')
+@login_required
+def documentation(project_id):
+    """View project documentation"""
+    project = Project.get(project_id)
+    
+    if not project or project.user_id != current_user.id:
+        flash('Project not found or access denied.', 'error')
+        return redirect(url_for('dashboard.projects'))
+    
+    return render_template('dashboard/documentation.html', project=project)
+
+@dashboard_bp.route('/user-guide/<project_id>')
+@login_required
+def user_guide(project_id):
+    """View project user guide"""
+    project = Project.get(project_id)
+    
+    if not project or project.user_id != current_user.id:
+        flash('Project not found or access denied.', 'error')
+        return redirect(url_for('dashboard.projects'))
+    
+    return render_template('dashboard/user_guide.html', project=project)
+
 @dashboard_bp.route('/search')
 @login_required
 def search():
