@@ -6,19 +6,19 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
     <div class="mb-8">
-        <div class="flex justify-between items-center">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Welcome back, {{ current_user.username }}!</h1>
                 <p class="mt-1 text-sm text-gray-600">Here's what's happening with your projects today.</p>
             </div>
-            <div class="text-right">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+            <div class="flex flex-col sm:text-right gap-2">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium w-fit sm:ml-auto
                     {% if current_user.account_tier == 'pro' %}bg-purple-100 text-purple-800
                     {% elif current_user.account_tier == 'basic' %}bg-blue-100 text-blue-800
                     {% else %}bg-gray-100 text-gray-800{% endif %}">
                     {{ current_user.account_tier|title }} Plan
                 </span>
-                <p class="mt-1 text-sm text-gray-500">{{ current_user.tokens }} tokens remaining</p>
+                <p class="text-sm text-gray-500">{{ current_user.tokens }} tokens remaining</p>
             </div>
         </div>
     </div>
@@ -151,23 +151,23 @@
             </div>
             <div class="space-y-4">
                 {% for project in recent_projects %}
-                <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
-                    <div class="flex items-center space-x-4">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors gap-3">
+                    <div class="flex items-center space-x-4 min-w-0 flex-1">
                         <div class="flex-shrink-0">
                             <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center">
                                 <i class="fab fa-github text-white"></i>
                             </div>
                         </div>
-                        <div>
-                            <h4 class="text-sm font-medium text-gray-900">{{ project.title }}</h4>
-                            <p class="text-sm text-gray-500">{{ project.repo_owner }}/{{ project.repo_name }}</p>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="text-sm font-medium text-gray-900 truncate">{{ project.title }}</h4>
+                            <p class="text-sm text-gray-500 truncate">{{ project.repo_owner }}/{{ project.repo_name }}</p>
                             <p class="text-xs text-gray-400">{{ project.created_at.strftime('%B %d, %Y') }}</p>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 flex-shrink-0">
                         <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
-                           class="text-primary-600 hover:text-primary-500 text-sm font-medium">
-                            View
+                           class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            View Project
                         </a>
                     </div>
                 </div>

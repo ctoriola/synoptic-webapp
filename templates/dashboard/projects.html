@@ -5,13 +5,13 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">My Projects</h1>
             <p class="mt-1 text-sm text-gray-600">Manage and view all your generated project proposals</p>
         </div>
         <a href="{{ url_for('dashboard.generator') }}" 
-           class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+           class="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 w-full sm:w-auto">
             <i class="fas fa-plus mr-2"></i>
             New Proposal
         </a>
@@ -33,13 +33,13 @@
                                class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                     </div>
                 </div>
-                <div class="flex gap-2">
-                    <select class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <select class="block flex-1 sm:w-32 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm rounded-md">
                         <option>All Projects</option>
                         <option>Recent</option>
                         <option>Older</option>
                     </select>
-                    <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex-shrink-0">
                         <i class="fas fa-filter"></i>
                     </button>
                 </div>
@@ -57,25 +57,25 @@
         </div>
         <ul class="divide-y divide-gray-200">
             {% for project in projects.items %}
-            <li class="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
+            <li class="px-4 sm:px-6 py-4 hover:bg-gray-50 transition-colors">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center space-x-4 min-w-0 flex-1">
                         <div class="flex-shrink-0">
                             <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
                                 <i class="fab fa-github text-white text-lg"></i>
                             </div>
                         </div>
                         <div class="min-w-0 flex-1">
-                            <div class="flex items-center space-x-2">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <h4 class="text-sm font-medium text-gray-900 truncate">
                                     {{ project.title }}
                                 </h4>
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">
                                     Complete
                                 </span>
                             </div>
-                            <div class="flex items-center space-x-4 mt-1">
-                                <p class="text-sm text-gray-500">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1">
+                                <p class="text-sm text-gray-500 truncate">
                                     <i class="fab fa-github mr-1"></i>
                                     {{ project.repo_owner }}/{{ project.repo_name }}
                                 </p>
@@ -86,17 +86,17 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center justify-end space-x-2 flex-shrink-0">
                         <a href="{{ project.repo_url }}" 
                            target="_blank"
-                           class="text-gray-400 hover:text-gray-600"
+                           class="text-gray-400 hover:text-gray-600 p-2 sm:p-1"
                            data-tooltip="View Repository">
                             <i class="fas fa-external-link-alt"></i>
                         </a>
                         <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                             <i class="fas fa-eye mr-1"></i>
-                            View
+                            <span class="hidden sm:inline">View</span>
                         </a>
                         <div class="relative group">
                             <button class="inline-flex items-center p-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
