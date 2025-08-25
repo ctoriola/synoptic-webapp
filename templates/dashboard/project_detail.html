@@ -5,30 +5,19 @@
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
-        <div class="flex items-center space-x-4">
-            <a href="{{ url_for('dashboard.projects') }}" 
-               class="text-gray-400 hover:text-gray-600"
-               data-tooltip="Back to Projects">
-                <i class="fas fa-arrow-left text-xl"></i>
-            </a>
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">{{ project.title }}</h1>
-                <div class="flex items-center space-x-4 mt-1">
-                    <p class="text-sm text-gray-500">
-                        <i class="fab fa-github mr-1"></i>
-                        <a href="{{ project.repo_url }}" target="_blank" class="hover:text-primary-600">
-                            {{ project.repo_owner }}/{{ project.repo_name }}
-                        </a>
-                    </p>
-                    <p class="text-sm text-gray-500">
-                        <i class="fas fa-calendar mr-1"></i>
-                        {{ project.created_at.strftime('%B %d, %Y at %I:%M %p') }}
-                    </p>
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-4">
+                <a href="{{ url_for('dashboard.projects') }}" 
+                   class="text-gray-400 hover:text-gray-600"
+                   data-tooltip="Back to Projects">
+                    <i class="fas fa-arrow-left text-xl"></i>
+                </a>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">{{ project.title }}</h1>
                 </div>
             </div>
-        </div>
-        <div class="flex items-center space-x-2">
+            <div class="hidden sm:flex items-center space-x-2">
             <button onclick="copyProposal()" 
                     class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                 <i class="fas fa-copy mr-2"></i>
@@ -77,6 +66,49 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Mobile-responsive repo info and actions -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <p class="text-sm text-gray-500">
+                    <i class="fab fa-github mr-1"></i>
+                    <a href="{{ project.repo_url }}" target="_blank" class="hover:text-primary-600">
+                        {{ project.repo_owner }}/{{ project.repo_name }}
+                    </a>
+                </p>
+                <p class="text-sm text-gray-500">
+                    <i class="fas fa-calendar mr-1"></i>
+                    {{ project.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                </p>
+            </div>
+            
+            <!-- Mobile action buttons -->
+            <div class="flex sm:hidden items-center space-x-2">
+                <button onclick="copyProposal()" 
+                        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                    <i class="fas fa-copy mr-2"></i>
+                    Copy
+                </button>
+                <div class="relative group">
+                    <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i class="fas fa-download mr-2"></i>
+                        Export
+                        <i class="fas fa-chevron-down ml-1"></i>
+                    </button>
+                    <div class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
+                        <a href="/api/projects/{{ project.id }}/export/pdf" 
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-file-pdf mr-2 text-red-600"></i> Export as PDF
+                        </a>
+                        <a href="/api/projects/{{ project.id }}/export/docx" 
+                           class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            <i class="fas fa-file-word mr-2 text-blue-600"></i> Export as DOCX
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     </div>
 
     <!-- Project Proposal Content -->
