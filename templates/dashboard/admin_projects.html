@@ -22,13 +22,15 @@
         <!-- Projects Table -->
         <div class="bg-white shadow overflow-hidden sm:rounded-md">
             <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">All Projects ({{ projects|length }})</h3>
+                <h3 class="text-lg leading-6 font-medium text-gray-900">All Projects ({{ projects_with_users|length }})</h3>
                 <p class="mt-1 max-w-2xl text-sm text-gray-500">Projects created by all users</p>
             </div>
             
-            {% if projects %}
+            {% if projects_with_users %}
             <ul class="divide-y divide-gray-200">
-                {% for project in projects %}
+                {% for item in projects_with_users %}
+                {% set project = item.project %}
+                {% set user = item.user %}
                 <li class="px-4 py-4 sm:px-6">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center min-w-0 flex-1">
@@ -52,7 +54,11 @@
                                 <div class="flex items-center mt-1">
                                     <p class="text-sm text-gray-500 truncate">{{ project.repo_owner }}/{{ project.repo_name }}</p>
                                     <span class="mx-2 text-gray-300">•</span>
-                                    <p class="text-sm text-gray-500">User ID: {{ project.user_id[:8] }}...</p>
+                                    {% if user %}
+                                        <p class="text-sm font-medium text-blue-600">{{ user.username }}</p>
+                                        <span class="mx-2 text-gray-300">•</span>
+                                    {% endif %}
+                                    <p class="text-sm text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">ID: {{ project.user_id[:12] }}...</p>
                                 </div>
                                 <p class="text-xs text-gray-400 mt-1">
                                     <a href="{{ project.repo_url }}" target="_blank" class="hover:text-blue-600">{{ project.repo_url }}</a>
@@ -67,12 +73,11 @@
                                 {% endif %}
                             </div>
                             <div class="flex-shrink-0">
-                                <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" class="text-blue-600 hover:text-blue-900">
+                                <span class="text-gray-400">
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                     </svg>
-                                </a>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -103,7 +108,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Total Projects</dt>
-                                <dd class="text-lg font-medium text-gray-900">{{ projects|length }}</dd>
+                                <dd class="text-lg font-medium text-gray-900">{{ projects_with_users|length }}</dd>
                             </dl>
                         </div>
                     </div>
@@ -121,7 +126,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">With AI Proposals</dt>
-                                <dd class="text-lg font-medium text-gray-900">{{ projects|selectattr('project_proposal')|selectattr('project_proposal', 'mapping')|list|length }}</dd>
+                                <dd class="text-lg font-medium text-gray-900">{{ projects_with_users|selectattr('project.project_proposal')|list|length }}</dd>
                             </dl>
                         </div>
                     </div>
@@ -140,7 +145,7 @@
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">With Created Date</dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {{ projects|selectattr('created_at')|list|length }}
+                                    {{ projects_with_users|selectattr('project.created_at')|list|length }}
                                 </dd>
                             </dl>
                         </div>
@@ -159,7 +164,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Unique Users</dt>
-                                <dd class="text-lg font-medium text-gray-900">{{ projects|map(attribute='user_id')|unique|list|length }}</dd>
+                                <dd class="text-lg font-medium text-gray-900">{{ projects_with_users|map(attribute='project.user_id')|unique|list|length }}</dd>
                             </dl>
                         </div>
                     </div>

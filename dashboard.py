@@ -91,7 +91,18 @@ def admin_users():
 def admin_projects():
     """Admin project management page"""
     projects = Project.get_all_projects(limit=100)
-    return render_template('dashboard/admin_projects.html', projects=projects)
+    
+    # Get user information for each project
+    projects_with_users = []
+    for project in projects:
+        user = User.get(project.user_id) if project.user_id else None
+        project_data = {
+            'project': project,
+            'user': user
+        }
+        projects_with_users.append(project_data)
+    
+    return render_template('dashboard/admin_projects.html', projects_with_users=projects_with_users)
 
 @dashboard_bp.route('/projects')
 @login_required
