@@ -149,18 +149,18 @@
 
 /* Custom CSS for Synoptic */
 
-/* Blue Color Palette */
+/* Coral/Peach Color Palette */
 :root {
-    --primary-50: #eff6ff;
-    --primary-100: #dbeafe;
-    --primary-200: #bfdbfe;
-    --primary-300: #93c5fd;
-    --primary-400: #60a5fa;
-    --primary-500: #3b82f6;
-    --primary-600: #2563eb;
-    --primary-700: #1d4ed8;
-    --primary-800: #1e40af;
-    --primary-900: #1e3a8a;
+    --primary-50: #fef7f6;
+    --primary-100: #fdeeed;
+    --primary-200: #fbd5d2;
+    --primary-300: #f8b5af;
+    --primary-400: #f48c82;
+    --primary-500: #ed6b5f;
+    --primary-600: #da4c3f;
+    --primary-700: #b73a2f;
+    --primary-800: #97312a;
+    --primary-900: #7d2d28;
 }
 
 /* Override Tailwind primary colors with blue */
