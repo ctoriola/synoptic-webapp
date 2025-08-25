@@ -27,12 +27,13 @@
             </div>
             
             {% if projects_with_users %}
-            <ul class="divide-y divide-gray-200">
+            <div class="overflow-x-auto">
+                <ul class="divide-y divide-gray-200">
                 {% for item in projects_with_users %}
                 {% set project = item.project %}
                 {% set user = item.user %}
                 <li class="px-4 py-4 sm:px-6">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between min-w-max">
                         <div class="flex items-center min-w-0 flex-1">
                             <div class="flex-shrink-0">
                                 <svg class="h-10 w-10 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -84,6 +85,7 @@
                 </li>
                 {% endfor %}
             </ul>
+            </div>
             {% else %}
             <div class="px-4 py-12 text-center">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -27,10 +27,11 @@
             </div>
             
             {% if users %}
-            <ul class="divide-y divide-gray-200">
+            <div class="overflow-x-auto">
+                <ul class="divide-y divide-gray-200">
                 {% for user in users %}
                 <li class="px-4 py-4 sm:px-6">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between min-w-max">
                         <div class="flex items-center">
                             <div class="flex-shrink-0">
                                 <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center">
@@ -88,6 +89,7 @@
                 </li>
                 {% endfor %}
             </ul>
+            </div>
             {% else %}
             <div class="px-4 py-12 text-center">
                 <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
