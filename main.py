@@ -11,6 +11,61 @@ def index():
         return redirect(url_for('dashboard.index'))
     return render_template('landing.html')
 
+@main_bp.route('/init-admin')
+def init_admin():
+    """Initialize admin user - for development only"""
+    from firebase_models import User
+    
+    # Check if admin already exists
+    admin = User.get_by_username('admin')
+    if admin:
+        return "Admin user already exists!"
+    
+    # Create admin user
+    admin = User(
+        username='admin',
+        email='admin@synoptic.com',
+        is_admin=True,
+        account_tier='pro',
+        tokens=50
+    )
+    admin.set_password('admin123')  # Change this in production!
+    
+    if admin.save():
+        return "Admin user created successfully! Username: admin, Password: admin123"
+    else:
+        return "Failed to create admin user"
+
+@main_bp.route('/migrate-users')
+def migrate_users():
+    """Migrate existing users to free tier - run once after deployment"""
+    from firebase_models import User
+    from firebase_config import get_db
+    
+    db = get_db()
+    if not db:
+        return "Database connection failed"
+    
+    updated_count = 0
+    users_collection = db.collection('users')
+    
+    # Get all users
+    docs = users_collection.stream()
+    
+    for doc in docs:
+        data = doc.to_dict()
+        
+        # Check if user already has account_tier and tokens
+        if 'account_tier' not in data or 'tokens' not in data:
+            # Update user with free tier defaults
+            users_collection.document(doc.id).update({
+                'account_tier': 'free',
+                'tokens': 3
+            })
+            updated_count += 1
+    
+    return f"Migration completed! Updated {updated_count} users to free tier with 3 tokens."
+
 @main_bp.route('/init-db')
 def init_database():
     """Initialize Firebase database for production deployment"""

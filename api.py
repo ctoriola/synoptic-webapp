@@ -211,6 +211,14 @@ def api_fetch_readme():
 @api_bp.route('/generate', methods=['POST'])
 @login_required
 def api_generate():
+    # Check if user has tokens available
+    if not current_user.can_generate_proposal():
+        return jsonify({
+            "error": "Insufficient tokens. Please upgrade your account to generate more proposals.",
+            "tokens_remaining": current_user.tokens,
+            "account_tier": current_user.account_tier
+        }), 403
+
     data = request.get_json(silent=True) or {}
     repo_url = (data.get("repo_url") or "").strip()
 
@@ -282,9 +290,13 @@ def api_generate():
         
         project.save()
         
+        # Deduct token after successful proposal generation
+        current_user.use_token()
+        
         return jsonify({
             "project_proposal_json": normalized,
-            "project_id": project.id
+            "project_id": project.id,
+            "tokens_remaining": current_user.tokens
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -316,6 +328,27 @@ def export_project_pdf(project_id):
         'error': 'PDF export temporarily unavailable',
         'message': 'Please use DOCX export or copy the content manually'
     }), 503
+
+@api_bp.route('/upgrade-account', methods=['POST'])
+@login_required
+def upgrade_account():
+    """Upgrade user account tier"""
+    data = request.get_json()
+    new_tier = data.get('tier')
+    
+    if new_tier not in ['basic', 'pro']:
+        return jsonify({'success': False, 'error': 'Invalid tier'}), 400
+    
+    # In a real app, you'd integrate with a payment processor here
+    # For demo purposes, we'll just upgrade the account
+    if current_user.upgrade_account(new_tier):
+        return jsonify({
+            'success': True, 
+            'tier': current_user.account_tier,
+            'tokens': current_user.tokens
+        })
+    else:
+        return jsonify({'success': False, 'error': 'Upgrade failed'}), 500
 
 @api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
 @login_required

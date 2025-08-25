@@ -6,12 +6,15 @@ from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
-    def __init__(self, id=None, email=None, username=None, password_hash=None, is_admin=False, created_at=None):
+    def __init__(self, id=None, email=None, username=None, password_hash=None, is_admin=False, 
+                 account_tier='free', tokens=3, created_at=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
         self.password_hash = password_hash
         self.is_admin = is_admin
+        self.account_tier = account_tier  # 'free', 'basic', 'pro'
+        self.tokens = tokens  # Available tokens for proposal generation
         self.created_at = created_at or datetime.utcnow()
     
     def set_password(self, password):
@@ -22,6 +25,41 @@ class User(UserMixin):
         """Check password against hash"""
         return check_password_hash(self.password_hash, password)
     
+    def get_tier_limits(self):
+        """Get token limits for account tiers"""
+        limits = {
+            'free': 3,
+            'basic': 10,
+            'pro': 50
+        }
+        return limits.get(self.account_tier, 3)
+    
+    def can_generate_proposal(self):
+        """Check if user has tokens available for proposal generation"""
+        return self.tokens > 0
+    
+    def use_token(self):
+        """Deduct one token for proposal generation"""
+        if self.tokens > 0:
+            self.tokens -= 1
+            self.save()
+            return True
+        return False
+    
+    def upgrade_account(self, new_tier):
+        """Upgrade user account tier and reset tokens"""
+        tier_tokens = {
+            'free': 3,
+            'basic': 10,
+            'pro': 50
+        }
+        if new_tier in tier_tokens:
+            self.account_tier = new_tier
+            self.tokens = tier_tokens[new_tier]
+            self.save()
+            return True
+        return False
+    
     def save(self):
         """Save user to Firestore"""
         db = get_db()
@@ -31,6 +69,8 @@ class User(UserMixin):
                 'username': self.username,
                 'password_hash': self.password_hash,
                 'is_admin': self.is_admin,
+                'account_tier': self.account_tier,
+                'tokens': self.tokens,
                 'created_at': self.created_at
             }
             db.collection('users').document(self.id).set(user_data)
@@ -51,6 +91,8 @@ class User(UserMixin):
                     username=data.get('username'),
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 3),
                     created_at=data.get('created_at')
                 )
         return None
@@ -106,6 +148,8 @@ class User(UserMixin):
                     username=data.get('username'),
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 3),
                     created_at=data.get('created_at')
                 ))
         return users

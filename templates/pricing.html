@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Pricing - Synoptic{% endblock %}
+
+{% block content %}
+<div class="bg-white">
+    <div class="max-w-7xl mx-auto py-24 px-4 sm:px-6 lg:px-8">
+        <div class="sm:flex sm:flex-col sm:align-center">
+            <h1 class="text-5xl font-extrabold text-gray-900 sm:text-center">Pricing Plans</h1>
+            <p class="mt-5 text-xl text-gray-500 sm:text-center">Choose the perfect plan for your project proposal needs</p>
+        </div>
+        <div class="mt-12 space-y-4 sm:mt-16 sm:space-y-0 sm:grid sm:grid-cols-3 sm:gap-6 lg:max-w-4xl lg:mx-auto xl:max-w-none xl:mx-0">
+            <!-- Free Tier -->
+            <div class="border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
+                <div class="p-6">
+                    <h2 class="text-lg leading-6 font-medium text-gray-900">Free</h2>
+                    <p class="mt-4 text-sm text-gray-500">Perfect for trying out Synoptic</p>
+                    <p class="mt-8">
+                        <span class="text-4xl font-extrabold text-gray-900">$0</span>
+                        <span class="text-base font-medium text-gray-500">/month</span>
+                    </p>
+                    {% if current_user.is_authenticated and current_user.account_tier == 'free' %}
+                    <span class="mt-8 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
+                        Current Plan
+                    </span>
+                    {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="mt-8 block w-full bg-gray-800 border border-gray-800 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-gray-900">
+                        Get Started
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="pt-6 pb-8 px-6">
+                    <h3 class="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
+                    <ul class="mt-6 space-y-4">
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">3 AI proposal generations</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Basic project analysis</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">DOCX export</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Project history</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Basic Tier -->
+            <div class="border border-gray-200 rounded-lg shadow-sm divide-y divide-gray-200">
+                <div class="p-6">
+                    <h2 class="text-lg leading-6 font-medium text-gray-900">Basic</h2>
+                    <p class="mt-4 text-sm text-gray-500">Great for small teams and regular use</p>
+                    <p class="mt-8">
+                        <span class="text-4xl font-extrabold text-gray-900">$9</span>
+                        <span class="text-base font-medium text-gray-500">/month</span>
+                    </p>
+                    {% if current_user.is_authenticated and current_user.account_tier == 'basic' %}
+                    <span class="mt-8 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
+                        Current Plan
+                    </span>
+                    {% elif current_user.is_authenticated %}
+                    <button onclick="upgradeAccount('basic')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                        Upgrade to Basic
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                        Get Started
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="pt-6 pb-8 px-6">
+                    <h3 class="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
+                    <ul class="mt-6 space-y-4">
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">10 AI proposal generations</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Enhanced project analysis</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">DOCX & PDF export</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Priority support</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Advanced templates</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Pro Tier -->
+            <div class="border border-primary-200 rounded-lg shadow-sm divide-y divide-gray-200 relative">
+                <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span class="inline-flex px-4 py-1 rounded-full text-sm font-semibold bg-primary-100 text-primary-800">
+                        Most Popular
+                    </span>
+                </div>
+                <div class="p-6">
+                    <h2 class="text-lg leading-6 font-medium text-gray-900">Pro</h2>
+                    <p class="mt-4 text-sm text-gray-500">Perfect for agencies and power users</p>
+                    <p class="mt-8">
+                        <span class="text-4xl font-extrabold text-gray-900">$29</span>
+                        <span class="text-base font-medium text-gray-500">/month</span>
+                    </p>
+                    {% if current_user.is_authenticated and current_user.account_tier == 'pro' %}
+                    <span class="mt-8 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
+                        Current Plan
+                    </span>
+                    {% elif current_user.is_authenticated %}
+                    <button onclick="upgradeAccount('pro')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                        Upgrade to Pro
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('auth.register') }}" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                        Get Started
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="pt-6 pb-8 px-6">
+                    <h3 class="text-xs font-medium text-gray-900 tracking-wide uppercase">What's included</h3>
+                    <ul class="mt-6 space-y-4">
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">50 AI proposal generations</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Premium project analysis</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">All export formats</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">24/7 priority support</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">Custom templates</span>
+                        </li>
+                        <li class="flex space-x-3">
+                            <i class="fas fa-check text-green-500 mt-0.5"></i>
+                            <span class="text-sm text-gray-500">API access</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- FAQ Section -->
+        <div class="mt-24">
+            <h2 class="text-3xl font-extrabold text-gray-900 text-center">Frequently Asked Questions</h2>
+            <div class="mt-12 max-w-3xl mx-auto">
+                <div class="space-y-8">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">How do tokens work?</h3>
+                        <p class="mt-2 text-gray-600">Each AI proposal generation uses 1 token. Tokens reset monthly with your subscription. Unused tokens don't roll over to the next month.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">Can I upgrade or downgrade anytime?</h3>
+                        <p class="mt-2 text-gray-600">Yes! You can change your plan at any time. Upgrades take effect immediately, while downgrades take effect at the next billing cycle.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">What happens if I run out of tokens?</h3>
+                        <p class="mt-2 text-gray-600">You'll need to wait until your next billing cycle or upgrade your plan to get more tokens immediately.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function upgradeAccount(tier) {
+    if (confirm(`Are you sure you want to upgrade to the ${tier} plan?`)) {
+        fetch('/api/upgrade-account', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tier: tier })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully upgraded to ${tier} plan! You now have ${data.tokens} tokens.`);
+                location.reload();
+            } else {
+                alert('Upgrade failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Upgrade failed. Please try again.');
+        });
+    }
+}
+</script>
+{% endblock %}
