@@ -654,3 +654,105 @@ def export_project_docx(project_id):
     filename = f"{project.title.replace(' ', '_')}_proposal.docx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+@api_bp.route('/generate-documentation/<project_id>/export', methods=['GET'])
+@login_required
+def export_documentation_docx(project_id):
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # Create DOCX document
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(f"{project.title} - Technical Documentation", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Repository info
+    doc.add_paragraph()
+    doc.add_paragraph(f"Repository: {project.repo_owner}/{project.repo_name}")
+    doc.add_paragraph(f"URL: {project.repo_url}")
+    doc.add_paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y')}")
+    doc.add_paragraph()
+    
+    # Documentation sections
+    if project.documentation_data:
+        documentation = project.documentation_data
+        
+        sections = [
+            ("Architecture Overview", documentation.get("architecture_overview")),
+            ("API Documentation", documentation.get("api_documentation")),
+            ("Database Schema", documentation.get("database_schema")),
+            ("Deployment Guide", documentation.get("deployment_guide")),
+            ("Configuration", documentation.get("configuration")),
+            ("Testing", documentation.get("testing"))
+        ]
+        
+        for section_title, content in sections:
+            if content and content != "Not available in README.":
+                doc.add_heading(section_title, level=1)
+                doc.add_paragraph(content)
+                doc.add_paragraph()
+    else:
+        doc.add_paragraph("Documentation not yet generated for this project.")
+    
+    # Save to buffer
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_documentation.docx"
+    return send_file(buffer, as_attachment=True, download_name=filename, 
+                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+@api_bp.route('/generate-user-guide/<project_id>/export', methods=['GET'])
+@login_required
+def export_user_guide_docx(project_id):
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # Create DOCX document
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(f"{project.title} - User Guide", 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Repository info
+    doc.add_paragraph()
+    doc.add_paragraph(f"Repository: {project.repo_owner}/{project.repo_name}")
+    doc.add_paragraph(f"URL: {project.repo_url}")
+    doc.add_paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y')}")
+    doc.add_paragraph()
+    
+    # User guide sections
+    if project.user_guide_data:
+        user_guide = project.user_guide_data
+        
+        sections = [
+            ("Getting Started", user_guide.get("getting_started")),
+            ("Installation", user_guide.get("installation")),
+            ("Basic Usage", user_guide.get("basic_usage")),
+            ("Advanced Features", user_guide.get("advanced_features")),
+            ("Troubleshooting", user_guide.get("troubleshooting")),
+            ("FAQ", user_guide.get("faq"))
+        ]
+        
+        for section_title, content in sections:
+            if content and content != "Not available in README.":
+                doc.add_heading(section_title, level=1)
+                doc.add_paragraph(content)
+                doc.add_paragraph()
+    else:
+        doc.add_paragraph("User guide not yet generated for this project.")
+    
+    # Save to buffer
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_user_guide.docx"
+    return send_file(buffer, as_attachment=True, download_name=filename, 
+                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
