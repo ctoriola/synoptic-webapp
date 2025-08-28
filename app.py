@@ -45,6 +45,16 @@ def create_app():
     def markdown_filter(text):
         return markdown.markdown(text, extensions=['codehilite', 'fenced_code'])
     
+    # Add bold formatting filter for pitch deck content
+    @app.template_filter('format_bold')
+    def format_bold_filter(text):
+        import re
+        if not text:
+            return text
+        # Replace **text** with <strong>text</strong>
+        formatted = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        return formatted
+    
     # Create admin user route for Firebase (since we can't do it automatically)
     @app.route('/init-admin')
     def init_admin():

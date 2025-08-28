@@ -25,6 +25,36 @@ from firebase_models import Project
 
 api_bp = Blueprint('api', __name__)
 
+def process_markdown_to_pptx(text, text_frame):
+    """Process markdown text and add it to PowerPoint text frame with proper formatting"""
+    import re
+    
+    # Split text into lines
+    lines = text.split('\n')
+    
+    for i, line in enumerate(lines):
+        if i > 0:  # Add new paragraph for each line except the first
+            p = text_frame.add_paragraph()
+        else:
+            p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
+        
+        # Process bold text (**text**)
+        parts = re.split(r'\*\*(.*?)\*\*', line)
+        
+        for j, part in enumerate(parts):
+            if not part:  # Skip empty parts
+                continue
+                
+            run = p.add_run()
+            run.text = part
+            
+            # Make every second part bold (the content between **)
+            if j % 2 == 1:
+                run.font.bold = True
+            
+            # Set font size
+            run.font.size = Pt(22)
+
 # Configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -464,7 +494,16 @@ def export_project_pptx(project_id):
                     slide_content = '\n'.join(lines[1:]).strip()
                     if slide_content and len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
-                        content_placeholder.text = slide_content
+                        text_frame = content_placeholder.text_frame
+                        text_frame.clear()
+                        
+                        # Process content with bold formatting
+                        formatted_content = process_markdown_to_pptx(slide_content, text_frame)
+                        
+                        # Set font size for all paragraphs
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(22)
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
@@ -501,7 +540,17 @@ def export_project_pptx(project_id):
                     if slide.shapes.title:
                         slide.shapes.title.text = f"Slide {i + 1}"
                     if len(slide.placeholders) > 1:
-                        slide.placeholders[1].text = paragraph
+                        content_placeholder = slide.placeholders[1]
+                        text_frame = content_placeholder.text_frame
+                        text_frame.clear()
+                        
+                        # Process content with bold formatting
+                        process_markdown_to_pptx(paragraph, text_frame)
+                        
+                        # Set font size for all paragraphs
+                        for p in text_frame.paragraphs:
+                            for run in p.runs:
+                                run.font.size = Pt(22)
             else:
                 # Create slides from sections
                 for section_title, section_content in content_sections:
@@ -510,7 +559,17 @@ def export_project_pptx(project_id):
                     if slide.shapes.title:
                         slide.shapes.title.text = section_title
                     if len(slide.placeholders) > 1:
-                        slide.placeholders[1].text = section_content
+                        content_placeholder = slide.placeholders[1]
+                        text_frame = content_placeholder.text_frame
+                        text_frame.clear()
+                        
+                        # Process content with bold formatting
+                        process_markdown_to_pptx(section_content, text_frame)
+                        
+                        # Set font size for all paragraphs
+                        for p in text_frame.paragraphs:
+                            for run in p.runs:
+                                run.font.size = Pt(22)
     
     # Save to buffer
     buffer = BytesIO()
