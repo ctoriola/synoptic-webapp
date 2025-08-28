@@ -17,6 +17,9 @@ import google.generativeai as genai
 from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
+from pptx import Presentation
+from pptx.util import Inches as PptxInches, Pt
+from pptx.enum.text import PP_ALIGN
 
 from firebase_models import Project
 
@@ -418,6 +421,106 @@ def export_project_docx(project_id):
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
+@api_bp.route('/projects/<project_id>/export/pptx', methods=['GET'])
+@login_required
+def export_project_pptx(project_id):
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # Create PowerPoint presentation
+    prs = Presentation()
+    
+    # Title slide
+    title_slide_layout = prs.slide_layouts[0]  # Title slide layout
+    slide = prs.slides.add_slide(title_slide_layout)
+    title = slide.shapes.title
+    subtitle = slide.placeholders[1]
+    
+    title.text = project.title
+    subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
+    
+    # Process pitch deck content
+    if project.pitch_deck and project.pitch_deck.get('content'):
+        content = project.pitch_deck.get('content', '')
+        
+        # Parse content into slides
+        if '**Slide' in content:
+            # Parse structured slide content
+            slides = content.split('**Slide')[1:]  # Skip empty first element
+            for slide_text in slides:
+                lines = slide_text.strip().split('\n')
+                if lines:
+                    # Create new slide
+                    slide_layout = prs.slide_layouts[1]  # Title and content layout
+                    slide = prs.slides.add_slide(slide_layout)
+                    
+                    # First line is the slide title
+                    slide_title = lines[0].replace(':', '').strip()
+                    if slide.shapes.title:
+                        slide.shapes.title.text = slide_title
+                    
+                    # Rest is content
+                    slide_content = '\n'.join(lines[1:]).strip()
+                    if slide_content and len(slide.placeholders) > 1:
+                        content_placeholder = slide.placeholders[1]
+                        content_placeholder.text = slide_content
+        else:
+            # Split content by common slide indicators or paragraphs
+            content_sections = []
+            
+            # Try to split by common pitch deck sections
+            section_markers = [
+                'Problem', 'Solution', 'Market', 'Product', 'Business Model',
+                'Competition', 'Team', 'Financials', 'Funding', 'Contact'
+            ]
+            
+            current_section = ""
+            current_content = ""
+            
+            for line in content.split('\n'):
+                line = line.strip()
+                if any(marker.lower() in line.lower() for marker in section_markers):
+                    if current_section and current_content:
+                        content_sections.append((current_section, current_content.strip()))
+                    current_section = line
+                    current_content = ""
+                else:
+                    current_content += line + "\n"
+            
+            # Add the last section
+            if current_section and current_content:
+                content_sections.append((current_section, current_content.strip()))
+            
+            # If no sections found, create slides from paragraphs
+            if not content_sections:
+                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
+                for i, paragraph in enumerate(paragraphs[:10]):  # Limit to 10 slides
+                    slide_layout = prs.slide_layouts[1]
+                    slide = prs.slides.add_slide(slide_layout)
+                    if slide.shapes.title:
+                        slide.shapes.title.text = f"Slide {i + 1}"
+                    if len(slide.placeholders) > 1:
+                        slide.placeholders[1].text = paragraph
+            else:
+                # Create slides from sections
+                for section_title, section_content in content_sections:
+                    slide_layout = prs.slide_layouts[1]
+                    slide = prs.slides.add_slide(slide_layout)
+                    if slide.shapes.title:
+                        slide.shapes.title.text = section_title
+                    if len(slide.placeholders) > 1:
+                        slide.placeholders[1].text = section_content
+    
+    # Save to buffer
+    buffer = BytesIO()
+    prs.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_pitch_deck.pptx"
+    return send_file(buffer, as_attachment=True, download_name=filename, 
+                    mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
+
 @api_bp.route('/generate-documentation/<project_id>')
 @login_required
 def generate_documentation(project_id):
@@ -684,6 +787,8 @@ def export_project(project_id, format):
     """Export project pitch deck in various formats"""
     if format == 'docx':
         return export_project_docx(project_id)
+    elif format == 'pptx':
+        return export_project_pptx(project_id)
     elif format == 'pdf':
         return export_project_pdf(project_id)
     else:
