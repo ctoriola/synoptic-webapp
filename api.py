@@ -608,30 +608,6 @@ Write in a friendly, accessible tone suitable for end users. Use clear headings,
     except Exception as e:
         return jsonify({'error': f'User guide generation failed: {str(e)}'}), 500
 
-@api_bp.route('/export/<project_id>/<format>')
-@login_required
-def export_project(project_id, format):
-    """Export project proposal in various formats"""
-    if format == 'docx':
-        return export_project_docx(project_id)
-    elif format == 'pdf':
-        return export_project_pdf(project_id)
-    else:
-        return jsonify({'error': 'Unsupported format'}), 400
-    if not project or project.user_id != current_user.id:
-        return jsonify({'error': 'Project not found'}), 404
-    
-    return jsonify({
-        'id': project.id,
-        'title': project.title,
-        'repo_url': project.repo_url,
-        'repo_owner': project.repo_owner,
-        'repo_name': project.repo_name,
-        'pitch_deck': project.pitch_deck,
-        'user_id': project.user_id,
-        'created_at': project.created_at.isoformat() if project.created_at else None,
-        'updated_at': project.updated_at.isoformat() if project.updated_at else None
-    })
 
 @api_bp.route('/projects/<project_id>/export/pdf', methods=['GET'])
 @login_required
@@ -694,81 +670,6 @@ def admin_change_user_plan():
     else:
         return jsonify({'success': False, 'error': 'Plan change failed'}), 500
 
-@api_bp.route('/export/<project_id>/<format>')
-@login_required
-def export_project(project_id, format):
-    """Export project proposal in various formats"""
-    if format == 'docx':
-        return export_project_docx(project_id)
-    elif format == 'pdf':
-        return export_project_pdf(project_id)
-    else:
-        return jsonify({'error': 'Unsupported format'}), 400
-
-@api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
-@login_required
-def export_project_docx(project_id):
-    project = Project.get(project_id)
-    if not project or project.user_id != current_user.id:
-        return jsonify({'error': 'Project not found'}), 404
-    
-    # Create DOCX document
-    doc = Document()
-    
-    # Title
-    title = doc.add_heading(project.title, 0)
-    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
-    # Repository info
-    doc.add_paragraph()
-    doc.add_paragraph(f"Repository: {project.repo_owner}/{project.repo_name}")
-    doc.add_paragraph(f"URL: {project.repo_url}")
-    doc.add_paragraph(f"Generated: {project.created_at.strftime('%B %d, %Y')}")
-    doc.add_paragraph()
-    
-    # Proposal sections
-    if project.proposal_data:
-        proposal = project.proposal_data
-        
-        sections = [
-            ("Project Overview", proposal.get("project_overview") or proposal.get("introduction")),
-            ("Problem Statement", proposal.get("problem_statement")),
-            ("Solution", proposal.get("solution")),
-            ("Target Audience", proposal.get("target_audience")),
-            ("Technology Stack", proposal.get("technology_stack")),
-            ("Future Scope", proposal.get("future_scope"))
-        ]
-        
-        for section_title, content in sections:
-            if content and content != "Not available in README.":
-                doc.add_heading(section_title, level=1)
-                doc.add_paragraph(content)
-                doc.add_paragraph()
-        
-        # Key Features
-        if proposal.get("key_features"):
-            doc.add_heading("Key Features", level=1)
-            for feature in proposal["key_features"]:
-                p = doc.add_paragraph()
-                p.add_run(f"• {feature}")
-            doc.add_paragraph()
-        
-        # Success Metrics
-        if proposal.get("success_metrics"):
-            doc.add_heading("Success Metrics", level=1)
-            for metric in proposal["success_metrics"]:
-                p = doc.add_paragraph()
-                p.add_run(f"• {metric}")
-            doc.add_paragraph()
-    
-    # Save to buffer
-    buffer = BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    
-    filename = f"{project.title.replace(' ', '_')}_proposal.docx"
-    return send_file(buffer, as_attachment=True, download_name=filename, 
-                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 @api_bp.route('/generate-documentation/<project_id>/export', methods=['GET'])
 @login_required
