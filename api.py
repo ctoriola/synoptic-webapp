@@ -230,6 +230,13 @@ def api_generate():
         return jsonify({"error": "README not found in repository."}), 404
 
     try:
+        # Configure Gemini AI
+        if not GOOGLE_API_KEY:
+            return jsonify({"error": "AI service not configured"}), 500
+        
+        genai.configure(api_key=GOOGLE_API_KEY)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
         extra = fetch_additional_repo_signals(owner, repo)
         title = repo
         repo_owner = owner
