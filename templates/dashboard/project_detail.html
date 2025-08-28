@@ -39,6 +39,11 @@
                                 <i class="fas fa-question-circle mr-2"></i>
                                 View User Guide
                             </a>
+                            <button onclick="exportPitchDeck()" 
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-download mr-2"></i>
+                            Export Pitch Deck
+                        </button>
                             <div class="relative group">
                                 <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                                     <i class="fas fa-download mr-2"></i>
@@ -75,6 +80,11 @@
                 <i class="fas fa-question-circle mr-2"></i>
                 View User Guide
             </a>
+            <button onclick="exportPitchDeck()" 
+                                class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-download mr-2"></i>
+                            Export Pitch Deck
+                        </button>
             <div class="relative group">
                 <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                     <i class="fas fa-download mr-2"></i>
@@ -294,13 +304,13 @@
                 <div class="mx-auto h-12 w-12 text-gray-400 mb-4">
                     <i class="fas fa-exclamation-triangle text-4xl"></i>
                 </div>
-                <h3 class="text-lg font-medium text-gray-900 mb-2">No Proposal Data</h3>
-                <p class="text-gray-500 mb-6">This project doesn't have any proposal data available.</p>
-                <button onclick="regenerateProposal()" 
-                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                    <i class="fas fa-sync mr-2"></i>
-                    Generate
-                </button>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Pitch Deck Data</h3>
+                <p class="text-gray-500 mb-6">This project doesn't have any pitch deck data available.</p>
+                <button onclick="viewPitchDeck()" 
+                                class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-eye mr-2"></i>
+                            View Pitch Deck
+                        </button>
             </div>
             {% endif %}
         </div>

@@ -8,8 +8,8 @@
     <div class="mb-8">
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900">AI Content Generator</h1>
-                <p class="mt-1 text-sm text-gray-600">Transform any GitHub repository into comprehensive project content using AI.</p>
+                <h1 class="text-2xl font-bold text-gray-900">AI Pitch Deck Generator</h1>
+                <p class="mt-1 text-sm text-gray-600">Generate investor-ready pitch decks from GitHub repositories</p>
             </div>
             <div class="flex flex-col sm:text-right gap-2">
                 <div class="flex items-center space-x-2">
@@ -46,17 +46,17 @@
             <form id="repo-form" class="space-y-6">
                 <div>
                     <label for="generationType" class="block text-sm font-medium text-gray-700 mb-2">
-                        Content Type
+                        Pitch Deck Style
                     </label>
                     <select id="generationType" 
                             name="generationType" 
                             class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                        <option value="proposal">Project Proposal</option>
-                        <option value="documentation">Technical Documentation</option>
-                        <option value="user-guide">User Guide</option>
+                        <option value="investor">Investor Pitch</option>
+                        <option value="product">Product Demo</option>
+                        <option value="partnership">Partnership Proposal</option>
                     </select>
                     <p class="mt-2 text-sm text-gray-500">
-                        Choose what type of content to generate
+                        Choose the style of pitch deck to generate
                     </p>
                 </div>
 
@@ -88,7 +88,7 @@
                             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                         <i class="fas fa-magic mr-2"></i>
                         <span id="button-text">
-                            {% if current_user.tokens == 0 %}No Tokens Available{% else %}Generate (1 token){% endif %}
+                            {% if current_user.tokens == 0 %}No Tokens Available{% else %}Generate Pitch Deck (1 token){% endif %}
                         </span>
                     </button>
                     

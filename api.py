@@ -212,12 +212,8 @@ def api_fetch_readme():
 @login_required
 def api_generate():
     # Check if user has tokens available
-    if not current_user.can_generate_proposal():
-        return jsonify({
-            "error": "Insufficient tokens. Please upgrade your account to generate more proposals.",
-            "tokens_remaining": current_user.tokens,
-            "account_tier": current_user.account_tier
-        }), 403
+    if not current_user.can_generate_pitch_deck():
+        return jsonify({"error": "No tokens available for pitch deck generation"}), 400
 
     data = request.get_json(silent=True) or {}
     repo_url = (data.get("repo_url") or "").strip()
@@ -235,72 +231,185 @@ def api_generate():
 
     try:
         extra = fetch_additional_repo_signals(owner, repo)
-        proposal = call_gemini(content, extra_context=extra)
+        title = repo
+        repo_owner = owner
+        repo_name = repo
+        prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
+
+Project: {title}
+Repository: {repo_owner}/{repo_name}
+
+README Content:\n{content}\n\n
+
+Please generate a detailed pitch deck with the following slides:
+
+**Slide 1: Title Slide**
+   - Project name and tagline
+   - Team/creator information
+   - Date
+
+**Slide 2: Problem**
+   - What problem does this project solve?
+   - Pain points and market gaps
+   - Why this matters now
+
+**Slide 3: Solution**
+   - How does this project address the problem?
+   - Key features and functionality
+   - Unique value proposition
+
+**Slide 4: Market Opportunity**
+   - Target market size
+   - User personas and segments
+   - Market trends and timing
+
+**Slide 5: Product Demo**
+   - Key features walkthrough
+   - User experience highlights
+   - Technical capabilities
+
+**Slide 6: Technology Stack**
+   - Architecture overview
+   - Key technologies used
+   - Technical advantages
+
+**Slide 7: Traction & Metrics**
+   - Current usage/adoption
+   - Key performance indicators
+   - Growth metrics
+
+**Slide 8: Competition**
+   - Competitive landscape
+   - Competitive advantages
+   - Differentiation strategy
+
+**Slide 9: Business Model**
+   - Revenue streams
+   - Monetization strategy
+   - Pricing approach
+
+**Slide 10: Roadmap**
+   - Future features and milestones
+   - Development timeline
+   - Strategic vision
+
+**Slide 11: Team**
+   - Key team members
+   - Relevant experience
+   - Advisory board
+
+**Slide 12: Ask & Next Steps**
+   - What you're seeking (funding, partnerships, users)
+   - Use of funds/resources
+   - Call to action
+
+Make each slide concise, compelling, and investor-ready. Focus on storytelling and visual concepts that would work well in a presentation format.
+"""
         
-        # Ensure all required legacy keys exist and convert lists to strings for database
-        legacy_keys = [
-            "title", "introduction", "problem_statement", "solution",
-            "target_audience", "technology_stack", "future_scope"
-        ]
+        # Generate pitch deck
+        response = model.generate_content(prompt)
+        pitch_deck_content = response.text
         
-        # Handle data type conversion for legacy fields
-        normalized = {}
-        for k in legacy_keys:
-            value = proposal.get(k, "Not available in README.")
-            # Convert lists to formatted strings for legacy database columns
-            if isinstance(value, list):
-                if k == "future_scope":
-                    normalized[k] = "\n".join([f"• {item}" for item in value])
-                else:
-                    normalized[k] = ", ".join(value) if value else "Not available in README."
-            else:
-                normalized[k] = value if value else "Not available in README."
-        
-        # Store the complete proposal data exactly as generated (including all fields)
-        # This ensures saved projects show the same information as the generator display
-        complete_proposal_data = {
-            # Core proposal sections (what's displayed in generator)
-            "title": normalized.get("title"),
-            "introduction": normalized.get("introduction"),
-            "problem_statement": normalized.get("problem_statement"),
-            "solution": normalized.get("solution"),
-            "target_audience": normalized.get("target_audience"),
-            "technology_stack": normalized.get("technology_stack"),
-            "future_scope": normalized.get("future_scope"),
-            
-            # Extended structured data for detailed project view
-            "project_overview": normalized.get("introduction"),
-            "key_features": proposal.get("key_features", []),
-            "technical_stack": proposal.get("technical_stack", {}),
-            "implementation_plan": proposal.get("implementation_plan", []),
-            "potential_challenges": proposal.get("potential_challenges", []),
-            "success_metrics": proposal.get("success_metrics", []),
-            "timeline": proposal.get("timeline", "Not specified")
-        }
-        
-        # Save to database
+        # Save pitch deck to project
         project = Project(
-            title=normalized.get("title", f"{owner}/{repo}"),
+            title=title,
             repo_url=repo_url,
-            repo_owner=owner,
-            repo_name=repo,
-            project_proposal=complete_proposal_data,
+            repo_owner=repo_owner,
+            repo_name=repo_name,
+            pitch_deck={
+                'content': pitch_deck_content,
+                'generated_at': datetime.utcnow().isoformat(),
+                'version': '1.0'
+            },
             user_id=current_user.id
         )
         
         project.save()
         
-        # Deduct token after successful proposal generation
+        # Deduct token after successful pitch deck generation
         current_user.use_token()
         
         return jsonify({
-            "project_proposal_json": normalized,
-            "project_id": project.id,
-            "tokens_remaining": current_user.tokens
+            'success': True,
+            'pitch_deck': project.pitch_deck,
+            'tokens_remaining': current_user.tokens
         })
     
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"Pitch deck generation failed: {str(e)}"}), 500
+
+@api_bp.route('/projects/<project_id>', methods=['GET'])
+@login_required
+def get_project(project_id):
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    return jsonify({
+        'id': project.id,
+        'title': project.title,
+        'repo_url': project.repo_url,
+        'repo_owner': project.repo_owner,
+        'repo_name': project.repo_name,
+        'pitch_deck': project.pitch_deck,
+        'user_id': project.user_id,
+        'created_at': project.created_at.isoformat() if project.created_at else None,
+        'updated_at': project.updated_at.isoformat() if project.updated_at else None
+    })
+
+@api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
+@login_required
+def export_project_docx(project_id):
+    project = Project.get(project_id)
+    if not project or project.user_id != current_user.id:
+        return jsonify({'error': 'Project not found'}), 404
+    
+    # Create DOCX document
+    doc = Document()
+    
+    # Title
+    title = doc.add_heading(project.title, 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # Repository info
+    doc.add_paragraph()
+    doc.add_paragraph(f"Repository: {project.repo_owner}/{project.repo_name}")
+    doc.add_paragraph(f"URL: {project.repo_url}")
+    doc.add_paragraph(f"Generated: {project.created_at.strftime('%B %d, %Y')}")
+    doc.add_paragraph()
+    
+    # Pitch deck content
+    if project.pitch_deck and project.pitch_deck.get('content'):
+        content = project.pitch_deck.get('content', '')
+        
+        # Split content by slide markers or use as single content
+        if '**Slide' in content:
+            # Parse structured slide content
+            slides = content.split('**Slide')[1:]  # Skip empty first element
+            for slide in slides:
+                lines = slide.strip().split('\n')
+                if lines:
+                    # First line is the slide title
+                    slide_title = lines[0].replace(':', '').strip()
+                    doc.add_heading(f"Slide {slide_title}", level=1)
+                    
+                    # Rest is content
+                    slide_content = '\n'.join(lines[1:]).strip()
+                    if slide_content:
+                        doc.add_paragraph(slide_content)
+                    doc.add_paragraph()
+        else:
+            # Use content as-is
+            doc.add_paragraph(content)
+    
+    # Save to buffer
+    buffer = BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    
+    filename = f"{project.title.replace(' ', '_')}_pitch_deck.docx"
+    return send_file(buffer, as_attachment=True, download_name=filename, 
+                    mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 @api_bp.route('/generate-documentation/<project_id>')
 @login_required
@@ -499,10 +608,16 @@ Write in a friendly, accessible tone suitable for end users. Use clear headings,
     except Exception as e:
         return jsonify({'error': f'User guide generation failed: {str(e)}'}), 500
 
-@api_bp.route('/projects/<project_id>', methods=['GET'])
+@api_bp.route('/export/<project_id>/<format>')
 @login_required
-def get_project(project_id):
-    project = Project.get(project_id)
+def export_project(project_id, format):
+    """Export project proposal in various formats"""
+    if format == 'docx':
+        return export_project_docx(project_id)
+    elif format == 'pdf':
+        return export_project_pdf(project_id)
+    else:
+        return jsonify({'error': 'Unsupported format'}), 400
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
     
@@ -512,7 +627,7 @@ def get_project(project_id):
         'repo_url': project.repo_url,
         'repo_owner': project.repo_owner,
         'repo_name': project.repo_name,
-        'project_proposal': project.project_proposal,
+        'pitch_deck': project.pitch_deck,
         'user_id': project.user_id,
         'created_at': project.created_at.isoformat() if project.created_at else None,
         'updated_at': project.updated_at.isoformat() if project.updated_at else None

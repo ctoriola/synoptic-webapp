@@ -14,7 +14,7 @@ class User(UserMixin):
         self.password_hash = password_hash
         self.is_admin = is_admin
         self.account_tier = account_tier  # 'free', 'basic', 'pro'
-        self.tokens = tokens  # Available tokens for proposal generation
+        self.tokens = tokens  # Available tokens for pitch deck generation
         self.created_at = created_at or datetime.utcnow()
     
     def set_password(self, password):
@@ -34,12 +34,12 @@ class User(UserMixin):
         }
         return limits.get(self.account_tier, 3)
     
-    def can_generate_proposal(self):
-        """Check if user has tokens available for proposal generation"""
+    def can_generate_pitch_deck(self):
+        """Check if user has tokens available for pitch deck generation"""
         return self.tokens > 0
     
     def use_token(self):
-        """Deduct one token for proposal generation"""
+        """Deduct one token for pitch deck generation"""
         if self.tokens > 0:
             self.tokens -= 1
             self.save()
@@ -165,23 +165,21 @@ class User(UserMixin):
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 
-                 project_proposal=None, documentation=None, user_guide=None, user_id=None, created_at=None, updated_at=None):
+                 pitch_deck=None, user_id=None, created_at=None, updated_at=None):
         self.id = id or str(uuid.uuid4())
         self.title = title
         self.repo_url = repo_url
         self.repo_owner = repo_owner
         self.repo_name = repo_name
-        self.project_proposal = project_proposal or {}
-        self.documentation = documentation or {}
-        self.user_guide = user_guide or {}
+        self.pitch_deck = pitch_deck or {}
         self.user_id = user_id
         self.created_at = created_at or datetime.utcnow()
         self.updated_at = updated_at or datetime.utcnow()
     
     @property
-    def proposal_data(self):
-        """Alias for project_proposal to maintain template compatibility"""
-        return self.project_proposal or {}
+    def deck_data(self):
+        """Alias for pitch_deck to maintain template compatibility"""
+        return self.pitch_deck or {}
     
     def save(self):
         """Save project to Firestore"""
@@ -192,9 +190,7 @@ class Project:
                 'repo_url': self.repo_url,
                 'repo_owner': self.repo_owner,
                 'repo_name': self.repo_name,
-                'project_proposal': self.project_proposal,
-                'documentation': self.documentation,
-                'user_guide': self.user_guide,
+                'pitch_deck': self.pitch_deck,
                 'user_id': self.user_id,
                 'created_at': self.created_at,
                 'updated_at': datetime.utcnow()
@@ -217,9 +213,7 @@ class Project:
                     repo_url=data.get('repo_url'),
                     repo_owner=data.get('repo_owner'),
                     repo_name=data.get('repo_name'),
-                    project_proposal=data.get('project_proposal', {}),
-                    documentation=data.get('documentation', {}),
-                    user_guide=data.get('user_guide', {}),
+                    pitch_deck=data.get('pitch_deck', {}),
                     user_id=data.get('user_id'),
                     created_at=data.get('created_at'),
                     updated_at=data.get('updated_at')
@@ -243,7 +237,7 @@ class Project:
                     repo_url=data.get('repo_url'),
                     repo_owner=data.get('repo_owner'),
                     repo_name=data.get('repo_name'),
-                    project_proposal=data.get('project_proposal', {}),
+                    pitch_deck=data.get('pitch_deck', {}),
                     user_id=data.get('user_id'),
                     created_at=data.get('created_at'),
                     updated_at=data.get('updated_at')
@@ -267,7 +261,7 @@ class Project:
                     repo_url=data.get('repo_url'),
                     repo_owner=data.get('repo_owner'),
                     repo_name=data.get('repo_name'),
-                    project_proposal=data.get('project_proposal', {}),
+                    pitch_deck=data.get('pitch_deck', {}),
                     user_id=data.get('user_id'),
                     created_at=data.get('created_at'),
                     updated_at=data.get('updated_at')
@@ -287,14 +281,14 @@ class Project:
     
     @staticmethod
     def get_generation_count():
-        """Get total number of AI generations (projects with proposals)"""
+        """Get total number of AI generations (projects with pitch decks)"""
         db = get_db()
         if db:
             projects = list(db.collection('projects').stream())
             count = 0
             for project in projects:
                 data = project.to_dict()
-                if data.get('project_proposal') and len(data.get('project_proposal', {})) > 0:
+                if data.get('pitch_deck') and len(data.get('pitch_deck', {})) > 0:
                     count += 1
             return count
         return 0
@@ -320,9 +314,7 @@ class Project:
                         repo_url=data.get('repo_url'),
                         repo_owner=data.get('repo_owner'),
                         repo_name=data.get('repo_name'),
-                        project_proposal=data.get('project_proposal', {}),
-                        documentation=data.get('documentation', {}),
-                        user_guide=data.get('user_guide', {}),
+                        pitch_deck=data.get('pitch_deck', {}),
                         user_id=data.get('user_id'),
                         created_at=data.get('created_at'),
                         updated_at=data.get('updated_at')
