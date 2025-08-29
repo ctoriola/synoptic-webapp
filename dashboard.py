@@ -57,14 +57,24 @@ def generator():
             repo_owner = selected_repo['owner']
             repo_name = selected_repo['name']
             
-            # Try to fetch README using user's token
-            content, source = try_fetch_readme_raw(repo_owner, repo_name)
-            if not content:
-                user_token = current_user.github_token if current_user.is_authenticated else None
-                content, _ = try_fetch_readme_api(repo_owner, repo_name, user_token)
+            # Debug session data
+            print(f"DEBUG: Selected repo data: {selected_repo}")
+            print(f"DEBUG: User token exists: {bool(current_user.github_token)}")
+            
+            # For private repos, skip raw fetch and go directly to API with token
+            user_token = current_user.github_token if current_user.is_authenticated else None
+            if user_token:
+                # Private repo - use API directly with user token
+                content, source = try_fetch_readme_api(repo_owner, repo_name, user_token)
+                print(f"DEBUG: API fetch result: {'Found' if content else 'Not found'}")
+            else:
+                # Public repo - try raw first, then API
+                content, source = try_fetch_readme_raw(repo_owner, repo_name)
+                if not content:
+                    content, _ = try_fetch_readme_api(repo_owner, repo_name, user_token)
             
             if not content:
-                flash('README not found in repository', 'error')
+                flash(f'README not found in repository {repo_owner}/{repo_name}. This may be a private repository or it may not have a README file.', 'error')
                 return redirect(url_for('dashboard.index'))
             
             # Configure Gemini AI
