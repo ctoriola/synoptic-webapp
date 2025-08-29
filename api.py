@@ -617,7 +617,8 @@ def generate_documentation(project_id):
         if project.repo_owner and project.repo_name:
             readme_content, _ = try_fetch_readme_raw(project.repo_owner, project.repo_name)
             if not readme_content:
-                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name)
+                user_token = current_user.github_token if current_user.is_authenticated else None
+                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name, user_token)
             if readme_content:
                 repo_content = f"README Content:\n{readme_content}\n\n"
         
@@ -713,7 +714,8 @@ def generate_user_guide(project_id):
         if project.repo_owner and project.repo_name:
             readme_content, _ = try_fetch_readme_raw(project.repo_owner, project.repo_name)
             if not readme_content:
-                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name)
+                user_token = current_user.github_token if current_user.is_authenticated else None
+                readme_content, _ = try_fetch_readme_api(project.repo_owner, project.repo_name, user_token)
             if readme_content:
                 repo_content = f"README Content:\n{readme_content}\n\n"
         
