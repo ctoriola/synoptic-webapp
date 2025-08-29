@@ -102,15 +102,17 @@ def try_fetch_readme_raw(owner: str, repo: str):
                 continue
     return None, None
 
-def try_fetch_readme_api(owner: str, repo: str):
+def try_fetch_readme_api(owner: str, repo: str, user_token: str = None):
     """Fallback to GitHub API to get the default README if possible."""
     api = f"https://api.github.com/repos/{owner}/{repo}/readme"
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "synoptic-saas",
     }
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    # Use user's GitHub token first (for private repos), fallback to global token
+    token = user_token or GITHUB_TOKEN
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
         r = requests.get(api, headers=headers, timeout=12)
         if r.status_code == 200:
@@ -124,14 +126,16 @@ def try_fetch_readme_api(owner: str, repo: str):
         pass
     return None, None
 
-def fetch_additional_repo_signals(owner: str, repo: str) -> str:
+def fetch_additional_repo_signals(owner: str, repo: str, user_token: str = None) -> str:
     """Collect extra signals to help infer problem_statement and future_scope when README is sparse."""
     headers = {
         "Accept": "application/vnd.github+json",
         "User-Agent": "synoptic-saas",
     }
-    if GITHUB_TOKEN:
-        headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+    # Use user's GitHub token first (for private repos), fallback to global token
+    token = user_token or GITHUB_TOKEN
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
 
     parts = []
 
@@ -229,8 +233,11 @@ def api_fetch_readme():
         return jsonify({"validation_status": False, "error": "Invalid GitHub repository URL."}), 400
 
     content, source = try_fetch_readme_raw(owner, repo)
+    
+    # If that fails, try GitHub API with user's token
     if not content:
-        content, source = try_fetch_readme_api(owner, repo)
+        user_token = current_user.github_token if current_user.is_authenticated else None
+        content, source = try_fetch_readme_api(owner, repo, user_token)
 
     if not content:
         return jsonify({"validation_status": False, "error": "README not found in repository."}), 404
@@ -255,9 +262,13 @@ def api_generate():
     if not owner:
         return jsonify({"error": "Invalid GitHub repository URL."}), 400
 
-    content, _ = try_fetch_readme_raw(owner, repo)
+    # Try raw.githubusercontent.com first
+    content, source = try_fetch_readme_raw(owner, repo)
+    
+    # If that fails, try GitHub API with user's token
     if not content:
-        content, _ = try_fetch_readme_api(owner, repo)
+        user_token = current_user.github_token if current_user.is_authenticated else None
+        content, _ = try_fetch_readme_api(owner, repo, user_token)
 
     if not content:
         return jsonify({"error": "README not found in repository."}), 404
@@ -270,7 +281,8 @@ def api_generate():
         genai.configure(api_key=GOOGLE_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        extra = fetch_additional_repo_signals(owner, repo)
+        user_token = current_user.github_token if current_user.is_authenticated else None
+        extra = fetch_additional_repo_signals(owner, repo, user_token)
         title = repo
         repo_owner = owner
         repo_name = repo
