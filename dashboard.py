@@ -38,16 +38,159 @@ def generator():
     from_github = request.args.get('from_github')
     selected_repo = session.get('selected_repo')
     
-    # Pre-fill repo URL if coming from GitHub selection
-    repo_url = None
+    # If coming from GitHub selection, auto-generate immediately
     if from_github and selected_repo:
-        repo_url = selected_repo.get('url')
-        # Clear the session data after using it
-        session.pop('selected_repo', None)
+        # Import here to avoid circular imports
+        from api import try_fetch_readme_raw, try_fetch_readme_api, fetch_additional_repo_signals
+        from firebase_models import Project
+        import google.generativeai as genai
+        import os
+        from datetime import datetime
+        
+        try:
+            # Check if user has tokens
+            if not current_user.can_generate_pitch_deck():
+                flash('No tokens available for pitch deck generation', 'error')
+                return redirect(url_for('dashboard.index'))
+            
+            repo_url = selected_repo['url']
+            repo_owner = selected_repo['owner']
+            repo_name = selected_repo['name']
+            
+            # Try to fetch README using user's token
+            content, source = try_fetch_readme_raw(repo_owner, repo_name)
+            if not content:
+                user_token = current_user.github_token if current_user.is_authenticated else None
+                content, _ = try_fetch_readme_api(repo_owner, repo_name, user_token)
+            
+            if not content:
+                flash('README not found in repository', 'error')
+                return redirect(url_for('dashboard.index'))
+            
+            # Configure Gemini AI
+            GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+            if not GOOGLE_API_KEY:
+                flash('AI service not configured', 'error')
+                return redirect(url_for('dashboard.index'))
+            
+            genai.configure(api_key=GOOGLE_API_KEY)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Get additional repo signals
+            user_token = current_user.github_token if current_user.is_authenticated else None
+            extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
+            
+            # Generate pitch deck content
+            prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
+
+Project: {repo_name}
+Repository: {repo_owner}/{repo_name}
+
+README Content:\n{content}\n\n
+
+Please generate a detailed pitch deck with the following slides:
+
+**Slide 1: Title Slide**
+   - Project name and tagline
+   - Team/creator information
+   - Date
+
+**Slide 2: Problem**
+   - What problem does this project solve?
+   - Pain points and market gaps
+   - Why this matters now
+
+**Slide 3: Solution**
+   - How does this project address the problem?
+   - Key features and functionality
+   - Unique value proposition
+
+**Slide 4: Market Opportunity**
+   - Target market size
+   - User personas and segments
+   - Market trends and timing
+
+**Slide 5: Product Demo**
+   - Key features walkthrough
+   - Screenshots or code examples
+   - User experience highlights
+
+**Slide 6: Business Model**
+   - Revenue streams
+   - Pricing strategy
+   - Go-to-market approach
+
+**Slide 7: Traction & Metrics**
+   - User adoption
+   - Performance metrics
+   - Community engagement
+
+**Slide 8: Competition**
+   - Competitive landscape
+   - Competitive advantages
+   - Market positioning
+
+**Slide 9: Technology**
+   - Technical architecture
+   - Scalability considerations
+   - Security and reliability
+
+**Slide 10: Team**
+   - Core team members
+   - Relevant experience
+   - Advisory board
+
+**Slide 11: Financials**
+   - Revenue projections
+   - Cost structure
+   - Funding requirements
+
+**Slide 12: Funding Ask**
+   - Amount seeking
+   - Use of funds
+   - Expected outcomes
+
+**Slide 13: Next Steps**
+   - Immediate milestones
+   - Long-term vision
+   - Call to action
+
+Additional context: {extra}
+
+Format the response as a comprehensive pitch deck with clear sections and professional language suitable for investors."""
+            
+            response = model.generate_content(prompt)
+            pitch_deck_content = response.text
+            
+            # Create project
+            project = Project(
+                title=repo_name,
+                repo_url=repo_url,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pitch_deck={
+                    'content': pitch_deck_content,
+                    'generated_at': datetime.utcnow().isoformat(),
+                    'version': '1.0'
+                },
+                user_id=current_user.id
+            )
+            
+            project.save()
+            current_user.use_token()
+            
+            # Clear session data
+            session.pop('selected_repo', None)
+            
+            flash('Pitch deck generated successfully!', 'success')
+            return redirect(url_for('dashboard.project_detail', project_id=project.id))
+            
+        except Exception as e:
+            flash(f'Failed to generate pitch deck: {str(e)}', 'error')
+            return redirect(url_for('dashboard.index'))
     
-    return render_template('dashboard/generator.html', 
-                         prefilled_repo_url=repo_url,
-                         from_github=from_github)
+    # Regular generator page for manual URL entry
+    return render_template('dashboard/generator.html', from_github=from_github)
 
 @dashboard_bp.route('/documentation/<project_id>')
 @login_required
