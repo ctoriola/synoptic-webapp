@@ -34,9 +34,9 @@
 
     <!-- Repository Grid -->
     {% if repositories %}
-        <div id="repositoryList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="repositoryList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {% for repo in repositories %}
-            <div class="repo-item bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200" data-repo-name="{{ repo.name|lower }}">
+            <div class="repo-item bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200 {% if loop.index > 6 %}hidden{% endif %}" data-repo-name="{{ repo.name|lower }}" data-index="{{ loop.index }}">
                 <div class="p-6">
                     <div class="flex items-start justify-between mb-4">
                         <div class="flex items-center space-x-3">
@@ -100,6 +100,22 @@
             </div>
             {% endfor %}
         </div>
+        
+        <!-- Show More Button -->
+        {% if repositories|length > 6 %}
+        <div class="mt-8 text-center">
+            <button id="showMoreBtn" 
+                    class="inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                <i class="fas fa-chevron-down mr-2"></i>
+                Show All Repositories ({{ repositories|length - 6 }} more)
+            </button>
+            <button id="showLessBtn" 
+                    class="hidden inline-flex items-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                <i class="fas fa-chevron-up mr-2"></i>
+                Show Less
+            </button>
+        </div>
+        {% endif %}
                         
     {% else %}
         <!-- Loading State -->
@@ -150,7 +166,10 @@
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('repoSearch');
     const repoItems = document.querySelectorAll('.repo-item');
+    const showMoreBtn = document.getElementById('showMoreBtn');
+    const showLessBtn = document.getElementById('showLessBtn');
     
+    // Search functionality
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase();
@@ -165,6 +184,33 @@ document.addEventListener('DOMContentLoaded', function() {
                     item.style.display = 'none';
                 }
             });
+        });
+    }
+    
+    // Show more/less functionality
+    if (showMoreBtn) {
+        showMoreBtn.addEventListener('click', function() {
+            repoItems.forEach(function(item) {
+                const index = parseInt(item.getAttribute('data-index'));
+                if (index > 6) {
+                    item.classList.remove('hidden');
+                }
+            });
+            showMoreBtn.classList.add('hidden');
+            showLessBtn.classList.remove('hidden');
+        });
+    }
+    
+    if (showLessBtn) {
+        showLessBtn.addEventListener('click', function() {
+            repoItems.forEach(function(item) {
+                const index = parseInt(item.getAttribute('data-index'));
+                if (index > 6) {
+                    item.classList.add('hidden');
+                }
+            });
+            showLessBtn.classList.add('hidden');
+            showMoreBtn.classList.remove('hidden');
         });
     }
 });
