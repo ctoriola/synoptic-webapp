@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Select Repository - Synoptic{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Select a Repository</h4>
+                    <p class="text-muted mb-0">Choose a repository to generate a pitch deck for</p>
+                </div>
+                <div class="card-body">
+                    {% if repositories %}
+                        <div class="mb-3">
+                            <input type="text" id="repoSearch" class="form-control" placeholder="Search repositories...">
+                        </div>
+                        
+                        <div id="repositoryList">
+                            {% for repo in repositories %}
+                            <div class="repo-item border rounded p-3 mb-3" data-repo-name="{{ repo.name|lower }}">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="flex-grow-1">
+                                        <h5 class="mb-1">
+                                            <i class="fas fa-code-branch text-primary me-2"></i>
+                                            {{ repo.name }}
+                                        </h5>
+                                        {% if repo.description %}
+                                            <p class="text-muted mb-2">{{ repo.description }}</p>
+                                        {% endif %}
+                                        <div class="d-flex gap-3 text-sm text-muted">
+                                            {% if repo.language %}
+                                                <span><i class="fas fa-code me-1"></i>{{ repo.language }}</span>
+                                            {% endif %}
+                                            <span><i class="fas fa-star me-1"></i>{{ repo.stargazers_count }}</span>
+                                            <span><i class="fas fa-code-branch me-1"></i>{{ repo.forks_count }}</span>
+                                            {% if repo.private %}
+                                                <span class="badge bg-warning">Private</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Public</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="ms-3">
+                                        <form method="POST" action="{{ url_for('auth.select_repo') }}" class="d-inline">
+                                            <input type="hidden" name="repo_url" value="{{ repo.html_url }}">
+                                            <input type="hidden" name="repo_name" value="{{ repo.name }}">
+                                            <input type="hidden" name="repo_owner" value="{{ repo.owner.login }}">
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-plus me-1"></i>Select
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if repositories|length == 0 %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
+                            <h5>No repositories found</h5>
+                            <p class="text-muted">You don't have any repositories in your GitHub account.</p>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-3">Loading your repositories...</p>
+                        </div>
+                    {% endif %}
+                    
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                            </a>
+                            <a href="{{ url_for('dashboard.create_project') }}" class="btn btn-outline-primary">
+                                <i class="fas fa-link me-1"></i>Enter URL Manually
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('repoSearch');
+    const repoItems = document.querySelectorAll('.repo-item');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            repoItems.forEach(function(item) {
+                const repoName = item.getAttribute('data-repo-name');
+                const description = item.querySelector('p') ? item.querySelector('p').textContent.toLowerCase() : '';
+                
+                if (repoName.includes(searchTerm) || description.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

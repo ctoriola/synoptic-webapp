@@ -77,7 +77,7 @@
                             Pitch Deck
                         </h3>
                         <div class="prose max-w-none">
-                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ project.pitch_deck.content | format_bold | safe }}</div>
+                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ project.pitch_deck.content | format_markdown | safe }}</div>
                         </div>
                     </div>
                 {% else %}

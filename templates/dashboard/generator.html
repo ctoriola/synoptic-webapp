@@ -69,6 +69,7 @@
                                name="repoUrl" 
                                type="url" 
                                placeholder="https://github.com/owner/repository" 
+                               {% if prefilled_repo_url %}value="{{ prefilled_repo_url }}"{% endif %}
                                required 
                                class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                         <div class="absolute inset-y-0 right-0 pr-3 flex items-center">

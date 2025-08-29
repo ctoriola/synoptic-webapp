@@ -6,8 +6,7 @@ from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
-    def __init__(self, id=None, email=None, username=None, password_hash=None, is_admin=False, 
-                 account_tier='free', tokens=3, created_at=None):
+    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=10, github_id=None, github_username=None, github_token=None, created_at=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
@@ -15,6 +14,9 @@ class User(UserMixin):
         self.is_admin = is_admin
         self.account_tier = account_tier  # 'free', 'basic', 'pro'
         self.tokens = tokens  # Available tokens for pitch deck generation
+        self.github_id = github_id
+        self.github_username = github_username
+        self.github_token = github_token
         self.created_at = created_at or datetime.utcnow()
     
     def set_password(self, password):
@@ -60,19 +62,26 @@ class User(UserMixin):
             return True
         return False
     
+    def to_dict(self):
+        """Convert user to dictionary for Firestore"""
+        return {
+            'username': self.username,
+            'email': self.email,
+            'password_hash': self.password_hash,
+            'is_admin': self.is_admin,
+            'account_tier': self.account_tier,
+            'tokens': self.tokens,
+            'github_id': self.github_id,
+            'github_username': self.github_username,
+            'github_token': self.github_token,
+            'created_at': self.created_at
+        }
+    
     def save(self):
         """Save user to Firestore"""
         db = get_db()
         if db:
-            user_data = {
-                'email': self.email,
-                'username': self.username,
-                'password_hash': self.password_hash,
-                'is_admin': self.is_admin,
-                'account_tier': self.account_tier,
-                'tokens': self.tokens,
-                'created_at': self.created_at
-            }
+            user_data = self.to_dict()
             db.collection('users').document(self.id).set(user_data)
             return True
         return False
@@ -87,12 +96,15 @@ class User(UserMixin):
                 data = doc.to_dict()
                 return User(
                     id=user_id,
-                    email=data.get('email'),
                     username=data.get('username'),
+                    email=data.get('email'),
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 3),
+                    tokens=data.get('tokens', 10),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
                     created_at=data.get('created_at')
                 )
         return None
@@ -111,6 +123,11 @@ class User(UserMixin):
                     username=data.get('username'),
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 10),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
                     created_at=data.get('created_at')
                 )
         return None
@@ -129,6 +146,34 @@ class User(UserMixin):
                     username=data.get('username'),
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 10),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
+                    created_at=data.get('created_at')
+                )
+        return None
+    
+    @staticmethod
+    def get_by_github_id(github_id):
+        """Get user by GitHub ID"""
+        db = get_db()
+        if db:
+            users = db.collection('users').where('github_id', '==', github_id).limit(1).stream()
+            for user in users:
+                data = user.to_dict()
+                return User(
+                    id=user.id,
+                    email=data.get('email'),
+                    username=data.get('username'),
+                    password_hash=data.get('password_hash'),
+                    is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 10),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
                     created_at=data.get('created_at')
                 )
         return None

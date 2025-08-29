@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_required, current_user
 from firebase_models import Project, User
 from datetime import datetime
@@ -34,7 +34,20 @@ def index():
 @dashboard_bp.route('/generator')
 @login_required
 def generator():
-    return render_template('dashboard/generator.html')
+    # Check if coming from GitHub repo selection
+    from_github = request.args.get('from_github')
+    selected_repo = session.get('selected_repo')
+    
+    # Pre-fill repo URL if coming from GitHub selection
+    repo_url = None
+    if from_github and selected_repo:
+        repo_url = selected_repo.get('url')
+        # Clear the session data after using it
+        session.pop('selected_repo', None)
+    
+    return render_template('dashboard/generator.html', 
+                         prefilled_repo_url=repo_url,
+                         from_github=from_github)
 
 @dashboard_bp.route('/documentation/<project_id>')
 @login_required

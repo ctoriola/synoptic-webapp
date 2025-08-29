@@ -45,14 +45,32 @@ def create_app():
     def markdown_filter(text):
         return markdown.markdown(text, extensions=['codehilite', 'fenced_code'])
     
-    # Add bold formatting filter for pitch deck content
-    @app.template_filter('format_bold')
-    def format_bold_filter(text):
+    # Add comprehensive markdown formatting filter for pitch deck content
+    @app.template_filter('format_markdown')
+    def format_markdown_filter(text):
         import re
         if not text:
             return text
+        
         # Replace **text** with <strong>text</strong>
         formatted = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
+        
+        # Replace ## Heading with <h3>Heading</h3>
+        formatted = re.sub(r'^## (.*?)$', r'<h3>\1</h3>', formatted, flags=re.MULTILINE)
+        
+        # Replace ### Heading with <h4>Heading</h4>
+        formatted = re.sub(r'^### (.*?)$', r'<h4>\1</h4>', formatted, flags=re.MULTILINE)
+        
+        # Replace # Heading with <h2>Heading</h2>
+        formatted = re.sub(r'^# (.*?)$', r'<h2>\1</h2>', formatted, flags=re.MULTILINE)
+        
+        # Replace bullet points - item with <li>item</li>
+        formatted = re.sub(r'^- (.*?)$', r'<li>\1</li>', formatted, flags=re.MULTILINE)
+        
+        # Clean up any remaining ** or ##
+        formatted = re.sub(r'\*\*', '', formatted)
+        formatted = re.sub(r'##', '', formatted)
+        
         return formatted
     
     # Create admin user route for Firebase (since we can't do it automatically)
