@@ -26,10 +26,13 @@ def create_app():
     from firebase_models import User, Project
     
     # Register blueprints
-    from auth import auth_bp
+    from auth import auth_bp, init_oauth
     from dashboard import dashboard_bp
     from api import api_bp
     from main import main_bp
+    
+    # Initialize OAuth
+    init_oauth(app)
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp, url_prefix='/auth')
