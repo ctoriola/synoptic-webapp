@@ -3,88 +3,145 @@
 {% block title %}Select Repository - Synoptic{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">Select a Repository</h4>
-                    <p class="text-muted mb-0">Choose a repository to generate a pitch deck for</p>
+<div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-900 rounded-full mb-4">
+            <i class="fab fa-github text-white text-2xl"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Select a Repository</h1>
+        <p class="text-lg text-gray-600 max-w-2xl mx-auto">
+            Choose from your GitHub repositories to generate an AI-powered pitch deck
+        </p>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="p-6">
+            {% if repositories %}
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="fas fa-search text-gray-400"></i>
+                    </div>
+                    <input type="text" 
+                           id="repoSearch" 
+                           class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-500 focus:border-primary-500" 
+                           placeholder="Search your repositories...">
                 </div>
-                <div class="card-body">
-                    {% if repositories %}
-                        <div class="mb-3">
-                            <input type="text" id="repoSearch" class="form-control" placeholder="Search repositories...">
-                        </div>
-                        
-                        <div id="repositoryList">
-                            {% for repo in repositories %}
-                            <div class="repo-item border rounded p-3 mb-3" data-repo-name="{{ repo.name|lower }}">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="flex-grow-1">
-                                        <h5 class="mb-1">
-                                            <i class="fas fa-code-branch text-primary me-2"></i>
-                                            {{ repo.name }}
-                                        </h5>
-                                        {% if repo.description %}
-                                            <p class="text-muted mb-2">{{ repo.description }}</p>
-                                        {% endif %}
-                                        <div class="d-flex gap-3 text-sm text-muted">
-                                            {% if repo.language %}
-                                                <span><i class="fas fa-code me-1"></i>{{ repo.language }}</span>
-                                            {% endif %}
-                                            <span><i class="fas fa-star me-1"></i>{{ repo.stargazers_count }}</span>
-                                            <span><i class="fas fa-code-branch me-1"></i>{{ repo.forks_count }}</span>
-                                            {% if repo.private %}
-                                                <span class="badge bg-warning">Private</span>
-                                            {% else %}
-                                                <span class="badge bg-success">Public</span>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <div class="ms-3">
-                                        <form method="POST" action="{{ url_for('auth.select_repo') }}" class="d-inline">
-                                            <input type="hidden" name="repo_url" value="{{ repo.html_url }}">
-                                            <input type="hidden" name="repo_name" value="{{ repo.name }}">
-                                            <input type="hidden" name="repo_owner" value="{{ repo.owner.login }}">
-                                            <button type="submit" class="btn btn-primary">
-                                                <i class="fas fa-plus me-1"></i>Select
-                                            </button>
-                                        </form>
-                                    </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Repository Grid -->
+    {% if repositories %}
+        <div id="repositoryList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for repo in repositories %}
+            <div class="repo-item bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200" data-repo-name="{{ repo.name|lower }}">
+                <div class="p-6">
+                    <div class="flex items-start justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0">
+                                <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-code-branch text-gray-600"></i>
                                 </div>
                             </div>
-                            {% endfor %}
-                        </div>
-                        
-                        {% if repositories|length == 0 %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-folder-open fa-3x text-muted mb-3"></i>
-                            <h5>No repositories found</h5>
-                            <p class="text-muted">You don't have any repositories in your GitHub account.</p>
-                        </div>
-                        {% endif %}
-                    {% else %}
-                        <div class="text-center py-4">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                            <div class="min-w-0 flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900 truncate">{{ repo.name }}</h3>
+                                <p class="text-sm text-gray-500">{{ repo.owner.login }}</p>
                             </div>
-                            <p class="mt-3">Loading your repositories...</p>
                         </div>
+                        {% if repo.private %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                <i class="fas fa-lock mr-1"></i>Private
+                            </span>
+                        {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-globe mr-1"></i>Public
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if repo.description %}
+                        <p class="text-gray-600 text-sm mb-4 line-clamp-2">{{ repo.description }}</p>
+                    {% else %}
+                        <p class="text-gray-400 text-sm mb-4 italic">No description available</p>
                     {% endif %}
                     
-                    <div class="mt-4 pt-3 border-top">
-                        <div class="d-flex justify-content-between">
-                            <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
-                            </a>
-                            <a href="{{ url_for('dashboard.generator') }}" class="btn btn-outline-primary">
-                                <i class="fas fa-link me-1"></i>Enter URL Manually
-                            </a>
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-4 text-sm text-gray-500">
+                            {% if repo.language %}
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                                    <span>{{ repo.language }}</span>
+                                </div>
+                            {% endif %}
+                            <div class="flex items-center">
+                                <i class="fas fa-star mr-1"></i>
+                                <span>{{ repo.stargazers_count }}</span>
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-code-branch mr-1"></i>
+                                <span>{{ repo.forks_count }}</span>
+                            </div>
                         </div>
                     </div>
+                    
+                    <form method="POST" action="{{ url_for('auth.select_repo') }}">
+                        <input type="hidden" name="repo_url" value="{{ repo.html_url }}">
+                        <input type="hidden" name="repo_name" value="{{ repo.name }}">
+                        <input type="hidden" name="repo_owner" value="{{ repo.owner.login }}">
+                        <button type="submit" 
+                                class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                            <i class="fas fa-magic mr-2"></i>
+                            Generate Pitch Deck
+                        </button>
+                    </form>
                 </div>
             </div>
+            {% endfor %}
+        </div>
+                        
+    {% else %}
+        <!-- Loading State -->
+        <div class="text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-primary-100 rounded-full mb-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">Loading your repositories...</h3>
+            <p class="text-gray-500">This may take a few moments</p>
+        </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if repositories and repositories|length == 0 %}
+        <div class="text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                <i class="fas fa-folder-open text-gray-400 text-2xl"></i>
+            </div>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No repositories found</h3>
+            <p class="text-gray-500 mb-6">You don't have any repositories in your GitHub account yet.</p>
+            <a href="https://github.com/new" 
+               target="_blank" 
+               class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700">
+                <i class="fab fa-github mr-2"></i>
+                Create Repository on GitHub
+            </a>
+        </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="mt-12 pt-8 border-t border-gray-200">
+        <div class="flex flex-col sm:flex-row sm:justify-between gap-4">
+            <a href="{{ url_for('dashboard.index') }}" 
+               class="inline-flex items-center justify-center px-6 py-3 border border-gray-300 shadow-sm text-base font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Dashboard
+            </a>
+            <a href="{{ url_for('dashboard.generator') }}" 
+               class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-link mr-2"></i>
+                Enter URL Manually
+            </a>
         </div>
     </div>
 </div>
