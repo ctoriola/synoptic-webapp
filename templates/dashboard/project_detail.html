@@ -331,7 +331,8 @@ function updateTemplateSelection() {
     exportBtn.disabled = !selectedTemplate;
 }
 
-    // Add click handlers for template selection
+// Add click handlers for template selection when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.template-option[data-template]').forEach(option => {
         option.addEventListener('click', function() {
             selectedTemplate = this.dataset.template;
