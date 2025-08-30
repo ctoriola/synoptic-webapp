@@ -539,6 +539,11 @@ def export_project_pptx(project_id):
             # Update title slide content
             if title_slide.shapes.title:
                 title_slide.shapes.title.text = project.title
+                # Set title font size for template 1
+                if template == '1':
+                    for paragraph in title_slide.shapes.title.text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(28)
             # Find subtitle placeholder and update it
             for shape in title_slide.shapes:
                 if hasattr(shape, 'text_frame') and shape != title_slide.shapes.title:
@@ -583,6 +588,11 @@ def export_project_pptx(project_id):
                     slide_title = lines[0].replace(':', '').strip()
                     if slide.shapes.title:
                         slide.shapes.title.text = slide_title
+                        # Set title font size for template 1
+                        if template == '1':
+                            for paragraph in slide.shapes.title.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.size = Pt(28)
                     
                     # Rest is content
                     slide_content = '\n'.join(lines[1:]).strip()
@@ -634,6 +644,11 @@ def export_project_pptx(project_id):
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = f"Slide {i + 1}"
+                        # Set title font size for template 1
+                        if template == '1':
+                            for paragraph in slide.shapes.title.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.size = Pt(28)
                     if len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
@@ -654,6 +669,11 @@ def export_project_pptx(project_id):
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = section_title
+                        # Set title font size for template 1
+                        if template == '1':
+                            for paragraph in slide.shapes.title.text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.size = Pt(28)
                     if len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
