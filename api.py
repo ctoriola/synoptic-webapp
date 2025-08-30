@@ -29,8 +29,14 @@ def process_markdown_to_pptx(text, text_frame):
     """Process markdown text and add it to PowerPoint text frame with proper formatting"""
     import re
     
-    # Split text into lines
-    lines = text.split('\n')
+    # Clear existing content
+    text_frame.clear()
+    
+    # Split text into lines and filter out empty lines
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
+    
+    if not lines:
+        return
     
     for i, line in enumerate(lines):
         if i > 0:  # Add new paragraph for each line except the first
@@ -41,19 +47,21 @@ def process_markdown_to_pptx(text, text_frame):
         # Process bold text (**text**)
         parts = re.split(r'\*\*(.*?)\*\*', line)
         
-        for j, part in enumerate(parts):
-            if not part:  # Skip empty parts
-                continue
-                
+        if not parts or (len(parts) == 1 and not parts[0]):
+            # If no content, add the line as is
             run = p.add_run()
-            run.text = part
-            
-            # Make every second part bold (the content between **)
-            if j % 2 == 1:
-                run.font.bold = True
-            
-            # Set font size
-            run.font.size = Pt(22)
+            run.text = line
+        else:
+            for j, part in enumerate(parts):
+                if not part:  # Skip empty parts
+                    continue
+                    
+                run = p.add_run()
+                run.text = part
+                
+                # Make every second part bold (the content between **)
+                if j % 2 == 1:
+                    run.font.bold = True
 
 # Configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -538,14 +546,18 @@ def export_project_pptx(project_id):
         if template == '1':
             slides_to_remove = []
             for i, slide in enumerate(prs.slides):
-                if slide.shapes.title and 'demo' in slide.shapes.title.text.lower():
-                    slides_to_remove.append(i)
+                try:
+                    if slide.shapes.title and slide.shapes.title.text and 'demo' in slide.shapes.title.text.lower():
+                        slides_to_remove.append(slide)
+                except:
+                    continue
             
-            # Remove demo slides (in reverse order to maintain indices)
-            for slide_index in reversed(slides_to_remove):
-                slide_id = prs.slides[slide_index].slide_id
-                # Find and remove the slide ID from the slide list
-                for slide_id_elem in prs.slides._sldIdLst:
+            # Remove demo slides using proper deletion method
+            for slide in slides_to_remove:
+                slide_part = slide.part
+                prs.part.drop_rel(slide_part.partname.baseURI)
+                slide_id = slide.slide_id
+                for slide_id_elem in list(prs.slides._sldIdLst):
                     if slide_id_elem.id == slide_id:
                         prs.slides._sldIdLst.remove(slide_id_elem)
                         break
@@ -556,11 +568,11 @@ def export_project_pptx(project_id):
             # Update title slide content
             if title_slide.shapes.title:
                 title_slide.shapes.title.text = project.title
-                # Set title font size for template 1
+                # Set title font size for template 1 - 66pt for front page
                 if template == '1':
                     for paragraph in title_slide.shapes.title.text_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(28)
+                            run.font.size = Pt(66)
             # Find subtitle placeholder and update it
             for shape in title_slide.shapes:
                 if hasattr(shape, 'text_frame') and shape != title_slide.shapes.title:
@@ -625,16 +637,17 @@ def export_project_pptx(project_id):
                     if slide_content and len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
-                        text_frame.clear()
                         
-                        # Process content with bold formatting
-                        formatted_content = process_markdown_to_pptx(slide_content, text_frame)
-                        
-                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
-                        font_size = Pt(16) if template == '1' else Pt(22)
-                        for paragraph in text_frame.paragraphs:
-                            for run in paragraph.runs:
-                                run.font.size = font_size
+                        # Add content directly to text frame
+                        if slide_content:
+                            # Process content with bold formatting
+                            process_markdown_to_pptx(slide_content, text_frame)
+                            
+                            # Set font size for all paragraphs - 16pt for template 1, 22pt for others
+                            font_size = Pt(16) if template == '1' else Pt(22)
+                            for paragraph in text_frame.paragraphs:
+                                for run in paragraph.runs:
+                                    run.font.size = font_size
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
