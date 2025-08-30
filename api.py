@@ -544,7 +544,11 @@ def export_project_pptx(project_id):
             # Remove demo slides (in reverse order to maintain indices)
             for slide_index in reversed(slides_to_remove):
                 slide_id = prs.slides[slide_index].slide_id
-                prs.slides._sldIdLst.remove_by_id(slide_id)
+                # Find and remove the slide ID from the slide list
+                for slide_id_elem in prs.slides._sldIdLst:
+                    if slide_id_elem.id == slide_id:
+                        prs.slides._sldIdLst.remove(slide_id_elem)
+                        break
         
         # Use the existing first slide and update its content
         if len(prs.slides) > 0:
