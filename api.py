@@ -29,14 +29,8 @@ def process_markdown_to_pptx(text, text_frame):
     """Process markdown text and add it to PowerPoint text frame with proper formatting"""
     import re
     
-    # Clear existing content
-    text_frame.clear()
-    
-    # Split text into lines and filter out empty lines
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    if not lines:
-        return
+    # Split text into lines
+    lines = text.split('\n')
     
     for i, line in enumerate(lines):
         if i > 0:  # Add new paragraph for each line except the first
@@ -47,21 +41,19 @@ def process_markdown_to_pptx(text, text_frame):
         # Process bold text (**text**)
         parts = re.split(r'\*\*(.*?)\*\*', line)
         
-        if not parts or (len(parts) == 1 and not parts[0]):
-            # If no content, add the line as is
-            run = p.add_run()
-            run.text = line
-        else:
-            for j, part in enumerate(parts):
-                if not part:  # Skip empty parts
-                    continue
-                    
-                run = p.add_run()
-                run.text = part
+        for j, part in enumerate(parts):
+            if not part:  # Skip empty parts
+                continue
                 
-                # Make every second part bold (the content between **)
-                if j % 2 == 1:
-                    run.font.bold = True
+            run = p.add_run()
+            run.text = part
+            
+            # Make every second part bold (the content between **)
+            if j % 2 == 1:
+                run.font.bold = True
+            
+            # Set font size
+            run.font.size = Pt(22)
 
 # Configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -541,21 +533,12 @@ def export_project_pptx(project_id):
     # Create PowerPoint presentation from template or blank
     if template_path and os.path.exists(template_path):
         prs = Presentation(template_path)
-        
-        # For template 1, simply skip demo slides instead of trying to delete them
-        # This avoids complex slide deletion issues while achieving the same result
-        
         # Use the existing first slide and update its content
         if len(prs.slides) > 0:
             title_slide = prs.slides[0]
             # Update title slide content
             if title_slide.shapes.title:
                 title_slide.shapes.title.text = project.title
-                # Set title font size for template 1 - 66pt for front page
-                if template == '1':
-                    for paragraph in title_slide.shapes.title.text_frame.paragraphs:
-                        for run in paragraph.runs:
-                            run.font.size = Pt(66)
             # Find subtitle placeholder and update it
             for shape in title_slide.shapes:
                 if hasattr(shape, 'text_frame') and shape != title_slide.shapes.title:
@@ -592,24 +575,16 @@ def export_project_pptx(project_id):
             for slide_text in slides:
                 lines = slide_text.strip().split('\n')
                 if lines:
-                    # Create new slide - use Demo Page layout for template 1
-                    if template == '1':
-                        # Find the Demo Page layout (usually index 2 or 3 in custom templates)
-                        demo_layout = None
-                        for i, layout in enumerate(prs.slide_layouts):
-                            if 'demo' in layout.name.lower() or i == 2:  # Try to find demo layout or use index 2
-                                demo_layout = layout
-                                break
-                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
-                    else:
-                        slide_layout = prs.slide_layouts[1]  # Title and content layout
+                    # Create new slide - use layout 2 for demo page styling on template 1
+                    layout_index = 2 if template == '1' else 1  # Use demo page layout for template 1
+                    slide_layout = prs.slide_layouts[layout_index] if layout_index < len(prs.slide_layouts) else prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
                     
                     # First line is the slide title
                     slide_title = lines[0].replace(':', '').strip()
                     if slide.shapes.title:
                         slide.shapes.title.text = slide_title
-                        # Set title font size for template 1
+                        # Set title font size for template 1 only (28pt)
                         if template == '1':
                             for paragraph in slide.shapes.title.text_frame.paragraphs:
                                 for run in paragraph.runs:
@@ -620,17 +595,16 @@ def export_project_pptx(project_id):
                     if slide_content and len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
+                        text_frame.clear()
                         
-                        # Add content directly to text frame
-                        if slide_content:
-                            # Process content with bold formatting
-                            process_markdown_to_pptx(slide_content, text_frame)
-                            
-                            # Set font size for all paragraphs - 16pt for template 1, 22pt for others
-                            font_size = Pt(16) if template == '1' else Pt(22)
-                            for paragraph in text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    run.font.size = font_size
+                        # Process content with bold formatting
+                        formatted_content = process_markdown_to_pptx(slide_content, text_frame)
+                        
+                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
+                        font_size = Pt(16) if template == '1' else Pt(22)
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = font_size
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
@@ -662,20 +636,13 @@ def export_project_pptx(project_id):
             if not content_sections:
                 paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
                 for i, paragraph in enumerate(paragraphs[:10]):  # Limit to 10 slides
-                    # Use Demo Page layout for template 1
-                    if template == '1':
-                        demo_layout = None
-                        for j, layout in enumerate(prs.slide_layouts):
-                            if 'demo' in layout.name.lower() or j == 2:
-                                demo_layout = layout
-                                break
-                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
-                    else:
-                        slide_layout = prs.slide_layouts[1]
+                    # Use layout 2 for demo page styling on template 1
+                    layout_index = 2 if template == '1' else 1
+                    slide_layout = prs.slide_layouts[layout_index] if layout_index < len(prs.slide_layouts) else prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = f"Slide {i + 1}"
-                        # Set title font size for template 1
+                        # Set title font size for template 1 only (28pt)
                         if template == '1':
                             for paragraph in slide.shapes.title.text_frame.paragraphs:
                                 for run in paragraph.runs:
@@ -696,20 +663,13 @@ def export_project_pptx(project_id):
             else:
                 # Create slides from sections
                 for section_title, section_content in content_sections:
-                    # Use Demo Page layout for template 1
-                    if template == '1':
-                        demo_layout = None
-                        for j, layout in enumerate(prs.slide_layouts):
-                            if 'demo' in layout.name.lower() or j == 2:
-                                demo_layout = layout
-                                break
-                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
-                    else:
-                        slide_layout = prs.slide_layouts[1]
+                    # Use layout 2 for demo page styling on template 1
+                    layout_index = 2 if template == '1' else 1
+                    slide_layout = prs.slide_layouts[layout_index] if layout_index < len(prs.slide_layouts) else prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = section_title
-                        # Set title font size for template 1
+                        # Set title font size for template 1 only (28pt)
                         if template == '1':
                             for paragraph in slide.shapes.title.text_frame.paragraphs:
                                 for run in paragraph.runs:
