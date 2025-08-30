@@ -6,7 +6,7 @@ from datetime import datetime
 from io import BytesIO
 
 import requests
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, session
 from flask_login import login_required, current_user
 import google.generativeai as genai
 # PDF generation temporarily disabled for Vercel compatibility
@@ -263,10 +263,16 @@ def api_generate():
         generation_type = request.form.get('generation_type', 'investor')
         
         # Get user preferences for slide count and other settings
-        preferences = session.get('user_preferences', {})
-        slide_count = int(preferences.get('slide_count', '12'))
-        include_financials = preferences.get('include_financials', True)
-        include_competition = preferences.get('include_competition', True)
+        try:
+            preferences = session.get('user_preferences', {})
+            slide_count = int(preferences.get('slide_count', '12'))
+            include_financials = preferences.get('include_financials', True)
+            include_competition = preferences.get('include_competition', True)
+        except:
+            # Fallback to defaults if session access fails
+            slide_count = 12
+            include_financials = True
+            include_competition = True
         
         content = ""
         if project_file:
