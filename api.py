@@ -517,17 +517,52 @@ def export_project_pptx(project_id):
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
     
-    # Create PowerPoint presentation
-    prs = Presentation()
+    # Get template selection from query parameter
+    template = request.args.get('template', '1')  # Default to template 1
     
-    # Title slide
-    title_slide_layout = prs.slide_layouts[0]  # Title slide layout
-    slide = prs.slides.add_slide(title_slide_layout)
-    title = slide.shapes.title
-    subtitle = slide.placeholders[1]
+    # Load template file
+    template_path = None
+    if template == '1':
+        template_path = os.path.join(os.path.dirname(__file__), 'template1.pptx')
+    # Template 2 and 3 will be added later
+    # elif template == '2':
+    #     template_path = os.path.join(os.path.dirname(__file__), 'template2.pptx')
+    # elif template == '3':
+    #     template_path = os.path.join(os.path.dirname(__file__), 'template3.pptx')
     
-    title.text = project.title
-    subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
+    # Create PowerPoint presentation from template or blank
+    if template_path and os.path.exists(template_path):
+        prs = Presentation(template_path)
+        # Use the existing first slide and update its content
+        if len(prs.slides) > 0:
+            title_slide = prs.slides[0]
+            # Update title slide content
+            if title_slide.shapes.title:
+                title_slide.shapes.title.text = project.title
+            # Find subtitle placeholder and update it
+            for shape in title_slide.shapes:
+                if hasattr(shape, 'text_frame') and shape != title_slide.shapes.title:
+                    shape.text_frame.text = f"Investor Pitch Deck"
+                    if project.repo_owner and project.repo_name:
+                        shape.text_frame.text += f"\n{project.repo_owner}/{project.repo_name}"
+                    break
+        else:
+            # If template has no slides, create a title slide
+            title_slide_layout = prs.slide_layouts[0]
+            slide = prs.slides.add_slide(title_slide_layout)
+            title = slide.shapes.title
+            subtitle = slide.placeholders[1]
+            title.text = project.title
+            subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
+    else:
+        # Fallback to blank presentation
+        prs = Presentation()
+        title_slide_layout = prs.slide_layouts[0]
+        slide = prs.slides.add_slide(title_slide_layout)
+        title = slide.shapes.title
+        subtitle = slide.placeholders[1]
+        title.text = project.title
+        subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
     
     # Process pitch deck content
     if project.pitch_deck and project.pitch_deck.get('content'):

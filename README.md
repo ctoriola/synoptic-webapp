@@ -1,16 +1,26 @@
 # Synoptic - AI Pitch Deck Generator
 
-Synoptic is a web application that automatically generates investor-ready pitch decks from any project using AI. Provide project details, upload documentation, or connect your GitHub account to let our AI analyze your project and create comprehensive pitch presentations.
+Transform any project into professional, investor-ready pitch decks using advanced AI. Synoptic analyzes your project details and automatically generates comprehensive presentations that showcase your technology, market opportunity, and business potential.
 
-## Features
+## 🚀 Key Features
 
-- **Multiple Input Methods**: Describe your project, upload documentation, or connect GitHub repositories
-- **AI-Powered Analysis**: Uses Google's Gemini AI to analyze repository content and generate pitch decks
-- **Multiple Export Formats**: Export your pitch decks as PowerPoint (PPTX), Word (DOCX), or PDF
-- **User Authentication**: Secure login with GitHub OAuth integration
-- **Token-Based Usage**: Fair usage system with different account tiers
-- **Documentation Generation**: Generate technical documentation and user guides
-- **Admin Dashboard**: Administrative tools for user and project management
+### **AI-Powered Pitch Deck Generation**
+- **Multiple Input Methods**: Project descriptions, uploaded documents (PDF, DOC, MD), or GitHub repositories
+- **Advanced AI Analysis**: Google Gemini AI understands your project context and business model
+- **Investor-Ready Output**: 13-slide comprehensive pitch decks with all essential elements
+- **Professional Export**: PowerPoint (PPTX), Word (DOCX), and PDF formats
+
+### **Flexible Project Input**
+- **Text Descriptions**: Detailed project descriptions with business context
+- **Document Upload**: Support for various file formats (TXT, MD, DOC, DOCX, PDF)
+- **GitHub Integration**: Quick-start with repository analysis for developers
+- **Multiple Pitch Styles**: Investor pitch, product demo, or partnership proposals
+
+### **User Experience**
+- **Secure Authentication**: GitHub OAuth integration with optional account creation
+- **Token-Based System**: Fair usage with Free, Pro, and Enterprise tiers
+- **Project Management**: Save, organize, and manage multiple pitch decks
+- **Admin Dashboard**: Comprehensive management tools for administrators
 
 ## Technology Stack
 
