@@ -360,6 +360,29 @@ def delete_project(project_id):
         flash('Failed to delete project', 'error')
     return redirect(url_for('dashboard.projects'))
 
+@dashboard_bp.route('/projects/<project_id>/rename', methods=['POST'])
+@login_required
+def rename_project(project_id):
+    """Rename a project"""
+    try:
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found'}), 404
+        
+        data = request.get_json()
+        new_title = data.get('title', '').strip()
+        
+        if not new_title:
+            return jsonify({'error': 'Title is required'}), 400
+        
+        project.title = new_title
+        project.save()
+        
+        return jsonify({'success': True, 'message': 'Project renamed successfully'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to rename project: {str(e)}'}), 500
+
 @dashboard_bp.route('/settings')
 @login_required
 def settings():
@@ -368,7 +391,16 @@ def settings():
     stats = {
         'total_projects': len(user_projects)
     }
-    return render_template('dashboard/settings.html', stats=stats)
+    
+    # Get user preferences from session
+    preferences = session.get('user_preferences', {
+        'default_style': 'investor',
+        'slide_count': '12',
+        'include_financials': True,
+        'include_competition': True
+    })
+    
+    return render_template('dashboard/settings.html', stats=stats, preferences=preferences)
 
 @dashboard_bp.route('/settings/profile', methods=['POST'])
 @login_required
