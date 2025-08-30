@@ -262,6 +262,12 @@ def api_generate():
         project_file = request.files.get('project_file')
         generation_type = request.form.get('generation_type', 'investor')
         
+        # Get user preferences for slide count and other settings
+        preferences = session.get('user_preferences', {})
+        slide_count = int(preferences.get('slide_count', '12'))
+        include_financials = preferences.get('include_financials', True)
+        include_competition = preferences.get('include_competition', True)
+        
         content = ""
         if project_file:
             # Process uploaded file
@@ -328,6 +334,56 @@ def api_generate():
             user_token = current_user.github_token if current_user.is_authenticated else None
             extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
         
+        # Build dynamic slide structure based on preferences
+        slides = [
+            "**Slide 1: Title Slide**\n   - Project name and tagline\n   - Team/creator information\n   - Date",
+            "**Slide 2: Problem**\n   - What problem does this project solve?\n   - Pain points and market gaps\n   - Why this matters now",
+            "**Slide 3: Solution**\n   - How does this project address the problem?\n   - Key features and functionality\n   - Unique value proposition",
+            "**Slide 4: Market Opportunity**\n   - Target market size\n   - User personas and segments\n   - Market trends and timing",
+            "**Slide 5: Product Demo**\n   - Key features walkthrough\n   - User experience highlights\n   - Technical capabilities",
+            "**Slide 6: Technology Stack**\n   - Architecture overview\n   - Key technologies used\n   - Technical advantages",
+            "**Slide 7: Traction & Metrics**\n   - Current usage/adoption\n   - Key performance indicators\n   - Growth metrics"
+        ]
+        
+        # Add competition slide if enabled
+        if include_competition:
+            slides.append("**Slide 8: Competition**\n   - Competitive landscape\n   - Competitive advantages\n   - Differentiation strategy")
+        
+        # Add business model and financials
+        slides.append("**Slide {}: Business Model**\n   - Revenue streams\n   - Monetization strategy\n   - Pricing approach".format(len(slides) + 1))
+        
+        if include_financials:
+            slides.append("**Slide {}: Financials**\n   - Revenue projections\n   - Cost structure\n   - Funding requirements".format(len(slides) + 1))
+        
+        # Add remaining core slides
+        slides.extend([
+            "**Slide {}: Team**\n   - Key team members\n   - Relevant experience\n   - Advisory board".format(len(slides) + 1),
+            "**Slide {}: Roadmap**\n   - Future features and milestones\n   - Development timeline\n   - Strategic vision".format(len(slides) + 1),
+            "**Slide {}: Ask & Next Steps**\n   - What you're seeking (funding, partnerships, users)\n   - Use of funds/resources\n   - Call to action".format(len(slides) + 1)
+        ])
+        
+        # Add additional slides if user wants more than the core set
+        core_slides = len(slides)
+        if slide_count > core_slides:
+            additional_slides = slide_count - core_slides
+            for i in range(additional_slides):
+                slide_num = core_slides + i + 1
+                if i == 0:
+                    slides.append(f"**Slide {slide_num}: Market Analysis**\n   - Detailed market research\n   - Customer segments\n   - Market size validation")
+                elif i == 1:
+                    slides.append(f"**Slide {slide_num}: Product Roadmap**\n   - Feature development timeline\n   - Version releases\n   - Long-term vision")
+                elif i == 2:
+                    slides.append(f"**Slide {slide_num}: Risk Analysis**\n   - Potential challenges\n   - Mitigation strategies\n   - Contingency plans")
+                elif i == 3:
+                    slides.append(f"**Slide {slide_num}: Partnership Strategy**\n   - Strategic partnerships\n   - Distribution channels\n   - Ecosystem integration")
+                else:
+                    slides.append(f"**Slide {slide_num}: Additional Details**\n   - Supporting information\n   - Technical specifications\n   - Implementation details")
+        
+        # Limit to requested slide count
+        slides = slides[:slide_count]
+        
+        slide_structure = "\n\n".join(slides)
+        
         prompt = f"""Generate a comprehensive pitch deck for the following project:
 
 Project: {title}
@@ -335,67 +391,9 @@ Project: {title}
 
 Project Content:\n{content}\n\n
 
-Please generate a detailed pitch deck with the following slides:
+Please generate a detailed pitch deck with exactly {slide_count} slides as specified below:
 
-**Slide 1: Title Slide**
-   - Project name and tagline
-   - Team/creator information
-   - Date
-
-**Slide 2: Problem**
-   - What problem does this project solve?
-   - Pain points and market gaps
-   - Why this matters now
-
-**Slide 3: Solution**
-   - How does this project address the problem?
-   - Key features and functionality
-   - Unique value proposition
-
-**Slide 4: Market Opportunity**
-   - Target market size
-   - User personas and segments
-   - Market trends and timing
-
-**Slide 5: Product Demo**
-   - Key features walkthrough
-   - User experience highlights
-   - Technical capabilities
-
-**Slide 6: Technology Stack**
-   - Architecture overview
-   - Key technologies used
-   - Technical advantages
-
-**Slide 7: Traction & Metrics**
-   - Current usage/adoption
-   - Key performance indicators
-   - Growth metrics
-
-**Slide 8: Competition**
-   - Competitive landscape
-   - Competitive advantages
-   - Differentiation strategy
-
-**Slide 9: Business Model**
-   - Revenue streams
-   - Monetization strategy
-   - Pricing approach
-
-**Slide 10: Roadmap**
-   - Future features and milestones
-   - Development timeline
-   - Strategic vision
-
-**Slide 11: Team**
-   - Key team members
-   - Relevant experience
-   - Advisory board
-
-**Slide 12: Ask & Next Steps**
-   - What you're seeking (funding, partnerships, users)
-   - Use of funds/resources
-   - Call to action
+{slide_structure}
 
 Make each slide concise, compelling, and investor-ready. Focus on storytelling and visual concepts that would work well in a presentation format.
 """
@@ -426,6 +424,7 @@ Make each slide concise, compelling, and investor-ready. Focus on storytelling a
         return jsonify({
             'success': True,
             'pitch_deck': project.pitch_deck,
+            'project_id': project.id,
             'tokens_remaining': current_user.tokens
         })
     
