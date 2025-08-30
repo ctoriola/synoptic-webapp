@@ -255,23 +255,63 @@ def api_generate():
     if not current_user.can_generate_pitch_deck():
         return jsonify({"error": "No tokens available for pitch deck generation"}), 400
 
-    data = request.get_json(silent=True) or {}
-    repo_url = (data.get("repo_url") or "").strip()
+    # Handle both form data and JSON data
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        # Form data with potential file upload
+        project_description = request.form.get('project_description', '').strip()
+        project_file = request.files.get('project_file')
+        generation_type = request.form.get('generation_type', 'investor')
+        
+        content = ""
+        if project_file:
+            # Process uploaded file
+            try:
+                if project_file.filename.endswith(('.txt', '.md')):
+                    content = project_file.read().decode('utf-8')
+                elif project_file.filename.endswith('.pdf'):
+                    # For PDF files, you'd need a PDF parser like PyPDF2
+                    return jsonify({"error": "PDF processing not yet implemented"}), 400
+                elif project_file.filename.endswith(('.doc', '.docx')):
+                    # For Word docs, you'd need python-docx
+                    return jsonify({"error": "Word document processing not yet implemented"}), 400
+                else:
+                    return jsonify({"error": "Unsupported file format"}), 400
+            except Exception as e:
+                return jsonify({"error": f"Failed to process file: {str(e)}"}), 400
+        elif project_description:
+            content = project_description
+        else:
+            return jsonify({"error": "Please provide either a project description or upload a document"}), 400
+            
+        # Set project details from description
+        title = "Custom Project"
+        repo_owner = current_user.username
+        repo_name = "custom-project"
+        repo_url = ""
+        
+    else:
+        # Legacy JSON data for GitHub repos (keep for backward compatibility)
+        data = request.get_json(silent=True) or {}
+        repo_url = (data.get("repo_url") or "").strip()
 
-    owner, repo = parse_github_repo(repo_url)
-    if not owner:
-        return jsonify({"error": "Invalid GitHub repository URL."}), 400
+        owner, repo = parse_github_repo(repo_url)
+        if not owner:
+            return jsonify({"error": "Invalid GitHub repository URL."}), 400
 
-    # Try raw.githubusercontent.com first
-    content, source = try_fetch_readme_raw(owner, repo)
-    
-    # If that fails, try GitHub API with user's token
-    if not content:
-        user_token = current_user.github_token if current_user.is_authenticated else None
-        content, _ = try_fetch_readme_api(owner, repo, user_token)
+        # Try raw.githubusercontent.com first
+        content, source = try_fetch_readme_raw(owner, repo)
+        
+        # If that fails, try GitHub API with user's token
+        if not content:
+            user_token = current_user.github_token if current_user.is_authenticated else None
+            content, _ = try_fetch_readme_api(owner, repo, user_token)
 
-    if not content:
-        return jsonify({"error": "README not found in repository."}), 404
+        if not content:
+            return jsonify({"error": "README not found in repository."}), 404
+            
+        title = repo
+        repo_owner = owner
+        repo_name = repo
 
     try:
         # Configure Gemini AI
@@ -281,17 +321,19 @@ def api_generate():
         genai.configure(api_key=GOOGLE_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        user_token = current_user.github_token if current_user.is_authenticated else None
-        extra = fetch_additional_repo_signals(owner, repo, user_token)
-        title = repo
-        repo_owner = owner
-        repo_name = repo
-        prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
+        # For custom projects, we don't fetch additional repo signals
+        if 'multipart/form-data' in request.content_type:
+            extra = {}
+        else:
+            user_token = current_user.github_token if current_user.is_authenticated else None
+            extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
+        
+        prompt = f"""Generate a comprehensive pitch deck for the following project:
 
 Project: {title}
-Repository: {repo_owner}/{repo_name}
+{f'Repository: {repo_owner}/{repo_name}' if repo_url else 'Custom Project'}
 
-README Content:\n{content}\n\n
+Project Content:\n{content}\n\n
 
 Please generate a detailed pitch deck with the following slides:
 
