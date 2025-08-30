@@ -1,10 +1,10 @@
 # Synoptic - AI Pitch Deck Generator
 
-Synoptic is a web application that automatically generates investor-ready pitch decks from GitHub repositories using AI. Simply connect your GitHub account, select a repository, and let our AI analyze your project to create comprehensive pitch presentations.
+Synoptic is a web application that automatically generates investor-ready pitch decks from any project using AI. Provide project details, upload documentation, or connect your GitHub account to let our AI analyze your project and create comprehensive pitch presentations.
 
 ## Features
 
-- **GitHub Integration**: Connect your GitHub account to access both public and private repositories
+- **Multiple Input Methods**: Describe your project, upload documentation, or connect GitHub repositories
 - **AI-Powered Analysis**: Uses Google's Gemini AI to analyze repository content and generate pitch decks
 - **Multiple Export Formats**: Export your pitch decks as PowerPoint (PPTX), Word (DOCX), or PDF
 - **User Authentication**: Secure login with GitHub OAuth integration
@@ -83,15 +83,15 @@ The application supports multiple deployment platforms:
 ## Usage
 
 1. **Sign Up/Login**: Create an account or login with GitHub
-2. **Connect GitHub**: Authorize access to your repositories
-3. **Select Repository**: Choose from your public or private repositories
-4. **Generate Pitch Deck**: AI analyzes your repo and creates a pitch deck
+2. **Describe Your Project**: Provide project details or upload documentation
+3. **Optional GitHub Integration**: Connect repositories for quick-start
+4. **Generate Pitch Deck**: AI analyzes your project and creates a pitch deck
 5. **Export**: Download in your preferred format (PPTX, DOCX, PDF)
 
 ## Features in Detail
 
 ### AI Pitch Deck Generation
-- Analyzes README, code structure, and repository metadata
+- Analyzes project descriptions, documentation, and uploaded files
 - Generates comprehensive 13-slide investor pitch deck
 - Includes problem statement, solution, market opportunity, and more
 
