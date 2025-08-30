@@ -594,10 +594,11 @@ def export_project_pptx(project_id):
                         # Process content with bold formatting
                         formatted_content = process_markdown_to_pptx(slide_content, text_frame)
                         
-                        # Set font size for all paragraphs
+                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
+                        font_size = Pt(16) if template == '1' else Pt(22)
                         for paragraph in text_frame.paragraphs:
                             for run in paragraph.runs:
-                                run.font.size = Pt(22)
+                                run.font.size = font_size
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
@@ -641,10 +642,11 @@ def export_project_pptx(project_id):
                         # Process content with bold formatting
                         process_markdown_to_pptx(paragraph, text_frame)
                         
-                        # Set font size for all paragraphs
+                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
+                        font_size = Pt(16) if template == '1' else Pt(22)
                         for p in text_frame.paragraphs:
                             for run in p.runs:
-                                run.font.size = Pt(22)
+                                run.font.size = font_size
             else:
                 # Create slides from sections
                 for section_title, section_content in content_sections:
@@ -660,10 +662,11 @@ def export_project_pptx(project_id):
                         # Process content with bold formatting
                         process_markdown_to_pptx(section_content, text_frame)
                         
-                        # Set font size for all paragraphs
+                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
+                        font_size = Pt(16) if template == '1' else Pt(22)
                         for p in text_frame.paragraphs:
                             for run in p.runs:
-                                run.font.size = Pt(22)
+                                run.font.size = font_size
     
     # Save to buffer
     buffer = BytesIO()
