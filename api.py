@@ -533,6 +533,19 @@ def export_project_pptx(project_id):
     # Create PowerPoint presentation from template or blank
     if template_path and os.path.exists(template_path):
         prs = Presentation(template_path)
+        
+        # For template 1, find and remove the Demo Page slide if it exists
+        if template == '1':
+            slides_to_remove = []
+            for i, slide in enumerate(prs.slides):
+                if slide.shapes.title and 'demo' in slide.shapes.title.text.lower():
+                    slides_to_remove.append(i)
+            
+            # Remove demo slides (in reverse order to maintain indices)
+            for slide_index in reversed(slides_to_remove):
+                slide_id = prs.slides[slide_index].slide_id
+                prs.slides._sldIdLst.remove_by_id(slide_id)
+        
         # Use the existing first slide and update its content
         if len(prs.slides) > 0:
             title_slide = prs.slides[0]
@@ -580,8 +593,17 @@ def export_project_pptx(project_id):
             for slide_text in slides:
                 lines = slide_text.strip().split('\n')
                 if lines:
-                    # Create new slide
-                    slide_layout = prs.slide_layouts[1]  # Title and content layout
+                    # Create new slide - use Demo Page layout for template 1
+                    if template == '1':
+                        # Find the Demo Page layout (usually index 2 or 3 in custom templates)
+                        demo_layout = None
+                        for i, layout in enumerate(prs.slide_layouts):
+                            if 'demo' in layout.name.lower() or i == 2:  # Try to find demo layout or use index 2
+                                demo_layout = layout
+                                break
+                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
+                    else:
+                        slide_layout = prs.slide_layouts[1]  # Title and content layout
                     slide = prs.slides.add_slide(slide_layout)
                     
                     # First line is the slide title
@@ -640,7 +662,16 @@ def export_project_pptx(project_id):
             if not content_sections:
                 paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
                 for i, paragraph in enumerate(paragraphs[:10]):  # Limit to 10 slides
-                    slide_layout = prs.slide_layouts[1]
+                    # Use Demo Page layout for template 1
+                    if template == '1':
+                        demo_layout = None
+                        for j, layout in enumerate(prs.slide_layouts):
+                            if 'demo' in layout.name.lower() or j == 2:
+                                demo_layout = layout
+                                break
+                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
+                    else:
+                        slide_layout = prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = f"Slide {i + 1}"
@@ -665,7 +696,16 @@ def export_project_pptx(project_id):
             else:
                 # Create slides from sections
                 for section_title, section_content in content_sections:
-                    slide_layout = prs.slide_layouts[1]
+                    # Use Demo Page layout for template 1
+                    if template == '1':
+                        demo_layout = None
+                        for j, layout in enumerate(prs.slide_layouts):
+                            if 'demo' in layout.name.lower() or j == 2:
+                                demo_layout = layout
+                                break
+                        slide_layout = demo_layout if demo_layout else prs.slide_layouts[1]
+                    else:
+                        slide_layout = prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
                     if slide.shapes.title:
                         slide.shapes.title.text = section_title
