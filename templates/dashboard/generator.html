@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Proposal Generator - Synoptic{% endblock %}
+{% block title %}AI Pitch Deck Generator - Synoptic{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -9,7 +9,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">AI Pitch Deck Generator</h1>
-                <p class="mt-1 text-sm text-gray-600">Generate investor-ready pitch decks from GitHub repositories</p>
+                <p class="mt-1 text-sm text-gray-600">Transform GitHub projects into compelling investor presentations using AI</p>
             </div>
             <div class="flex flex-col sm:text-right gap-2">
                 <div class="flex items-center space-x-2">
@@ -28,7 +28,7 @@
                 </div>
                 <div class="ml-3">
                     <h3 class="text-sm font-medium text-yellow-800">No tokens remaining</h3>
-                    <p class="mt-1 text-sm text-yellow-700">You've used all your tokens for this billing period. Upgrade your plan to generate more proposals.</p>
+                    <p class="mt-1 text-sm text-yellow-700">You've used all your tokens for this billing period. Upgrade your plan to generate more pitch decks.</p>
                     <div class="mt-3">
                         <a href="{{ url_for('main.pricing') }}" class="text-sm font-medium text-yellow-800 hover:text-yellow-600">
                             View upgrade options <span aria-hidden="true">&rarr;</span>
@@ -71,7 +71,7 @@
                               required 
                               class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm resize-vertical"></textarea>
                     <p class="mt-2 text-sm text-gray-500">
-                        Provide a comprehensive description of your project. The more details you include, the better the AI can generate your pitch deck.
+                        Provide a comprehensive description of your project. The more details you include, the better the AI can generate your investor-ready pitch deck.
                     </p>
                 </div>
 
@@ -215,8 +215,8 @@
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-file-alt text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">Professional Output</h4>
-                <p class="text-sm text-gray-600">Receive a structured, professional proposal ready for presentation</p>
+                <h4 class="font-medium text-gray-900 mb-2">Investor-Ready Output</h4>
+                <p class="text-sm text-gray-600">Receive a structured, professional pitch deck ready for investor meetings</p>
             </div>
         </div>
     </div>
