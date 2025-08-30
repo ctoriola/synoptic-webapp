@@ -7,33 +7,37 @@
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Project Header -->
         <div class="bg-white shadow rounded-lg mb-6">
-            <div class="px-6 py-4 border-b border-gray-200">
-                <div class="flex items-center justify-between">
-                    <div class="flex-1">
-                        <div class="flex items-center">
-                            <h1 id="project-title" class="text-2xl font-bold text-gray-900">{{ project.title }}</h1>
-                            <button id="edit-title-btn" class="ml-3 inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+            <div class="px-4 sm:px-6 py-4 border-b border-gray-200">
+                <!-- Mobile-first responsive layout -->
+                <div class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                    <!-- Project Title Section -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center flex-wrap">
+                            <h1 id="project-title" class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ project.title }}</h1>
+                            <button id="edit-title-btn" class="ml-2 sm:ml-3 inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex-shrink-0">
                                 <i class="fas fa-edit mr-1"></i>
-                                Edit
+                                <span class="hidden sm:inline">Edit</span>
                             </button>
                         </div>
-                        <input id="title-input" type="text" value="{{ project.title }}" class="hidden text-2xl font-bold text-gray-900 border-0 border-b-2 border-primary-500 bg-transparent focus:outline-none focus:border-primary-600 w-full max-w-md">
+                        <input id="title-input" type="text" value="{{ project.title }}" class="hidden text-xl sm:text-2xl font-bold text-gray-900 border-0 border-b-2 border-primary-500 bg-transparent focus:outline-none focus:border-primary-600 w-full">
                         {% if project.repo_url %}
                         <div class="flex items-center mt-2 text-sm text-gray-500">
-                            <i class="fab fa-github mr-2"></i>
-                            <a href="{{ project.repo_url }}" target="_blank" class="hover:text-primary-600">{{ project.repo_owner }}/{{ project.repo_name }}</a>
+                            <i class="fab fa-github mr-2 flex-shrink-0"></i>
+                            <a href="{{ project.repo_url }}" target="_blank" class="hover:text-primary-600 truncate">{{ project.repo_owner }}/{{ project.repo_name }}</a>
                         </div>
                         {% endif %}
                     </div>
-                    <div class="flex items-center space-x-3">
+                    
+                    <!-- Action Buttons -->
+                    <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
                         <!-- Export Dropdown -->
                         <div class="relative group">
-                            <button class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                                <i class="fas fa-download mr-2"></i>
-                                Export
+                            <button class="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i class="fas fa-download mr-1 sm:mr-2"></i>
+                                <span class="hidden sm:inline">Export</span>
                                 <i class="fas fa-chevron-down ml-1"></i>
                             </button>
-                            <div class="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
+                            <div class="absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
                                 <a href="{{ url_for('api.export_project', project_id=project.id, format='docx') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-file-word mr-2 text-blue-600"></i> Export Word Doc
                                 </a>
@@ -54,9 +58,9 @@
                         
                         <!-- Back Button -->
                         <a href="{{ url_for('dashboard.projects') }}" 
-                           class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            <i class="fas fa-arrow-left mr-2"></i>
-                            Back to Projects
+                           class="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <i class="fas fa-arrow-left mr-1 sm:mr-2"></i>
+                            <span class="hidden sm:inline">Back to Projects</span>
                         </a>
                     </div>
                 </div>
