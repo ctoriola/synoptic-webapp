@@ -363,4 +363,168 @@ def delete_project(project_id):
 @dashboard_bp.route('/settings')
 @login_required
 def settings():
-    return render_template('dashboard/settings.html')
+    # Get user's project statistics
+    user_projects = Project.get_by_user(current_user.id)
+    stats = {
+        'total_projects': len(user_projects)
+    }
+    return render_template('dashboard/settings.html', stats=stats)
+
+@dashboard_bp.route('/settings/profile', methods=['POST'])
+@login_required
+def update_profile():
+    """Update user profile information"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        email = data.get('email', '').strip()
+        
+        if not username or not email:
+            return jsonify({'error': 'Username and email are required'}), 400
+        
+        # Check if username is already taken by another user
+        existing_user = User.get_by_username(username)
+        if existing_user and existing_user.id != current_user.id:
+            return jsonify({'error': 'Username already taken'}), 400
+        
+        # Check if email is already taken by another user
+        existing_user = User.get_by_email(email)
+        if existing_user and existing_user.id != current_user.id:
+            return jsonify({'error': 'Email already taken'}), 400
+        
+        # Update user information
+        current_user.username = username
+        current_user.email = email
+        current_user.save()
+        
+        return jsonify({'success': True, 'message': 'Profile updated successfully'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to update profile: {str(e)}'}), 500
+
+@dashboard_bp.route('/settings/password', methods=['POST'])
+@login_required
+def update_password():
+    """Update user password"""
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password', '')
+        new_password = data.get('new_password', '')
+        
+        if not current_password or not new_password:
+            return jsonify({'error': 'Current and new passwords are required'}), 400
+        
+        # Verify current password
+        if not current_user.check_password(current_password):
+            return jsonify({'error': 'Current password is incorrect'}), 400
+        
+        # Update password
+        current_user.set_password(new_password)
+        current_user.save()
+        
+        return jsonify({'success': True, 'message': 'Password updated successfully'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to update password: {str(e)}'}), 500
+
+@dashboard_bp.route('/settings/preferences', methods=['POST'])
+@login_required
+def update_preferences():
+    """Update user preferences"""
+    try:
+        data = request.get_json()
+        # For now, we'll store preferences in session or could extend User model
+        # This is a placeholder for future preference storage
+        session['user_preferences'] = {
+            'default_style': data.get('default_style', 'investor'),
+            'slide_count': data.get('slide_count', '12'),
+            'include_financials': data.get('include_financials', True),
+            'include_competition': data.get('include_competition', True)
+        }
+        
+        return jsonify({'success': True, 'message': 'Preferences saved successfully'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to save preferences: {str(e)}'}), 500
+
+@dashboard_bp.route('/settings/disconnect-github', methods=['POST'])
+@login_required
+def disconnect_github():
+    """Disconnect GitHub account"""
+    try:
+        current_user.github_id = None
+        current_user.github_username = None
+        current_user.github_token = None
+        current_user.save()
+        
+        return jsonify({'success': True, 'message': 'GitHub account disconnected'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to disconnect GitHub: {str(e)}'}), 500
+
+@dashboard_bp.route('/settings/export', methods=['POST'])
+@login_required
+def export_data():
+    """Export user data"""
+    try:
+        # Get all user projects
+        projects = Project.get_by_user(current_user.id)
+        
+        export_data = {
+            'user': {
+                'username': current_user.username,
+                'email': current_user.email,
+                'account_tier': current_user.account_tier,
+                'tokens': current_user.tokens,
+                'created_at': current_user.created_at.isoformat() if current_user.created_at else None
+            },
+            'projects': []
+        }
+        
+        for project in projects:
+            export_data['projects'].append({
+                'id': project.id,
+                'title': project.title,
+                'repo_url': project.repo_url,
+                'repo_owner': project.repo_owner,
+                'repo_name': project.repo_name,
+                'pitch_deck': project.pitch_deck,
+                'created_at': project.created_at.isoformat() if project.created_at else None
+            })
+        
+        from flask import make_response
+        import json
+        
+        response = make_response(json.dumps(export_data, indent=2))
+        response.headers['Content-Type'] = 'application/json'
+        response.headers['Content-Disposition'] = 'attachment; filename=synoptic-data-export.json'
+        
+        return response
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to export data: {str(e)}'}), 500
+
+@dashboard_bp.route('/settings/delete-account', methods=['POST'])
+@login_required
+def delete_account():
+    """Delete user account and all associated data"""
+    try:
+        # Delete all user projects
+        projects = Project.get_by_user(current_user.id)
+        for project in projects:
+            project.delete()
+        
+        # Delete user account
+        from firebase_config import get_db
+        db = get_db()
+        if db:
+            db.collection('users').document(current_user.id).delete()
+        
+        # Logout user
+        from flask_login import logout_user
+        logout_user()
+        
+        return jsonify({'success': True, 'message': 'Account deleted successfully'})
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to delete account: {str(e)}'}), 500
