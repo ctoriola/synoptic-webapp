@@ -107,7 +107,7 @@ def try_fetch_readme_api(owner: str, repo: str, user_token: str = None):
     api = f"https://api.github.com/repos/{owner}/{repo}/readme"
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "synoptic-saas",
+        "User-Agent": "PitchPerfectAI-saas",
     }
     # Use user's GitHub token first (for private repos), fallback to global token
     token = user_token or GITHUB_TOKEN
@@ -130,7 +130,7 @@ def fetch_additional_repo_signals(owner: str, repo: str, user_token: str = None)
     """Collect extra signals to help infer problem_statement and future_scope when README is sparse."""
     headers = {
         "Accept": "application/vnd.github+json",
-        "User-Agent": "synoptic-saas",
+        "User-Agent": "PitchPerfectAI-saas",
     }
     # Use user's GitHub token first (for private repos), fallback to global token
     token = user_token or GITHUB_TOKEN

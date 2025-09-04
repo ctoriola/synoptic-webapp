@@ -1,6 +1,6 @@
-# Synoptic - AI Pitch Deck Generator
+# PitchPerfectAI - AI Pitch Deck Generator
 
-Transform any project into professional, investor-ready pitch decks using advanced AI. Synoptic analyzes your project details and automatically generates comprehensive presentations that showcase your technology, market opportunity, and business potential.
+Transform any project into professional, investor-ready pitch decks using advanced AI. PitchPerfectAI analyzes your project details and automatically generates comprehensive presentations that showcase your technology, market opportunity, and business potential.
 
 ## 🚀 Key Features
 

@@ -1,4 +1,4 @@
-// Main JavaScript functionality for Synoptic SaaS
+// Main JavaScript functionality for PitchPerfectAI SaaS
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips and interactive elements
@@ -317,7 +317,7 @@ function fallbackCopyToClipboard(text, successMessage) {
 }
 
 // Export utilities for use in other scripts
-window.SynopticUtils = {
+window.PitchPerfectAIUtils = {
     showNotification,
     validateForm,
     setLoadingState,

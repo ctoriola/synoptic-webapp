@@ -25,7 +25,7 @@ def init_admin():
     # Create admin user
     admin = User(
         username='admin',
-        email='admin@synoptic.com',
+        email='admin@PitchPerfectAI.com',
         is_admin=True,
         account_tier='pro',
         tokens=50
@@ -72,10 +72,10 @@ def init_database():
     """Initialize Firebase database for production deployment"""
     try:
         # Create admin user if it doesn't exist
-        admin = User.get_by_email('admin@synoptic.com')
+        admin = User.get_by_email('admin@PitchPerfectAI.com')
         if not admin:
             admin = User(
-                email='admin@synoptic.com',
+                email='admin@PitchPerfectAI.com',
                 username='admin',
                 is_admin=True
             )
@@ -87,7 +87,7 @@ def init_database():
             'message': 'Firebase database initialized successfully',
             'admin_user_created': True,
             'admin_credentials': {
-                'email': 'admin@synoptic.com',
+                'email': 'admin@PitchPerfectAI.com',
                 'password': 'admin123'
             }
         })

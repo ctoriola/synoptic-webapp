@@ -529,7 +529,7 @@ def export_data():
         
         response = make_response(json.dumps(export_data, indent=2))
         response.headers['Content-Type'] = 'application/json'
-        response.headers['Content-Disposition'] = 'attachment; filename=synoptic-data-export.json'
+        response.headers['Content-Disposition'] = 'attachment; filename=PitchPerfectAI-data-export.json'
         
         return response
     

@@ -80,16 +80,16 @@ def create_app():
     @app.route('/init-admin')
     def init_admin():
         # Check if admin already exists
-        admin = User.get_by_email('admin@synoptic.com')
+        admin = User.get_by_email('admin@PitchPerfectAI.com')
         if not admin:
             admin = User(
-                email='admin@synoptic.com',
+                email='admin@PitchPerfectAI.com',
                 username='admin',
                 is_admin=True
             )
             admin.set_password('admin123')
             if admin.save():
-                return 'Admin user created successfully! Email: admin@synoptic.com, Password: admin123'
+                return 'Admin user created successfully! Email: admin@PitchPerfectAI.com, Password: admin123'
             else:
                 return 'Failed to create admin user'
         return 'Admin user already exists'

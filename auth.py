@@ -80,7 +80,7 @@ def register():
                 
                 if user.save():
                     login_user(user)
-                    flash('Registration successful! Welcome to Synoptic.', 'success')
+                    flash('Registration successful! Welcome to PitchPerfectAI.', 'success')
                     return redirect(url_for('dashboard.index'))
                 else:
                     flash('Registration failed. Please try again.', 'error')
