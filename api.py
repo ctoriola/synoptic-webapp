@@ -1028,7 +1028,7 @@ def delete_user():
     
     try:
         # Delete all user's projects first
-        projects = Project.get_by_user_id(user_id)
+        projects = Project.get_by_user(user_id)
         for project in projects:
             project.delete()
         

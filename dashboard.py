@@ -539,7 +539,7 @@ def delete_account():
     """Delete user account and all associated data"""
     try:
         # Delete all user projects
-        projects = Project.get_by_user_id(current_user.id)
+        projects = Project.get_by_user(current_user.id)
         for project in projects:
             project.delete()
         
