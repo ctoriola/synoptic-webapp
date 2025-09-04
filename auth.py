@@ -258,7 +258,13 @@ def select_repo():
             # Filter out forks unless they have significant activity
             filtered_repos = [repo for repo in repositories 
                             if not repo['fork'] or repo['stargazers_count'] > 0]
-            return render_template('auth/select_repo.html', repositories=filtered_repos)
+            
+            # Check if user has private repo access by looking for any private repos
+            has_private_access = any(repo['private'] for repo in repositories)
+            
+            return render_template('auth/select_repo.html', 
+                                 repositories=filtered_repos, 
+                                 has_private_access=has_private_access)
         elif response.status_code == 403:
             # Token exists but doesn't have repo permissions
             flash('Repository access required to view your repositories', 'error')
