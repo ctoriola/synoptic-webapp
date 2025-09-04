@@ -83,10 +83,10 @@
     <!-- Quick Actions -->
     <div class="bg-white shadow rounded-lg mb-8">
         <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Quick Actions</h3>
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 text-center">Quick Actions</h3>
+            <div class="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto">
                 <a href="{{ url_for('dashboard.generator') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
+                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
                     <div>
                         <span class="rounded-lg inline-flex p-3 bg-primary-50 text-primary-600 ring-4 ring-white">
                             <i class="fas fa-magic text-xl"></i>
@@ -104,7 +104,7 @@
 
                 {% if current_user.github_token %}
                 <a href="{{ url_for('auth.select_repo') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
+                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
                     <div>
                         <span class="rounded-lg inline-flex p-3 bg-gray-900 text-white ring-4 ring-white">
                             <i class="fab fa-github text-xl"></i>
@@ -122,7 +122,7 @@
                 {% endif %}
 
                 <a href="{{ url_for('dashboard.projects') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
+                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
                     <div>
                         <span class="rounded-lg inline-flex p-3 bg-green-50 text-green-600 ring-4 ring-white">
                             <i class="fas fa-folder-open text-xl"></i>
@@ -139,7 +139,7 @@
                 </a>
 
                 <a href="{{ url_for('dashboard.settings') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors">
+                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
                     <div>
                         <span class="rounded-lg inline-flex p-3 bg-gray-50 text-gray-600 ring-4 ring-white">
                             <i class="fas fa-cog text-xl"></i>
