@@ -237,6 +237,28 @@ def github_repo_auth():
 @login_required
 def select_repo():
     """Display GitHub repository selection page"""
+    
+    # Handle POST request for repository selection
+    if request.method == 'POST':
+        repo_url = request.form.get('repo_url')
+        repo_name = request.form.get('repo_name')
+        repo_owner = request.form.get('repo_owner')
+        
+        if not all([repo_url, repo_name, repo_owner]):
+            flash('Invalid repository selection', 'error')
+            return redirect(url_for('auth.select_repo'))
+        
+        # Store repository info in session for project creation
+        session['selected_repo'] = {
+            'url': repo_url,
+            'name': repo_name,
+            'owner': repo_owner
+        }
+        
+        # Redirect to project creation with pre-filled data
+        return redirect(url_for('dashboard.generator', from_github='true'))
+    
+    # Handle GET request - display repository list
     if not current_user.github_token:
         flash('Repository access required', 'error')
         return redirect(url_for('auth.request_repo_access'))
@@ -276,28 +298,6 @@ def select_repo():
     except Exception as e:
         flash('Error connecting to GitHub API', 'error')
         return redirect(url_for('auth.request_repo_access'))
-
-@auth_bp.route('/select-repo', methods=['POST'])
-@login_required
-def select_repo_post():
-    """Handle repository selection and create project"""
-    repo_url = request.form.get('repo_url')
-    repo_name = request.form.get('repo_name')
-    repo_owner = request.form.get('repo_owner')
-    
-    if not all([repo_url, repo_name, repo_owner]):
-        flash('Invalid repository selection', 'error')
-        return redirect(url_for('auth.select_repo'))
-    
-    # Store repository info in session for project creation
-    session['selected_repo'] = {
-        'url': repo_url,
-        'name': repo_name,
-        'owner': repo_owner
-    }
-    
-    # Redirect to project creation with pre-filled data
-    return redirect(url_for('dashboard.generator', from_github='true'))
 
 @auth_bp.route('/connect-github')
 @login_required
