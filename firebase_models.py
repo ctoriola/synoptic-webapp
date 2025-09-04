@@ -30,18 +30,18 @@ class User(UserMixin):
     def get_tier_limits(self):
         """Get token limits for account tiers"""
         limits = {
-            'free': 3,
+            'free': 0,
             'basic': 10,
             'pro': 50
         }
-        return limits.get(self.account_tier, 3)
+        return limits.get(self.account_tier, 0)
     
-    def can_generate_pitch_deck(self):
-        """Check if user has tokens available for pitch deck generation"""
+    def can_export_files(self):
+        """Check if user has tokens available for file exports"""
         return self.tokens > 0
     
     def use_token(self):
-        """Deduct one token for pitch deck generation"""
+        """Deduct one token for file export"""
         if self.tokens > 0:
             self.tokens -= 1
             self.save()
@@ -51,7 +51,7 @@ class User(UserMixin):
     def upgrade_account(self, new_tier):
         """Upgrade user account tier and reset tokens"""
         tier_tokens = {
-            'free': 3,
+            'free': 0,
             'basic': 10,
             'pro': 50
         }

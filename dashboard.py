@@ -48,10 +48,7 @@ def generator():
         from datetime import datetime
         
         try:
-            # Check if user has tokens
-            if not current_user.can_generate_pitch_deck():
-                flash('No tokens available for pitch deck generation', 'error')
-                return redirect(url_for('dashboard.index'))
+            # Generation is now free - no token check needed
             
             repo_url = selected_repo['url']
             repo_owner = selected_repo['owner']
@@ -187,7 +184,7 @@ Format the response as a comprehensive pitch deck with clear sections and profes
             )
             
             project.save()
-            current_user.use_token()
+            # No token usage for generation - tokens are only for exports
             
             # Clear session data
             session.pop('selected_repo', None)

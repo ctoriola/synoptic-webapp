@@ -251,9 +251,7 @@ def api_fetch_readme():
 @api_bp.route('/generate', methods=['POST'])
 @login_required
 def api_generate():
-    # Check if user has tokens available
-    if not current_user.can_generate_pitch_deck():
-        return jsonify({"error": "No tokens available for pitch deck generation"}), 400
+    # Generation is now free - no token check needed
 
     # Handle both form data and JSON data
     if request.content_type and 'multipart/form-data' in request.content_type:
@@ -424,8 +422,7 @@ Make each slide concise, compelling, and investor-ready. Focus on storytelling a
         
         project.save()
         
-        # Deduct token after successful pitch deck generation
-        current_user.use_token()
+        # No token usage for generation - tokens are only for exports
         
         return jsonify({
             'success': True,
@@ -459,6 +456,10 @@ def get_project(project_id):
 @api_bp.route('/projects/<project_id>/export/docx', methods=['GET'])
 @login_required
 def export_project_docx(project_id):
+    # Check if user has tokens for export
+    if not current_user.can_export_files():
+        return jsonify({'error': 'No tokens available for file export'}), 400
+    
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
@@ -506,6 +507,9 @@ def export_project_docx(project_id):
     doc.save(buffer)
     buffer.seek(0)
     
+    # Deduct token for export
+    current_user.use_token()
+    
     filename = f"{project.title.replace(' ', '_')}_pitch_deck.docx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
@@ -513,6 +517,10 @@ def export_project_docx(project_id):
 @api_bp.route('/projects/<project_id>/export/pptx', methods=['GET'])
 @login_required
 def export_project_pptx(project_id):
+    # Check if user has tokens for export
+    if not current_user.can_export_files():
+        return jsonify({'error': 'No tokens available for file export'}), 400
+    
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
@@ -688,6 +696,9 @@ def export_project_pptx(project_id):
     prs.save(buffer)
     buffer.seek(0)
     
+    # Deduct token for export
+    current_user.use_token()
+    
     filename = f"{project.title.replace(' ', '_')}_pitch_deck.pptx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
@@ -776,8 +787,7 @@ Format the response as structured markdown with clear headings and code examples
             'version': '1.0'
         }
         
-        # Use a token for documentation generation
-        current_user.use_token()
+        # No token usage for generation - tokens are only for exports
         project.save()
         
         return jsonify({
@@ -878,8 +888,7 @@ Write in a friendly, accessible tone suitable for end users. Use clear headings,
             'version': '1.0'
         }
         
-        # Use a token for user guide generation
-        current_user.use_token()
+        # No token usage for generation - tokens are only for exports
         project.save()
         
         return jsonify({
@@ -895,6 +904,10 @@ Write in a friendly, accessible tone suitable for end users. Use clear headings,
 @api_bp.route('/projects/<project_id>/export/pdf', methods=['GET'])
 @login_required
 def export_project_pdf(project_id):
+    # Check if user has tokens for export
+    if not current_user.can_export_files():
+        return jsonify({'error': 'No tokens available for file export'}), 400
+    
     # PDF export temporarily disabled due to reportlab build issues on Vercel
     return jsonify({
         'error': 'PDF export temporarily unavailable',
@@ -970,6 +983,10 @@ def export_project(project_id, format):
 @api_bp.route('/generate-documentation/<project_id>/export', methods=['GET'])
 @login_required
 def export_documentation_docx(project_id):
+    # Check if user has tokens for export
+    if not current_user.can_export_files():
+        return jsonify({'error': 'No tokens available for file export'}), 400
+    
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
@@ -1014,6 +1031,9 @@ def export_documentation_docx(project_id):
     doc.save(buffer)
     buffer.seek(0)
     
+    # Deduct token for export
+    current_user.use_token()
+    
     filename = f"{project.title.replace(' ', '_')}_documentation.docx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
@@ -1021,6 +1041,10 @@ def export_documentation_docx(project_id):
 @api_bp.route('/generate-user-guide/<project_id>/export', methods=['GET'])
 @login_required
 def export_user_guide_docx(project_id):
+    # Check if user has tokens for export
+    if not current_user.can_export_files():
+        return jsonify({'error': 'No tokens available for file export'}), 400
+    
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
@@ -1114,6 +1138,9 @@ def export_user_guide_docx(project_id):
     buffer = BytesIO()
     doc.save(buffer)
     buffer.seek(0)
+    
+    # Deduct token for export
+    current_user.use_token()
     
     filename = f"{project.title.replace(' ', '_')}_user_guide.docx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
