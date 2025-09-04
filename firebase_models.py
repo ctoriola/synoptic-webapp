@@ -6,7 +6,7 @@ from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
-    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=10, github_id=None, github_username=None, github_token=None, created_at=None):
+    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=0, github_id=None, github_username=None, github_token=None, created_at=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username

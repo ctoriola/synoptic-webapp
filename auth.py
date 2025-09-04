@@ -21,7 +21,7 @@ def init_oauth(app):
         authorize_url='https://github.com/login/oauth/authorize',
         api_base_url='https://api.github.com/',
         client_kwargs={
-            'scope': 'user:email repo'
+            'scope': 'user:email'
         },
     )
     return github
@@ -172,23 +172,70 @@ def github_callback():
         login_user(user)
         flash('Successfully logged in with GitHub!', 'success')
         
-        # Redirect to repo selection if GitHub user, otherwise dashboard
-        if user.github_token:
-            return redirect(url_for('auth.select_repo'))
-        else:
-            return redirect(url_for('dashboard.index'))
+        # Always redirect to dashboard after initial login
+        return redirect(url_for('dashboard.index'))
             
     except Exception as e:
         flash('GitHub authentication failed. Please try again.', 'error')
         return redirect(url_for('auth.login'))
+
+@auth_bp.route('/request-repo-access')
+@login_required
+def request_repo_access():
+    """Display page explaining repo access request"""
+    if not current_user.github_id:
+        flash('GitHub authentication required', 'error')
+        return redirect(url_for('auth.login'))
+    
+    return render_template('auth/request_repo_access.html')
+
+@auth_bp.route('/github-repo-auth')
+@login_required
+def github_repo_auth():
+    """Initiate GitHub OAuth for repository access"""
+    if not current_user.github_id:
+        flash('GitHub authentication required', 'error')
+        return redirect(url_for('auth.login'))
+    
+    # Store intent for repo access
+    session['requesting_repo_access'] = True
+    
+    # Create OAuth client with repo scope
+    github = oauth.create_client('github')
+    redirect_uri = url_for('auth.github_repo_callback', _external=True)
+    
+    # Request repo access with explicit scope
+    return github.authorize_redirect(redirect_uri, scope='repo')
+
+@auth_bp.route('/github-repo-callback')
+@login_required
+def github_repo_callback():
+    """Handle GitHub OAuth callback for repository access"""
+    try:
+        github = oauth.create_client('github')
+        token = github.authorize_access_token()
+        
+        # Update user's GitHub token with repo access
+        current_user.github_token = token.get('access_token')
+        current_user.save()
+        
+        # Clear session flag
+        session.pop('requesting_repo_access', False)
+        
+        flash('Repository access granted! You can now select repositories for pitch deck generation.', 'success')
+        return redirect(url_for('auth.select_repo'))
+        
+    except Exception as e:
+        flash('Failed to grant repository access. Please try again.', 'error')
+        return redirect(url_for('auth.request_repo_access'))
 
 @auth_bp.route('/select-repo')
 @login_required
 def select_repo():
     """Display GitHub repository selection page"""
     if not current_user.github_token:
-        flash('GitHub authentication required', 'error')
-        return redirect(url_for('auth.login'))
+        flash('Repository access required', 'error')
+        return redirect(url_for('auth.request_repo_access'))
     
     # Fetch user's repositories from GitHub
     headers = {
