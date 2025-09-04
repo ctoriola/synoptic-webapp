@@ -102,6 +102,16 @@ def github_callback():
     try:
         github = oauth.create_client('github')
         token = github.authorize_access_token()
+        
+        # Check if this is a repo access request
+        if session.get('requesting_repo_access'):
+            session.pop('requesting_repo_access', None)
+            # Update user's GitHub token with repo access
+            current_user.github_token = token.get('access_token')
+            current_user.save()
+            flash('Repository access granted successfully!', 'success')
+            return redirect(url_for('auth.select_repo'))
+        
         user_info = token.get('userinfo')
         
         if not user_info:
@@ -218,34 +228,12 @@ def github_repo_auth():
     
     # Create OAuth client with repo scope
     github = oauth.create_client('github')
-    redirect_uri = url_for('auth.github_repo_callback', _external=True)
+    redirect_uri = url_for('auth.github_callback', _external=True)  # Use same callback
     
     # Request repo access with explicit scope
     return github.authorize_redirect(redirect_uri, scope='repo')
 
-@auth_bp.route('/github-repo-callback')
-@login_required
-def github_repo_callback():
-    """Handle GitHub OAuth callback for repository access"""
-    try:
-        github = oauth.create_client('github')
-        token = github.authorize_access_token()
-        
-        # Update user's GitHub token with repo access
-        current_user.github_token = token.get('access_token')
-        current_user.save()
-        
-        # Clear session flag
-        session.pop('requesting_repo_access', False)
-        
-        flash('Repository access granted! You can now select repositories for pitch deck generation.', 'success')
-        return redirect(url_for('auth.select_repo'))
-        
-    except Exception as e:
-        flash('Failed to grant repository access. Please try again.', 'error')
-        return redirect(url_for('auth.request_repo_access'))
-
-@auth_bp.route('/select-repo')
+@auth_bp.route('/select-repo', methods=['GET', 'POST'])
 @login_required
 def select_repo():
     """Display GitHub repository selection page"""
