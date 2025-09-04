@@ -237,7 +237,7 @@ def select_repo():
         flash('Repository access required', 'error')
         return redirect(url_for('auth.request_repo_access'))
     
-    # Fetch user's repositories from GitHub
+    # Test if the token has repo access by trying to fetch repositories
     headers = {
         'Authorization': f'token {current_user.github_token}',
         'Accept': 'application/vnd.github.v3+json'
@@ -255,13 +255,17 @@ def select_repo():
             filtered_repos = [repo for repo in repositories 
                             if not repo['fork'] or repo['stargazers_count'] > 0]
             return render_template('auth/select_repo.html', repositories=filtered_repos)
+        elif response.status_code == 403:
+            # Token exists but doesn't have repo permissions
+            flash('Repository access required to view your repositories', 'error')
+            return redirect(url_for('auth.request_repo_access'))
         else:
             flash('Failed to fetch repositories from GitHub', 'error')
-            return render_template('auth/select_repo.html', repositories=[])
+            return redirect(url_for('auth.request_repo_access'))
             
     except Exception as e:
         flash('Error connecting to GitHub API', 'error')
-        return render_template('auth/select_repo.html', repositories=[])
+        return redirect(url_for('auth.request_repo_access'))
 
 @auth_bp.route('/select-repo', methods=['POST'])
 @login_required
