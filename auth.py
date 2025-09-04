@@ -132,6 +132,10 @@ def github_callback():
         existing_user = User.get_by_github_id(github_id)
         
         if existing_user:
+            # Check if user account was deleted
+            if existing_user.is_deleted:
+                flash('This account has been deleted and cannot be restored. Please contact support if you believe this is an error.', 'error')
+                return redirect(url_for('auth.login'))
             user = existing_user
         else:
             # Check if user exists with same email

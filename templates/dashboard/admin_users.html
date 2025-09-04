@@ -171,6 +171,68 @@
                 </div>
             </div>
         </div>
+
+        <!-- Deleted Users Section -->
+        {% if deleted_users %}
+        <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-md">
+            <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Deleted Users ({{ deleted_users|length }})</h3>
+                <p class="mt-1 max-w-2xl text-sm text-gray-500">Users who have been deleted from the system</p>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <ul class="divide-y divide-gray-200">
+                {% for user in deleted_users %}
+                <li class="px-4 py-4 sm:px-6 bg-red-50">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center min-w-0 flex-1">
+                            <div class="flex-shrink-0">
+                                <div class="h-10 w-10 rounded-full bg-red-500 flex items-center justify-center">
+                                    <svg class="h-5 w-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="ml-4 min-w-0 flex-1">
+                                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <p class="text-sm font-medium text-gray-900 truncate">
+                                        {{ user.username if user.username else 'Deleted User' }}
+                                    </p>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 w-fit">Deleted</span>
+                                    {% if user.is_admin %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit">Was Admin</span>
+                                    {% endif %}
+                                </div>
+                                <p class="text-sm text-gray-500 truncate">
+                                    {{ user.email if user.email else 'Email cleared' }}
+                                </p>
+                                {% if user.github_username %}
+                                    <p class="text-sm text-gray-500 truncate">
+                                        GitHub: {{ user.github_username }}
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="text-right">
+                                <div class="flex items-center justify-end space-x-2 mb-1">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        {{ user.account_tier|title if user.account_tier else 'Unknown' }}
+                                    </span>
+                                </div>
+                                <p class="text-sm text-gray-900">User ID: {{ user.id[:8] }}...</p>
+                                {% if user.created_at %}
+                                    <p class="text-sm text-gray-500">Joined {{ user.created_at.strftime('%B %d, %Y') }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

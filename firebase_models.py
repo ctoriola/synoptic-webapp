@@ -6,7 +6,7 @@ from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
-    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=0, github_id=None, github_username=None, github_token=None, created_at=None):
+    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=0, github_id=None, github_username=None, github_token=None, created_at=None, is_deleted=False):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
@@ -18,6 +18,7 @@ class User(UserMixin):
         self.github_username = github_username
         self.github_token = github_token
         self.created_at = created_at or datetime.utcnow()
+        self.is_deleted = is_deleted
     
     def set_password(self, password):
         """Set password hash"""
@@ -74,7 +75,8 @@ class User(UserMixin):
             'github_id': self.github_id,
             'github_username': self.github_username,
             'github_token': self.github_token,
-            'created_at': self.created_at
+            'created_at': self.created_at,
+            'is_deleted': self.is_deleted
         }
     
     def save(self):
@@ -101,11 +103,12 @@ class User(UserMixin):
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 10),
+                    tokens=data.get('tokens', 0),
                     github_id=data.get('github_id'),
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
-                    created_at=data.get('created_at')
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
                 )
         return None
     
@@ -124,11 +127,12 @@ class User(UserMixin):
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 10),
+                    tokens=data.get('tokens', 0),
                     github_id=data.get('github_id'),
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
-                    created_at=data.get('created_at')
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
                 )
         return None
     
@@ -147,11 +151,12 @@ class User(UserMixin):
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 10),
+                    tokens=data.get('tokens', 0),
                     github_id=data.get('github_id'),
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
-                    created_at=data.get('created_at')
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
                 )
         return None
     
@@ -170,21 +175,22 @@ class User(UserMixin):
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 10),
+                    tokens=data.get('tokens', 0),
                     github_id=data.get('github_id'),
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
-                    created_at=data.get('created_at')
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
                 )
         return None
     
     @staticmethod
     def get_all_users(limit=100):
-        """Get all users for admin dashboard"""
+        """Get all users for admin dashboard (excluding deleted users)"""
         db = get_db()
         users = []
         if db:
-            docs = db.collection('users').limit(limit).stream()
+            docs = db.collection('users').where('is_deleted', '==', False).limit(limit).stream()
             for doc in docs:
                 data = doc.to_dict()
                 users.append(User(
@@ -194,8 +200,9 @@ class User(UserMixin):
                     password_hash=data.get('password_hash'),
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
-                    tokens=data.get('tokens', 3),
-                    created_at=data.get('created_at')
+                    tokens=data.get('tokens', 0),
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
                 ))
         return users
     
@@ -208,13 +215,38 @@ class User(UserMixin):
             return len(users)
         return 0
     
-    def delete(self):
-        """Delete user from Firestore"""
+    @staticmethod
+    def get_deleted_users(limit=100):
+        """Get all deleted users for admin dashboard"""
         db = get_db()
+        users = []
         if db:
-            db.collection('users').document(self.id).delete()
-            return True
-        return False
+            docs = db.collection('users').where('is_deleted', '==', True).limit(limit).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                users.append(User(
+                    id=doc.id,
+                    email=data.get('email'),
+                    username=data.get('username'),
+                    password_hash=data.get('password_hash'),
+                    is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 0),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False)
+                ))
+        return users
+    
+    def delete(self):
+        """Mark user as deleted instead of completely removing from Firestore"""
+        self.is_deleted = True
+        self.github_token = None  # Clear GitHub token
+        self.email = None  # Clear email to prevent conflicts
+        self.password_hash = None  # Clear password
+        return self.save()
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 

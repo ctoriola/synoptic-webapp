@@ -270,7 +270,8 @@ def admin_dashboard():
 def admin_users():
     """Admin user management page"""
     users = User.get_all_users(limit=100)
-    return render_template('dashboard/admin_users.html', users=users)
+    deleted_users = User.get_deleted_users(limit=100)
+    return render_template('dashboard/admin_users.html', users=users, deleted_users=deleted_users)
 
 @dashboard_bp.route('/admin/projects')
 @login_required
