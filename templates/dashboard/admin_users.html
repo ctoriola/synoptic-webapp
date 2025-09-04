@@ -199,6 +199,9 @@
                                         {{ user.username if user.username else 'Deleted User' }}
                                     </p>
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 w-fit">Deleted</span>
+                                    {% if user.is_whitelisted %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 w-fit">Whitelisted</span>
+                                    {% endif %}
                                     {% if user.is_admin %}
                                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 w-fit">Was Admin</span>
                                     {% endif %}
@@ -223,6 +226,19 @@
                                 <p class="text-sm text-gray-900">User ID: {{ user.id[:8] }}...</p>
                                 {% if user.created_at %}
                                     <p class="text-sm text-gray-500">Joined {{ user.created_at.strftime('%B %d, %Y') }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="flex-shrink-0">
+                                {% if user.is_whitelisted %}
+                                    <button onclick="toggleWhitelist('{{ user.id }}', false)" 
+                                            class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors">
+                                        Remove Whitelist
+                                    </button>
+                                {% else %}
+                                    <button onclick="toggleWhitelist('{{ user.id }}', true)" 
+                                            class="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-md hover:bg-green-200 transition-colors">
+                                        Whitelist
+                                    </button>
                                 {% endif %}
                             </div>
                         </div>
@@ -366,6 +382,34 @@ function deleteUser(userId, username) {
     
     // Hide the menu
     document.getElementById(`plan-menu-${userId}`).classList.add('hidden');
+}
+
+function toggleWhitelist(userId, isWhitelisted) {
+    const action = isWhitelisted ? 'whitelist' : 'remove from whitelist';
+    if (confirm(`Are you sure you want to ${action} this deleted user?`)) {
+        fetch('/api/admin/whitelist-user', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                user_id: userId, 
+                is_whitelisted: isWhitelisted 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully ${isWhitelisted ? 'whitelisted' : 'removed from whitelist'} user!`);
+                location.reload();
+            } else {
+                alert('Whitelist change failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Whitelist change failed. Please try again.');
+        });
+    }
 }
 
 // Close menus when clicking outside

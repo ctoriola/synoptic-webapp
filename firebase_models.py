@@ -6,19 +6,22 @@ from firebase_admin import firestore
 import uuid
 
 class User(UserMixin):
-    def __init__(self, id=None, username=None, email=None, password_hash=None, is_admin=False, account_tier='free', tokens=0, github_id=None, github_username=None, github_token=None, created_at=None, is_deleted=False):
+    def __init__(self, id=None, email=None, username=None, password_hash=None, 
+                 is_admin=False, account_tier='free', tokens=0, github_id=None, 
+                 github_username=None, github_token=None, created_at=None, is_deleted=False, is_whitelisted=False):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
         self.password_hash = password_hash
         self.is_admin = is_admin
-        self.account_tier = account_tier  # 'free', 'basic', 'pro'
-        self.tokens = tokens  # Available tokens for pitch deck generation
+        self.account_tier = account_tier
+        self.tokens = tokens
         self.github_id = github_id
         self.github_username = github_username
         self.github_token = github_token
         self.created_at = created_at or datetime.utcnow()
         self.is_deleted = is_deleted
+        self.is_whitelisted = is_whitelisted
     
     def set_password(self, password):
         """Set password hash"""
@@ -66,8 +69,8 @@ class User(UserMixin):
     def to_dict(self):
         """Convert user to dictionary for Firestore"""
         return {
-            'username': self.username,
             'email': self.email,
+            'username': self.username,
             'password_hash': self.password_hash,
             'is_admin': self.is_admin,
             'account_tier': self.account_tier,
@@ -76,7 +79,8 @@ class User(UserMixin):
             'github_username': self.github_username,
             'github_token': self.github_token,
             'created_at': self.created_at,
-            'is_deleted': self.is_deleted
+            'is_deleted': self.is_deleted,
+            'is_whitelisted': self.is_whitelisted
         }
     
     def save(self):
@@ -190,9 +194,14 @@ class User(UserMixin):
         db = get_db()
         users = []
         if db:
-            docs = db.collection('users').where('is_deleted', '==', False).limit(limit).stream()
+            # Get all users and filter out deleted ones in Python since some users may not have is_deleted field
+            docs = db.collection('users').limit(limit).stream()
             for doc in docs:
                 data = doc.to_dict()
+                # Skip users that are explicitly marked as deleted
+                if data.get('is_deleted', False):
+                    continue
+                    
                 users.append(User(
                     id=doc.id,
                     email=data.get('email'),
@@ -201,8 +210,12 @@ class User(UserMixin):
                     is_admin=data.get('is_admin', False),
                     account_tier=data.get('account_tier', 'free'),
                     tokens=data.get('tokens', 0),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    is_whitelisted=data.get('is_whitelisted', False)
                 ))
         return users
     
@@ -236,7 +249,8 @@ class User(UserMixin):
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    is_whitelisted=data.get('is_whitelisted', False)
                 ))
         return users
     

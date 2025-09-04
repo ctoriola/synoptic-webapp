@@ -21,7 +21,7 @@ from pptx import Presentation
 from pptx.util import Inches as PptxInches, Pt
 from pptx.enum.text import PP_ALIGN
 
-from firebase_models import Project
+from firebase_models import Project, User
 
 api_bp = Blueprint('api', __name__)
 
@@ -1001,6 +1001,42 @@ def toggle_admin_status():
         })
     else:
         return jsonify({'success': False, 'error': 'Admin status change failed'}), 500
+
+
+@api_bp.route('/admin/whitelist-user', methods=['POST'])
+@login_required
+def whitelist_user():
+    """Toggle whitelist status for a deleted user (admin only)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    is_whitelisted = data.get('is_whitelisted')
+    
+    if not user_id or is_whitelisted is None:
+        return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+    
+    # Get the user to modify
+    user = User.get(user_id)
+    
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    # Only allow whitelisting deleted users
+    if not user.is_deleted:
+        return jsonify({'success': False, 'error': 'Can only whitelist deleted users'}), 400
+    
+    # Update whitelist status
+    user.is_whitelisted = is_whitelisted
+    if user.save():
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'is_whitelisted': user.is_whitelisted
+        })
+    else:
+        return jsonify({'success': False, 'error': 'Whitelist status change failed'}), 500
 
 
 @api_bp.route('/admin/delete-user', methods=['DELETE'])

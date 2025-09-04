@@ -134,9 +134,20 @@ def github_callback():
         if existing_user:
             # Check if user account was deleted
             if existing_user.is_deleted:
-                flash('This account has been deleted and cannot be restored. Please contact support if you believe this is an error.', 'error')
-                return redirect(url_for('auth.login'))
-            user = existing_user
+                if existing_user.is_whitelisted:
+                    # Allow whitelisted users to recreate their account
+                    existing_user.is_deleted = False
+                    existing_user.is_whitelisted = False  # Reset whitelist status
+                    existing_user.email = email
+                    existing_user.github_token = token.get('access_token')
+                    existing_user.save()
+                    flash('Welcome back! Your account has been restored.', 'success')
+                    user = existing_user
+                else:
+                    flash('This account has been deleted and cannot be restored. Please contact support if you believe this is an error.', 'error')
+                    return redirect(url_for('auth.login'))
+            else:
+                user = existing_user
         else:
             # Check if user exists with same email
             if email:
