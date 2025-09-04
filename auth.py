@@ -93,6 +93,7 @@ def register():
 def github_login():
     github = oauth.create_client('github')
     redirect_uri = url_for('auth.github_callback', _external=True)
+    print(f"DEBUG: Generated redirect_uri: {redirect_uri}")  # Debug line
     return github.authorize_redirect(redirect_uri)
 
 @auth_bp.route('/github/callback')
