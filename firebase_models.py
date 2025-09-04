@@ -207,6 +207,14 @@ class User(UserMixin):
             users = list(db.collection('users').stream())
             return len(users)
         return 0
+    
+    def delete(self):
+        """Delete user from Firestore"""
+        db = get_db()
+        if db:
+            db.collection('users').document(self.id).delete()
+            return True
+        return False
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 

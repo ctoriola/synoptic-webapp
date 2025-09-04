@@ -71,15 +71,29 @@
                                             <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"></path>
                                         </svg>
                                     </button>
-                                    <div id="plan-menu-{{ user.id }}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 origin-top-right">
+                                    <div id="plan-menu-{{ user.id }}" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200 origin-top-right">
                                         <button onclick="changePlan('{{ user.id }}', 'free')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            Change to Free (3 tokens)
+                                            <i class="fas fa-user mr-2"></i>Change to Free (0 tokens)
                                         </button>
                                         <button onclick="changePlan('{{ user.id }}', 'basic')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            Change to Basic (10 tokens)
+                                            <i class="fas fa-star mr-2"></i>Change to Basic (10 tokens)
                                         </button>
                                         <button onclick="changePlan('{{ user.id }}', 'pro')" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                                            Change to Pro (50 tokens)
+                                            <i class="fas fa-crown mr-2"></i>Change to Pro (50 tokens)
+                                        </button>
+                                        <div class="border-t border-gray-100 my-1"></div>
+                                        {% if not user.is_admin %}
+                                        <button onclick="toggleAdminStatus('{{ user.id }}', true)" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-shield-alt mr-2 text-purple-600"></i>Make Admin
+                                        </button>
+                                        {% else %}
+                                        <button onclick="toggleAdminStatus('{{ user.id }}', false)" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-user-minus mr-2 text-orange-600"></i>Remove Admin
+                                        </button>
+                                        {% endif %}
+                                        <div class="border-t border-gray-100 my-1"></div>
+                                        <button onclick="deleteUser('{{ user.id }}', '{{ user.username }}')" class="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">
+                                            <i class="fas fa-trash mr-2"></i>Delete Account
                                         </button>
                                     </div>
                                 </div>
@@ -223,6 +237,69 @@ function changePlan(userId, newTier) {
         .catch(error => {
             alert('Plan change failed. Please try again.');
         });
+    }
+    
+    // Hide the menu
+    document.getElementById(`plan-menu-${userId}`).classList.add('hidden');
+}
+
+function toggleAdminStatus(userId, makeAdmin) {
+    const action = makeAdmin ? 'make admin' : 'remove admin privileges from';
+    if (confirm(`Are you sure you want to ${action} this user?`)) {
+        fetch('/api/admin/toggle-admin-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                user_id: userId, 
+                is_admin: makeAdmin 
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`Successfully ${makeAdmin ? 'granted' : 'removed'} admin privileges!`);
+                location.reload();
+            } else {
+                alert('Admin status change failed: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Admin status change failed. Please try again.');
+        });
+    }
+    
+    // Hide the menu
+    document.getElementById(`plan-menu-${userId}`).classList.add('hidden');
+}
+
+function deleteUser(userId, username) {
+    if (confirm(`Are you sure you want to delete the account for "${username}"? This action cannot be undone and will delete all their projects and data.`)) {
+        if (confirm(`This will permanently delete ALL data for "${username}". Type "DELETE" to confirm.`) && 
+            prompt('Type "DELETE" to confirm account deletion:') === 'DELETE') {
+            fetch('/api/admin/delete-user', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    user_id: userId 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Successfully deleted account for "${username}"`);
+                    location.reload();
+                } else {
+                    alert('Account deletion failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Account deletion failed. Please try again.');
+            });
+        }
     }
     
     // Hide the menu

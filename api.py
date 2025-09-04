@@ -967,6 +967,84 @@ def admin_change_user_plan():
         return jsonify({'success': False, 'error': 'Plan change failed'}), 500
 
 
+@api_bp.route('/admin/toggle-admin-status', methods=['POST'])
+@login_required
+def toggle_admin_status():
+    """Toggle admin status for a user (admin only)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    is_admin = data.get('is_admin')
+    
+    if not user_id or is_admin is None:
+        return jsonify({'success': False, 'error': 'Invalid parameters'}), 400
+    
+    # Get the user to modify
+    from firebase_models import User
+    user = User.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    # Don't allow removing admin from self
+    if user.id == current_user.id and not is_admin:
+        return jsonify({'success': False, 'error': 'Cannot remove admin privileges from yourself'}), 400
+    
+    # Update admin status
+    user.is_admin = is_admin
+    if user.save():
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'is_admin': user.is_admin
+        })
+    else:
+        return jsonify({'success': False, 'error': 'Admin status change failed'}), 500
+
+
+@api_bp.route('/admin/delete-user', methods=['DELETE'])
+@login_required
+def delete_user():
+    """Delete a user account and all associated data (admin only)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'success': False, 'error': 'User ID required'}), 400
+    
+    # Don't allow deleting self
+    if user_id == current_user.id:
+        return jsonify({'success': False, 'error': 'Cannot delete your own account'}), 400
+    
+    # Get the user to delete
+    from firebase_models import User, Project
+    user = User.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    try:
+        # Delete all user's projects first
+        projects = Project.get_by_user_id(user_id)
+        for project in projects:
+            project.delete()
+        
+        # Delete the user account
+        if user.delete():
+            return jsonify({
+                'success': True,
+                'message': f'User account and all associated data deleted successfully'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'User deletion failed'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Deletion failed: {str(e)}'}), 500
+
+
 @api_bp.route('/export/<project_id>/<format>')
 @login_required
 def export_project(project_id, format):

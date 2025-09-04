@@ -539,21 +539,18 @@ def delete_account():
     """Delete user account and all associated data"""
     try:
         # Delete all user projects
-        projects = Project.get_by_user(current_user.id)
+        projects = Project.get_by_user_id(current_user.id)
         for project in projects:
             project.delete()
         
-        # Delete user account
-        from firebase_config import get_db
-        db = get_db()
-        if db:
-            db.collection('users').document(current_user.id).delete()
-        
-        # Logout user
-        from flask_login import logout_user
-        logout_user()
-        
-        return jsonify({'success': True, 'message': 'Account deleted successfully'})
+        # Delete user account using the User model's delete method
+        if current_user.delete():
+            # Logout user
+            from flask_login import logout_user
+            logout_user()
+            return jsonify({'success': True, 'message': 'Account deleted successfully'})
+        else:
+            return jsonify({'error': 'Failed to delete user account'}), 500
     
     except Exception as e:
         return jsonify({'error': f'Failed to delete account: {str(e)}'}), 500
