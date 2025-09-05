@@ -87,28 +87,46 @@ def create_checkout_session():
             logging.error(f"Invalid price_id format: {price_id}. Must start with 'price_'")
             return jsonify({'error': f'Invalid price configuration for {plan_type} plan. Expected price ID, got: {price_id}'}), 500
 
-        # Create checkout session
+        # Create checkout session with step-by-step debugging
         try:
             logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}, price_id: {price_id}")
             
-            # Use a more explicit approach to avoid internal Stripe issues
-            session_params = {
-                'customer': customer_id,
+            # Use request.host_url to build URLs instead of url_for to avoid context issues
+            try:
+                base_url = request.host_url.rstrip('/')
+                success_url = f"{base_url}/pricing?success=true&plan={plan_type}"
+                cancel_url = f"{base_url}/pricing?canceled=true"
+                logging.info(f"URLs generated - Success: {success_url}, Cancel: {cancel_url}")
+            except Exception as url_error:
+                logging.error(f"URL generation failed: {str(url_error)}")
+                return jsonify({'error': f'URL generation failed: {str(url_error)}'}), 500
+            
+            # Create session parameters step by step
+            session_params = {}
+            session_params['customer'] = customer_id
+            session_params['payment_method_types'] = ['card']
+            session_params['line_items'] = [{'price': price_id, 'quantity': 1}]
+            session_params['mode'] = 'subscription'
+            session_params['success_url'] = success_url
+            session_params['cancel_url'] = cancel_url
+            session_params['metadata'] = {'user_id': str(current_user.id), 'plan_type': plan_type}
+            
+            logging.info(f"Session params prepared: {session_params}")
+            
+            # Create the checkout session with minimal parameters first
+            logging.info("About to call stripe.checkout.Session.create")
+            
+            # Try with absolute minimal parameters to isolate the issue
+            minimal_params = {
                 'payment_method_types': ['card'],
-                'line_items': [{
-                    'price': price_id,
-                    'quantity': 1,
-                }],
+                'line_items': [{'price': price_id, 'quantity': 1}],
                 'mode': 'subscription',
-                'success_url': url_for('main.pricing', _external=True) + '?success=true&plan=' + plan_type,
-                'cancel_url': url_for('main.pricing', _external=True) + '?canceled=true',
-                'metadata': {
-                    'user_id': str(current_user.id),
-                    'plan_type': plan_type
-                }
+                'success_url': success_url,
+                'cancel_url': cancel_url
             }
             
-            checkout_session = stripe.checkout.Session.create(**session_params)
+            logging.info(f"Minimal params: {minimal_params}")
+            checkout_session = stripe.checkout.Session.create(**minimal_params)
             logging.info(f"Checkout session created successfully: {checkout_session.id}")
             
         except stripe.error.InvalidRequestError as e:
