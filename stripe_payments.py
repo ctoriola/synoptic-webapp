@@ -77,22 +77,18 @@ def create_checkout_session():
                     'user_id': current_user.id
                 }
             )
-            logging.info(f"Customer object received: {type(customer)}")
-            logging.info(f"Customer object attributes: {dir(customer)}")
+            logging.info("Customer creation API call completed")
             
-            # Try different ways to access the customer ID
-            try:
+            # Direct access without inspection to avoid potential issues
+            if hasattr(customer, 'id'):
                 customer_id = customer.id
-                logging.info(f"Stripe customer created with ID: {customer_id}")
-            except AttributeError as attr_error:
-                logging.error(f"Cannot access customer.id: {str(attr_error)}")
-                try:
-                    customer_id = customer['id']
-                    logging.info(f"Stripe customer ID from dict access: {customer_id}")
-                except Exception as dict_error:
-                    logging.error(f"Cannot access customer['id']: {str(dict_error)}")
-                    logging.error(f"Customer object content: {str(customer)}")
-                    return jsonify({'error': 'Failed to get customer ID from Stripe'}), 500
+                logging.info(f"Got customer ID: {customer_id}")
+            elif isinstance(customer, dict) and 'id' in customer:
+                customer_id = customer['id']
+                logging.info(f"Got customer ID from dict: {customer_id}")
+            else:
+                logging.error("Cannot find customer ID in response")
+                return jsonify({'error': 'Invalid customer response from Stripe'}), 500
             
             # Update user with Stripe customer ID
             try:
