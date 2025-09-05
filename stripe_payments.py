@@ -81,25 +81,36 @@ def create_checkout_session():
             current_user.stripe_customer_id = customer_id
             current_user.save()
         
-        # Create checkout session - remove explicit api_key parameter
+        # Validate price_id format (should start with 'price_' not 'prod_')
+        price_id = plan['price_id']
+        if not price_id or not price_id.startswith('price_'):
+            logging.error(f"Invalid price_id format: {price_id}. Must start with 'price_'")
+            return jsonify({'error': f'Invalid price configuration for {plan_type} plan. Expected price ID, got: {price_id}'}), 500
+
+        # Create checkout session
         try:
-            logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}")
-            checkout_session = stripe.checkout.Session.create(
-                customer=customer_id,
-                payment_method_types=['card'],
-                line_items=[{
-                    'price': plan['price_id'],
+            logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}, price_id: {price_id}")
+            
+            # Use a more explicit approach to avoid internal Stripe issues
+            session_params = {
+                'customer': customer_id,
+                'payment_method_types': ['card'],
+                'line_items': [{
+                    'price': price_id,
                     'quantity': 1,
                 }],
-                mode='subscription',
-                success_url=url_for('main.pricing', _external=True) + '?success=true&plan=' + plan_type,
-                cancel_url=url_for('main.pricing', _external=True) + '?canceled=true',
-                metadata={
-                    'user_id': current_user.id,
+                'mode': 'subscription',
+                'success_url': url_for('main.pricing', _external=True) + '?success=true&plan=' + plan_type,
+                'cancel_url': url_for('main.pricing', _external=True) + '?canceled=true',
+                'metadata': {
+                    'user_id': str(current_user.id),
                     'plan_type': plan_type
                 }
-            )
+            }
+            
+            checkout_session = stripe.checkout.Session.create(**session_params)
             logging.info(f"Checkout session created successfully: {checkout_session.id}")
+            
         except stripe.error.InvalidRequestError as e:
             logging.error(f"Stripe invalid request: {str(e)}")
             return jsonify({'error': f'Invalid request to Stripe: {str(e)}'}), 400
@@ -108,6 +119,8 @@ def create_checkout_session():
             return jsonify({'error': 'Stripe authentication failed'}), 500
         except Exception as e:
             logging.error(f"Unexpected error during checkout session creation: {str(e)}")
+            import traceback
+            logging.error(f"Full traceback: {traceback.format_exc()}")
             return jsonify({'error': f'Checkout session creation failed: {str(e)}'}), 500
         
         return jsonify({'checkout_url': checkout_session.url})
