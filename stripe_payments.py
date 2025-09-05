@@ -8,6 +8,12 @@ import logging
 # Initialize Stripe
 stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
 
+# Validate Stripe configuration
+if not stripe.api_key:
+    logging.error("STRIPE_SECRET_KEY environment variable not set")
+if not os.getenv('STRIPE_PUBLISHABLE_KEY'):
+    logging.error("STRIPE_PUBLISHABLE_KEY environment variable not set")
+
 stripe_bp = Blueprint('stripe', __name__)
 
 # Plan configuration
@@ -31,6 +37,10 @@ PLANS = {
 def create_checkout_session():
     """Create a Stripe checkout session for plan upgrade"""
     try:
+        # Validate Stripe configuration
+        if not stripe.api_key:
+            return jsonify({'error': 'Stripe not configured properly'}), 500
+            
         data = request.get_json()
         plan_type = data.get('plan_type')
         
@@ -38,6 +48,9 @@ def create_checkout_session():
             return jsonify({'error': 'Invalid plan type'}), 400
             
         plan = PLANS[plan_type]
+        
+        if not plan['price_id']:
+            return jsonify({'error': f'Price ID not configured for {plan_type} plan'}), 500
         
         # Create or get Stripe customer
         customer_id = current_user.stripe_customer_id
@@ -81,12 +94,17 @@ def create_checkout_session():
 @stripe_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
     """Handle Stripe webhooks"""
+    webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+    if not webhook_secret:
+        logging.error("STRIPE_WEBHOOK_SECRET environment variable not set")
+        return jsonify({'error': 'Webhook secret not configured'}), 500
+    
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
     
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, os.getenv('STRIPE_WEBHOOK_SECRET')
+            payload, sig_header, webhook_secret
         )
     except ValueError as e:
         logging.error(f"Invalid payload: {e}")
