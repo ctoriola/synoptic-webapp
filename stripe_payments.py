@@ -63,6 +63,8 @@ def create_checkout_session():
         if not plan['price_id']:
             return jsonify({'error': f'Price ID not configured for {plan_type} plan'}), 500
         
+        logging.info(f"Processing checkout for plan: {plan_type}, price_id: {plan['price_id']}")
+        
         # Create or get Stripe customer
         customer_id = current_user.stripe_customer_id
         if not customer_id:
@@ -79,8 +81,9 @@ def create_checkout_session():
             current_user.stripe_customer_id = customer_id
             current_user.save()
         
-        # Create checkout session with explicit API key
+        # Create checkout session - remove explicit api_key parameter
         try:
+            logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}")
             checkout_session = stripe.checkout.Session.create(
                 customer=customer_id,
                 payment_method_types=['card'],
@@ -94,15 +97,18 @@ def create_checkout_session():
                 metadata={
                     'user_id': current_user.id,
                     'plan_type': plan_type
-                },
-                api_key=stripe.api_key  # Explicitly pass the API key
+                }
             )
+            logging.info(f"Checkout session created successfully: {checkout_session.id}")
         except stripe.error.InvalidRequestError as e:
             logging.error(f"Stripe invalid request: {str(e)}")
             return jsonify({'error': f'Invalid request to Stripe: {str(e)}'}), 400
         except stripe.error.AuthenticationError as e:
             logging.error(f"Stripe authentication error: {str(e)}")
             return jsonify({'error': 'Stripe authentication failed'}), 500
+        except Exception as e:
+            logging.error(f"Unexpected error during checkout session creation: {str(e)}")
+            return jsonify({'error': f'Checkout session creation failed: {str(e)}'}), 500
         
         return jsonify({'checkout_url': checkout_session.url})
         
