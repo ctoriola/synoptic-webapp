@@ -167,30 +167,66 @@ def create_checkout_session():
 
 @stripe_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
-    """Handle Stripe webhooks"""
+    """Handle Stripe webhooks using direct JSON parsing"""
     logging.info("Webhook received")
     
     if not STRIPE_WEBHOOK_SECRET:
         logging.error("STRIPE_WEBHOOK_SECRET environment variable not set")
         return jsonify({'error': 'Webhook secret not configured'}), 500
     
-    payload = request.get_data(as_text=True)
+    payload = request.get_data()
     sig_header = request.headers.get('Stripe-Signature')
     
     logging.info(f"Webhook payload length: {len(payload)}")
     logging.info(f"Signature header present: {bool(sig_header)}")
     
+    # Verify webhook signature manually
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
+        import hmac
+        import hashlib
+        
+        # Parse signature header
+        signature_elements = sig_header.split(',')
+        timestamp = None
+        signature = None
+        
+        for element in signature_elements:
+            key, value = element.split('=', 1)
+            if key == 't':
+                timestamp = value
+            elif key == 'v1':
+                signature = value
+        
+        if not timestamp or not signature:
+            logging.error("Missing timestamp or signature in header")
+            return jsonify({'error': 'Invalid signature format'}), 400
+        
+        # Create expected signature
+        signed_payload = f"{timestamp}.{payload.decode('utf-8')}"
+        expected_sig = hmac.new(
+            STRIPE_WEBHOOK_SECRET.encode('utf-8'),
+            signed_payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(signature, expected_sig):
+            logging.error("Signature verification failed")
+            return jsonify({'error': 'Invalid signature'}), 400
+            
+        logging.info("Webhook signature verified successfully")
+        
+    except Exception as sig_error:
+        logging.error(f"Signature verification error: {str(sig_error)}")
+        return jsonify({'error': 'Signature verification failed'}), 400
+    
+    # Parse JSON payload directly
+    try:
+        import json
+        event = json.loads(payload.decode('utf-8'))
         logging.info(f"Webhook event type: {event['type']}")
-    except ValueError as e:
-        logging.error(f"Invalid payload: {e}")
-        return jsonify({'error': 'Invalid payload'}), 400
-    except stripe.error.SignatureVerificationError as e:
-        logging.error(f"Invalid signature: {e}")
-        return jsonify({'error': 'Invalid signature'}), 400
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON payload: {e}")
+        return jsonify({'error': 'Invalid JSON'}), 400
 
     # Handle the event
     if event['type'] == 'checkout.session.completed':
