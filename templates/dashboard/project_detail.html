@@ -32,11 +32,20 @@
                     <div class="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
                         <!-- Export Dropdown -->
                         <div class="relative group">
+                            {% if current_user.tokens > 0 %}
                             <button class="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                                 <i class="fas fa-download mr-1 sm:mr-2"></i>
                                 <span class="hidden sm:inline">Export</span>
                                 <i class="fas fa-chevron-down ml-1"></i>
                             </button>
+                            {% else %}
+                            <button disabled class="inline-flex items-center px-2 sm:px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-400 bg-gray-100 cursor-not-allowed">
+                                <i class="fas fa-download mr-1 sm:mr-2"></i>
+                                <span class="hidden sm:inline">Export</span>
+                                <i class="fas fa-chevron-down ml-1"></i>
+                            </button>
+                            {% endif %}
+                            {% if current_user.tokens > 0 %}
                             <div class="absolute right-0 sm:right-0 left-0 sm:left-auto mt-2 w-56 sm:w-64 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
                                 <a href="{{ url_for('api.export_project', project_id=project.id, format='docx') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                                     <i class="fas fa-file-word mr-2 text-blue-600"></i> Export Word Doc
@@ -54,6 +63,15 @@
                                     <i class="fas fa-file-pdf mr-2 text-red-600"></i> Export PDF
                                 </a>
                             </div>
+                            {% else %}
+                            <div class="absolute right-0 sm:right-0 left-0 sm:left-auto mt-2 w-56 sm:w-64 bg-white rounded-md shadow-lg py-1 z-50 hidden group-hover:block">
+                                <div class="px-4 py-3 text-sm text-gray-500">
+                                    <i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>
+                                    No tokens available for export.
+                                    <a href="{{ url_for('main.pricing') }}" class="text-primary-600 hover:text-primary-500 ml-1">Upgrade plan</a>
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                         
                         <!-- Back Button -->
@@ -95,7 +113,7 @@
                             Pitch Deck
                         </h3>
                         <div class="prose max-w-none">
-                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">{{ project.pitch_deck.content | format_markdown | safe }}</div>
+                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">{{ project.pitch_deck.content | format_markdown | safe }}</div>
                         </div>
                     </div>
                 {% else %}
@@ -278,6 +296,33 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             alertDiv.remove();
         }, 5000);
+    }
+});
+
+// Prevent copying of generated content
+document.addEventListener('DOMContentLoaded', function() {
+    const pitchDeckContent = document.querySelector('.whitespace-pre-wrap');
+    
+    if (pitchDeckContent) {
+        // Disable right-click context menu
+        pitchDeckContent.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Disable keyboard shortcuts for copying
+        pitchDeckContent.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'a' || e.key === 'x')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Disable text selection via mouse
+        pitchDeckContent.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
     }
 });
 

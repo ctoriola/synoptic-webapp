@@ -28,7 +28,7 @@
                 </div>
                 <div class="ml-3">
                     <h3 class="text-sm font-medium text-yellow-800">No tokens remaining</h3>
-                    <p class="mt-1 text-sm text-yellow-700">You've used all your tokens for this billing period. Upgrade your plan to generate more pitch decks.</p>
+                    <p class="mt-1 text-sm text-yellow-700">You've used all your tokens for this billing period. Upgrade your plan to export your pitch decks.</p>
                     <div class="mt-3">
                         <a href="{{ url_for('main.pricing') }}" class="text-sm font-medium text-yellow-800 hover:text-yellow-600">
                             View upgrade options <span aria-hidden="true">&rarr;</span>
@@ -154,17 +154,17 @@
         <div class="px-6 py-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 id="proposal-title" class="text-xl font-bold text-gray-900">Generated Content</h2>
-                <div class="flex space-x-2">
-                    <button id="export-btn" 
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                        <i class="fas fa-download mr-1"></i>
-                        Export
-                    </button>
-                </div>
+                
+                
+                
+                
+                
+                
+                
             </div>
 
             <div class="prose max-w-none">
-                <div id="content-display" class="space-y-8">
+                <div id="content-display" class="space-y-8 select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">
                     <!-- Content will be dynamically populated based on generation type -->
                 </div>
             </div>
@@ -366,6 +366,31 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Copy functionality removed - users can only export
+    
+    // Prevent copying of generated content
+    document.addEventListener('DOMContentLoaded', function() {
+        const contentDisplay = document.getElementById('content-display');
+        
+        // Disable right-click context menu
+        contentDisplay.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        // Disable keyboard shortcuts for copying
+        contentDisplay.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'a' || e.key === 'x')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // Disable text selection via mouse
+        contentDisplay.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    });
 
     // Export functionality
     document.getElementById('export-btn').addEventListener('click', function() {
