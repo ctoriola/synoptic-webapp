@@ -64,10 +64,12 @@ def create_checkout_session():
             return jsonify({'error': f'Price ID not configured for {plan_type} plan'}), 500
         
         logging.info(f"Processing checkout for plan: {plan_type}, price_id: {plan['price_id']}")
+        logging.info("About to handle Stripe customer creation/retrieval")
         
         # Create or get Stripe customer
         customer_id = current_user.stripe_customer_id
         if not customer_id:
+            logging.info("Creating new Stripe customer")
             customer = stripe.Customer.create(
                 email=current_user.email,
                 name=current_user.username,
@@ -76,17 +78,27 @@ def create_checkout_session():
                 }
             )
             customer_id = customer.id
+            logging.info(f"Stripe customer created: {customer_id}")
             
             # Update user with Stripe customer ID
-            current_user.stripe_customer_id = customer_id
-            current_user.save()
+            try:
+                current_user.stripe_customer_id = customer_id
+                current_user.save()
+                logging.info("User updated with Stripe customer ID")
+            except Exception as save_error:
+                logging.error(f"Failed to save user with Stripe customer ID: {str(save_error)}")
+                # Continue anyway, we have the customer_id
+        else:
+            logging.info(f"Using existing Stripe customer: {customer_id}")
         
         # Validate price_id format (should start with 'price_' not 'prod_')
         price_id = plan['price_id']
+        logging.info(f"About to validate price_id: {price_id}")
         if not price_id or not price_id.startswith('price_'):
             logging.error(f"Invalid price_id format: {price_id}. Must start with 'price_'")
             return jsonify({'error': f'Invalid price configuration for {plan_type} plan. Expected price ID, got: {price_id}'}), 500
 
+        logging.info("Price ID validation passed, proceeding to checkout session creation")
         # Create checkout session with step-by-step debugging
         try:
             logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}, price_id: {price_id}")
