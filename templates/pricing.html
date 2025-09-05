@@ -66,7 +66,7 @@
                         Current Plan
                     </span>
                     {% elif current_user.is_authenticated %}
-                    <button onclick="upgradeAccount('basic')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <button onclick="upgradeWithStripe('basic')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Upgrade to Basic
                     </button>
                     {% else %}
@@ -121,7 +121,7 @@
                         Current Plan
                     </span>
                     {% elif current_user.is_authenticated %}
-                    <button onclick="upgradeAccount('pro')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <button onclick="upgradeWithStripe('pro')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Upgrade to Pro
                     </button>
                     {% else %}
@@ -185,29 +185,107 @@
     </div>
 </div>
 
+<script src="https://js.stripe.com/v3/"></script>
 <script>
-function upgradeAccount(tier) {
+// Initialize Stripe
+const stripe = Stripe('{{ config.STRIPE_PUBLISHABLE_KEY or "pk_test_placeholder" }}');
+
+function upgradeWithStripe(tier) {
     if (confirm(`Are you sure you want to upgrade to the ${tier} plan?`)) {
-        fetch('/api/upgrade-account', {
+        // Show loading state
+        const button = event.target;
+        const originalText = button.textContent;
+        button.textContent = 'Processing...';
+        button.disabled = true;
+        
+        fetch('/api/stripe/create-checkout-session', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ tier: tier })
+            body: JSON.stringify({ plan_type: tier })
         })
         .then(response => response.json())
         .then(data => {
-            if (data.success) {
-                alert(`Successfully upgraded to ${tier} plan! You now have ${data.tokens} tokens.`);
-                location.reload();
+            if (data.checkout_url) {
+                // Redirect to Stripe Checkout
+                window.location.href = data.checkout_url;
             } else {
-                alert('Upgrade failed: ' + data.error);
+                alert('Failed to create checkout session: ' + (data.error || 'Unknown error'));
+                button.textContent = originalText;
+                button.disabled = false;
             }
         })
         .catch(error => {
-            alert('Upgrade failed. Please try again.');
+            console.error('Error:', error);
+            alert('Failed to create checkout session. Please try again.');
+            button.textContent = originalText;
+            button.disabled = false;
         });
     }
+}
+
+// Legacy function for backwards compatibility
+function upgradeAccount(tier) {
+    upgradeWithStripe(tier);
+}
+
+// Handle success/cancel messages from Stripe redirect
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('success') === 'true') {
+        const plan = urlParams.get('plan');
+        showNotification(`Successfully upgraded to ${plan} plan! Your account has been updated.`, 'success');
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    
+    if (urlParams.get('canceled') === 'true') {
+        showNotification('Payment was canceled. You can try again anytime.', 'info');
+        
+        // Clean up URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+});
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg max-w-sm ${
+        type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
+        type === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+        'bg-blue-50 text-blue-800 border border-blue-200'
+    }`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <div class="flex-shrink-0">
+                <i class="fas ${
+                    type === 'success' ? 'fa-check-circle' :
+                    type === 'error' ? 'fa-exclamation-circle' :
+                    'fa-info-circle'
+                }"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium">${message}</p>
+            </div>
+            <div class="ml-auto pl-3">
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
 }
 </script>
 {% endblock %}

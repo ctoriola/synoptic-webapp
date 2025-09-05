@@ -8,7 +8,8 @@ import uuid
 class User(UserMixin):
     def __init__(self, id=None, email=None, username=None, password_hash=None, 
                  is_admin=False, account_tier='free', tokens=0, github_id=None, 
-                 github_username=None, github_token=None, created_at=None, is_deleted=False, is_whitelisted=False):
+                 github_username=None, github_token=None, created_at=None, is_deleted=False, is_whitelisted=False,
+                 stripe_customer_id=None, stripe_subscription_id=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
@@ -22,6 +23,8 @@ class User(UserMixin):
         self.created_at = created_at or datetime.utcnow()
         self.is_deleted = is_deleted
         self.is_whitelisted = is_whitelisted
+        self.stripe_customer_id = stripe_customer_id
+        self.stripe_subscription_id = stripe_subscription_id
     
     def set_password(self, password):
         """Set password hash"""
@@ -80,7 +83,9 @@ class User(UserMixin):
             'github_token': self.github_token,
             'created_at': self.created_at,
             'is_deleted': self.is_deleted,
-            'is_whitelisted': self.is_whitelisted
+            'is_whitelisted': self.is_whitelisted,
+            'stripe_customer_id': self.stripe_customer_id,
+            'stripe_subscription_id': self.stripe_subscription_id
         }
     
     def save(self):
@@ -112,7 +117,10 @@ class User(UserMixin):
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    is_whitelisted=data.get('is_whitelisted', False),
+                    stripe_customer_id=data.get('stripe_customer_id'),
+                    stripe_subscription_id=data.get('stripe_subscription_id')
                 )
         return None
     
@@ -185,6 +193,33 @@ class User(UserMixin):
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
                     is_deleted=data.get('is_deleted', False)
+                )
+        return None
+    
+    @staticmethod
+    def get_by_stripe_customer_id(stripe_customer_id):
+        """Get user by Stripe customer ID"""
+        db = get_db()
+        if db:
+            users = db.collection('users').where('stripe_customer_id', '==', stripe_customer_id).limit(1).stream()
+            for user in users:
+                data = user.to_dict()
+                return User(
+                    id=user.id,
+                    email=data.get('email'),
+                    username=data.get('username'),
+                    password_hash=data.get('password_hash'),
+                    is_admin=data.get('is_admin', False),
+                    account_tier=data.get('account_tier', 'free'),
+                    tokens=data.get('tokens', 0),
+                    github_id=data.get('github_id'),
+                    github_username=data.get('github_username'),
+                    github_token=data.get('github_token'),
+                    created_at=data.get('created_at'),
+                    is_deleted=data.get('is_deleted', False),
+                    is_whitelisted=data.get('is_whitelisted', False),
+                    stripe_customer_id=data.get('stripe_customer_id'),
+                    stripe_subscription_id=data.get('stripe_subscription_id')
                 )
         return None
     

@@ -30,6 +30,7 @@ def create_app():
     from dashboard import dashboard_bp
     from api import api_bp
     from main import main_bp
+    from stripe_payments import stripe_bp
     
     # Initialize OAuth
     init_oauth(app)
@@ -38,6 +39,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(dashboard_bp, url_prefix='/dashboard')
     app.register_blueprint(api_bp, url_prefix='/api')
+    app.register_blueprint(stripe_bp, url_prefix='/api/stripe')
     
     @login_manager.user_loader
     def load_user(user_id):
