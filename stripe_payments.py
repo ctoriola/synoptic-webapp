@@ -5,14 +5,21 @@ from flask_login import login_required, current_user
 from firebase_models import User
 import logging
 
-# Initialize Stripe
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+# Initialize Stripe with explicit configuration
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
-# Validate Stripe configuration
-if not stripe.api_key:
+# Set Stripe API key
+stripe.api_key = STRIPE_SECRET_KEY
+
+# Validate Stripe configuration at startup
+if not STRIPE_SECRET_KEY:
     logging.error("STRIPE_SECRET_KEY environment variable not set")
-if not os.getenv('STRIPE_PUBLISHABLE_KEY'):
+if not STRIPE_PUBLISHABLE_KEY:
     logging.error("STRIPE_PUBLISHABLE_KEY environment variable not set")
+if not STRIPE_WEBHOOK_SECRET:
+    logging.error("STRIPE_WEBHOOK_SECRET environment variable not set")
 
 stripe_bp = Blueprint('stripe', __name__)
 
@@ -37,6 +44,10 @@ PLANS = {
 def create_checkout_session():
     """Create a Stripe checkout session for plan upgrade"""
     try:
+        # Debug: Log environment variables (safely)
+        logging.info(f"Stripe API Key configured: {bool(stripe.api_key)}")
+        logging.info(f"Webhook secret configured: {bool(os.getenv('STRIPE_WEBHOOK_SECRET'))}")
+        
         # Validate Stripe configuration
         if not stripe.api_key:
             return jsonify({'error': 'Stripe not configured properly'}), 500
@@ -68,22 +79,30 @@ def create_checkout_session():
             current_user.stripe_customer_id = customer_id
             current_user.save()
         
-        # Create checkout session
-        checkout_session = stripe.checkout.Session.create(
-            customer=customer_id,
-            payment_method_types=['card'],
-            line_items=[{
-                'price': plan['price_id'],
-                'quantity': 1,
-            }],
-            mode='subscription',
-            success_url=url_for('main.pricing', _external=True) + '?success=true&plan=' + plan_type,
-            cancel_url=url_for('main.pricing', _external=True) + '?canceled=true',
-            metadata={
-                'user_id': current_user.id,
-                'plan_type': plan_type
-            }
-        )
+        # Create checkout session with explicit API key
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                customer=customer_id,
+                payment_method_types=['card'],
+                line_items=[{
+                    'price': plan['price_id'],
+                    'quantity': 1,
+                }],
+                mode='subscription',
+                success_url=url_for('main.pricing', _external=True) + '?success=true&plan=' + plan_type,
+                cancel_url=url_for('main.pricing', _external=True) + '?canceled=true',
+                metadata={
+                    'user_id': current_user.id,
+                    'plan_type': plan_type
+                },
+                api_key=stripe.api_key  # Explicitly pass the API key
+            )
+        except stripe.error.InvalidRequestError as e:
+            logging.error(f"Stripe invalid request: {str(e)}")
+            return jsonify({'error': f'Invalid request to Stripe: {str(e)}'}), 400
+        except stripe.error.AuthenticationError as e:
+            logging.error(f"Stripe authentication error: {str(e)}")
+            return jsonify({'error': 'Stripe authentication failed'}), 500
         
         return jsonify({'checkout_url': checkout_session.url})
         
@@ -94,8 +113,7 @@ def create_checkout_session():
 @stripe_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
     """Handle Stripe webhooks"""
-    webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
-    if not webhook_secret:
+    if not STRIPE_WEBHOOK_SECRET:
         logging.error("STRIPE_WEBHOOK_SECRET environment variable not set")
         return jsonify({'error': 'Webhook secret not configured'}), 500
     
@@ -104,7 +122,7 @@ def stripe_webhook():
     
     try:
         event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
     except ValueError as e:
         logging.error(f"Invalid payload: {e}")
