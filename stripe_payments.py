@@ -168,6 +168,8 @@ def create_checkout_session():
 @stripe_bp.route('/webhook', methods=['POST'])
 def stripe_webhook():
     """Handle Stripe webhooks"""
+    logging.info("Webhook received")
+    
     if not STRIPE_WEBHOOK_SECRET:
         logging.error("STRIPE_WEBHOOK_SECRET environment variable not set")
         return jsonify({'error': 'Webhook secret not configured'}), 500
@@ -175,10 +177,14 @@ def stripe_webhook():
     payload = request.get_data(as_text=True)
     sig_header = request.headers.get('Stripe-Signature')
     
+    logging.info(f"Webhook payload length: {len(payload)}")
+    logging.info(f"Signature header present: {bool(sig_header)}")
+    
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
+        logging.info(f"Webhook event type: {event['type']}")
     except ValueError as e:
         logging.error(f"Invalid payload: {e}")
         return jsonify({'error': 'Invalid payload'}), 400
@@ -189,6 +195,7 @@ def stripe_webhook():
     # Handle the event
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
+        logging.info(f"Processing checkout.session.completed for session: {session.get('id')}")
         handle_successful_payment(session)
         
     elif event['type'] == 'invoice.payment_succeeded':
@@ -202,14 +209,48 @@ def stripe_webhook():
     elif event['type'] == 'customer.subscription.deleted':
         subscription = event['data']['object']
         handle_subscription_cancelled(subscription)
+    else:
+        logging.info(f"Unhandled webhook event type: {event['type']}")
     
     return jsonify({'status': 'success'})
+
+@stripe_bp.route('/manual-upgrade', methods=['POST'])
+@login_required
+def manual_upgrade():
+    """Manual endpoint to upgrade user plan (for testing)"""
+    try:
+        data = request.get_json()
+        plan_type = data.get('plan_type', 'basic')
+        
+        if plan_type not in PLANS:
+            return jsonify({'error': 'Invalid plan type'}), 400
+        
+        plan = PLANS[plan_type]
+        
+        # Update current user's plan
+        current_user.account_tier = plan_type
+        current_user.tokens = plan['tokens']
+        current_user.save()
+        
+        logging.info(f"Manually upgraded user {current_user.id} to {plan_type} plan")
+        return jsonify({
+            'success': True, 
+            'message': f'Upgraded to {plan_type} plan',
+            'tokens': plan['tokens']
+        })
+        
+    except Exception as e:
+        logging.error(f"Manual upgrade error: {str(e)}")
+        return jsonify({'error': 'Upgrade failed'}), 500
 
 def handle_successful_payment(session):
     """Handle successful payment from checkout session"""
     try:
+        logging.info(f"Processing successful payment for session: {session}")
         user_id = session['metadata']['user_id']
         plan_type = session['metadata']['plan_type']
+        
+        logging.info(f"Upgrading user {user_id} to {plan_type} plan")
         
         user = User.get(user_id)
         if user:
@@ -221,10 +262,14 @@ def handle_successful_payment(session):
             user.stripe_subscription_id = session.get('subscription')
             user.save()
             
-            logging.info(f"User {user_id} upgraded to {plan_type} plan")
+            logging.info(f"User {user_id} successfully upgraded to {plan_type} plan with {plan['tokens']} tokens")
+        else:
+            logging.error(f"User {user_id} not found for plan upgrade")
             
     except Exception as e:
         logging.error(f"Error handling successful payment: {str(e)}")
+        import traceback
+        logging.error(f"Full traceback: {traceback.format_exc()}")
 
 def handle_subscription_renewal(invoice):
     """Handle monthly subscription renewal"""
