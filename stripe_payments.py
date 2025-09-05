@@ -70,34 +70,38 @@ def create_checkout_session():
         customer_id = current_user.stripe_customer_id
         if not customer_id:
             logging.info("Creating new Stripe customer")
-            customer = stripe.Customer.create(
-                email=current_user.email,
-                name=current_user.username,
-                metadata={
-                    'user_id': current_user.id
-                }
-            )
-            logging.info("Customer creation API call completed")
-            
-            # Direct access without inspection to avoid potential issues
-            if hasattr(customer, 'id'):
-                customer_id = customer.id
-                logging.info(f"Got customer ID: {customer_id}")
-            elif isinstance(customer, dict) and 'id' in customer:
-                customer_id = customer['id']
-                logging.info(f"Got customer ID from dict: {customer_id}")
-            else:
-                logging.error("Cannot find customer ID in response")
-                return jsonify({'error': 'Invalid customer response from Stripe'}), 500
-            
-            # Update user with Stripe customer ID
             try:
-                current_user.stripe_customer_id = customer_id
-                current_user.save()
-                logging.info("User updated with Stripe customer ID")
-            except Exception as save_error:
-                logging.error(f"Failed to save user with Stripe customer ID: {str(save_error)}")
-                # Continue anyway, we have the customer_id
+                # Create customer with explicit API call
+                import requests
+                headers = {
+                    'Authorization': f'Bearer {STRIPE_SECRET_KEY}',
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                }
+                data = {
+                    'email': current_user.email,
+                    'name': current_user.username,
+                    'metadata[user_id]': current_user.id
+                }
+                
+                response = requests.post('https://api.stripe.com/v1/customers', headers=headers, data=data)
+                logging.info(f"Direct API response status: {response.status_code}")
+                
+                if response.status_code == 200:
+                    customer_data = response.json()
+                    customer_id = customer_data['id']
+                    logging.info(f"Customer created via direct API: {customer_id}")
+                    
+                    # Update user with Stripe customer ID
+                    current_user.stripe_customer_id = customer_id
+                    current_user.save()
+                    logging.info("User updated with Stripe customer ID")
+                else:
+                    logging.error(f"Failed to create customer: {response.text}")
+                    return jsonify({'error': 'Failed to create Stripe customer'}), 500
+                    
+            except Exception as customer_error:
+                logging.error(f"Customer creation failed: {str(customer_error)}")
+                return jsonify({'error': f'Customer creation failed: {str(customer_error)}'}), 500
         else:
             logging.info(f"Using existing Stripe customer: {customer_id}")
         
@@ -109,61 +113,53 @@ def create_checkout_session():
             return jsonify({'error': f'Invalid price configuration for {plan_type} plan. Expected price ID, got: {price_id}'}), 500
 
         logging.info("Price ID validation passed, proceeding to checkout session creation")
-        # Create checkout session with step-by-step debugging
+        # Create checkout session using direct API call to avoid Stripe SDK issues
         try:
             logging.info(f"Creating checkout session for customer: {customer_id}, plan: {plan_type}, price_id: {price_id}")
             
-            # Use request.host_url to build URLs instead of url_for to avoid context issues
-            try:
-                base_url = request.host_url.rstrip('/')
-                success_url = f"{base_url}/pricing?success=true&plan={plan_type}"
-                cancel_url = f"{base_url}/pricing?canceled=true"
-                logging.info(f"URLs generated - Success: {success_url}, Cancel: {cancel_url}")
-            except Exception as url_error:
-                logging.error(f"URL generation failed: {str(url_error)}")
-                return jsonify({'error': f'URL generation failed: {str(url_error)}'}), 500
+            # Build URLs
+            base_url = request.host_url.rstrip('/')
+            success_url = f"{base_url}/pricing?success=true&plan={plan_type}"
+            cancel_url = f"{base_url}/pricing?canceled=true"
+            logging.info(f"URLs generated - Success: {success_url}, Cancel: {cancel_url}")
             
-            # Create session parameters step by step
-            session_params = {}
-            session_params['customer'] = customer_id
-            session_params['payment_method_types'] = ['card']
-            session_params['line_items'] = [{'price': price_id, 'quantity': 1}]
-            session_params['mode'] = 'subscription'
-            session_params['success_url'] = success_url
-            session_params['cancel_url'] = cancel_url
-            session_params['metadata'] = {'user_id': str(current_user.id), 'plan_type': plan_type}
-            
-            logging.info(f"Session params prepared: {session_params}")
-            
-            # Create the checkout session with minimal parameters first
-            logging.info("About to call stripe.checkout.Session.create")
-            
-            # Try with absolute minimal parameters to isolate the issue
-            minimal_params = {
-                'payment_method_types': ['card'],
-                'line_items': [{'price': price_id, 'quantity': 1}],
-                'mode': 'subscription',
-                'success_url': success_url,
-                'cancel_url': cancel_url
+            # Create checkout session via direct API call
+            import requests
+            headers = {
+                'Authorization': f'Bearer {STRIPE_SECRET_KEY}',
+                'Content-Type': 'application/x-www-form-urlencoded'
             }
             
-            logging.info(f"Minimal params: {minimal_params}")
-            checkout_session = stripe.checkout.Session.create(**minimal_params)
-            logging.info(f"Checkout session created successfully: {checkout_session.id}")
+            checkout_data = {
+                'customer': customer_id,
+                'payment_method_types[]': 'card',
+                'line_items[0][price]': price_id,
+                'line_items[0][quantity]': '1',
+                'mode': 'subscription',
+                'success_url': success_url,
+                'cancel_url': cancel_url,
+                'metadata[user_id]': str(current_user.id),
+                'metadata[plan_type]': plan_type
+            }
             
-        except stripe.error.InvalidRequestError as e:
-            logging.error(f"Stripe invalid request: {str(e)}")
-            return jsonify({'error': f'Invalid request to Stripe: {str(e)}'}), 400
-        except stripe.error.AuthenticationError as e:
-            logging.error(f"Stripe authentication error: {str(e)}")
-            return jsonify({'error': 'Stripe authentication failed'}), 500
+            logging.info("Making direct API call to create checkout session")
+            response = requests.post('https://api.stripe.com/v1/checkout/sessions', headers=headers, data=checkout_data)
+            
+            if response.status_code == 200:
+                session_data = response.json()
+                checkout_url = session_data['url']
+                logging.info(f"Checkout session created successfully via direct API: {session_data['id']}")
+                return jsonify({'checkout_url': checkout_url})
+            else:
+                logging.error(f"Checkout session creation failed: {response.status_code} - {response.text}")
+                return jsonify({'error': f'Failed to create checkout session: {response.text}'}), 500
+                
         except Exception as e:
-            logging.error(f"Unexpected error during checkout session creation: {str(e)}")
+            logging.error(f"Checkout session creation error: {str(e)}")
             import traceback
             logging.error(f"Full traceback: {traceback.format_exc()}")
             return jsonify({'error': f'Checkout session creation failed: {str(e)}'}), 500
         
-        return jsonify({'checkout_url': checkout_session.url})
         
     except Exception as e:
         logging.error(f"Stripe checkout error: {str(e)}")
