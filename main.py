@@ -103,7 +103,8 @@ def features():
 
 @main_bp.route('/pricing')
 def pricing():
-    return render_template('pricing.html')
+    import os
+    return render_template('pricing.html', stripe_publishable_key=os.getenv('STRIPE_PUBLISHABLE_KEY'))
 
 @main_bp.route('/about')
 def about():

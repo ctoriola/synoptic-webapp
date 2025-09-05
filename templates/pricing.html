@@ -188,7 +188,7 @@
 <script src="https://js.stripe.com/v3/"></script>
 <script>
 // Initialize Stripe
-const stripe = Stripe('{{ config.STRIPE_PUBLISHABLE_KEY or "pk_test_placeholder" }}');
+const stripe = Stripe('{{ stripe_publishable_key or "pk_test_placeholder" }}');
 
 function upgradeWithStripe(tier) {
     if (confirm(`Are you sure you want to upgrade to the ${tier} plan?`)) {
