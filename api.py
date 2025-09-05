@@ -712,8 +712,7 @@ def generate_documentation(project_id):
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found or access denied'}), 404
     
-    if not current_user.can_generate_proposal():
-        return jsonify({'error': 'No tokens available for documentation generation'}), 400
+    # Generation is free - only exports cost tokens
     
     try:
         # Configure Gemini AI
@@ -808,8 +807,7 @@ def generate_user_guide(project_id):
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found or access denied'}), 404
     
-    if not current_user.can_generate_proposal():
-        return jsonify({'error': 'No tokens available for user guide generation'}), 400
+    # Generation is free - only exports cost tokens
     
     try:
         # Configure Gemini AI

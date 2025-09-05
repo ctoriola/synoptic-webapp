@@ -281,21 +281,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function copyPitchDeck() {
-    const content = document.querySelector('.whitespace-pre-wrap').textContent;
-    navigator.clipboard.writeText(content).then(function() {
-        // Show success message
-        const button = event.target;
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check mr-2"></i>Copied!';
-        button.classList.add('bg-green-600');
-        setTimeout(() => {
-            button.innerHTML = originalText;
-            button.classList.remove('bg-green-600');
-        }, 2000);
-    });
-}
-
 // Template selection functionality
 let selectedTemplate = null;
 

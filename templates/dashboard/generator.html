@@ -100,13 +100,11 @@
                 
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <button type="submit" 
-                            {% if current_user.tokens == 0 %}disabled{% endif %}
-                            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white 
-                            {% if current_user.tokens == 0 %}bg-gray-400 cursor-not-allowed{% else %}bg-primary-600 hover:bg-primary-700{% endif %}
-                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700
+                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
                         <i class="fas fa-magic mr-2"></i>
                         <span id="button-text">
-                            {% if current_user.tokens == 0 %}No Tokens Available{% else %}Generate Pitch Deck (1 token){% endif %}
+                            Generate Pitch Deck
                         </span>
                     </button>
                     
@@ -157,11 +155,6 @@
             <div class="flex items-center justify-between mb-6">
                 <h2 id="proposal-title" class="text-xl font-bold text-gray-900">Generated Content</h2>
                 <div class="flex space-x-2">
-                    <button id="copy-btn" 
-                            class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                        <i class="fas fa-copy mr-1"></i>
-                        Copy
-                    </button>
                     <button id="export-btn" 
                             class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
                         <i class="fas fa-download mr-1"></i>
@@ -260,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function setLoading(loading) {
         submitBtn.disabled = loading;
-        buttonText.textContent = loading ? 'Generating...' : 'Generate Pitch Deck (1 token)';
+        buttonText.textContent = loading ? 'Generating...' : 'Generate Pitch Deck';
     }
 
     function showContent(data, type) {
@@ -372,16 +365,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Copy functionality
-    document.getElementById('copy-btn').addEventListener('click', function() {
-        const content = contentDisplay.textContent || contentDisplay.innerText;
-        navigator.clipboard.writeText(content).then(() => {
-            this.innerHTML = '<i class="fas fa-check mr-1"></i> Copied!';
-            setTimeout(() => {
-                this.innerHTML = '<i class="fas fa-copy mr-1"></i> Copy';
-            }, 2000);
-        });
-    });
+    // Copy functionality removed - users can only export
 
     // Export functionality
     document.getElementById('export-btn').addEventListener('click', function() {
