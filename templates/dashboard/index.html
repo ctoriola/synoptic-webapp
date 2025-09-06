@@ -3,100 +3,88 @@
 {% block title %}Dashboard - Synoptic{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Header -->
-    <div class="mb-8">
-        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-900">Welcome back, {{ current_user.username }}!</h1>
-                <p class="mt-1 text-sm text-gray-600">Here's what's happening with your projects today.</p>
-            </div>
-            <div class="flex flex-col sm:text-right gap-2">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium w-fit sm:ml-auto
-                    {% if current_user.account_tier == 'pro' %}bg-purple-100 text-purple-800
-                    {% elif current_user.account_tier == 'basic' %}bg-blue-100 text-blue-800
-                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                    {{ current_user.account_tier|title }} Plan
-                </span>
-                <p class="text-sm text-gray-500">{{ current_user.tokens }} tokens remaining</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-primary-500 rounded-md flex items-center justify-center">
-                            <i class="fas fa-folder text-white text-sm"></i>
-                        </div>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">Total Projects</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ stats.total_projects }}</dd>
-                        </dl>
-                    </div>
+<!-- Modern gradient background -->
+<div class="min-h-screen" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-12 animate-fade-in">
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div>
+                    <h1 class="text-4xl font-bold gradient-text mb-2">Welcome back, {{ current_user.username }}!</h1>
+                    <p class="text-lg text-gray-600">Here's what's happening with your projects today.</p>
                 </div>
-            </div>
-        </div>
-
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
-                            <i class="fas fa-coins text-white text-sm"></i>
-                        </div>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">Tokens Remaining</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ current_user.tokens }}</dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="bg-white overflow-hidden shadow rounded-lg">
-            <div class="p-5">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
-                            <i class="fas fa-magic text-white text-sm"></i>
-                        </div>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">AI Generations</dt>
-                            <dd class="text-lg font-medium text-gray-900">{{ stats.total_projects }}</dd>
-                        </dl>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="bg-white shadow rounded-lg mb-8">
-        <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 text-center">Quick Actions</h3>
-            <div class="flex justify-center gap-4 max-w-5xl mx-auto overflow-x-auto">
-                <a href="{{ url_for('dashboard.generator') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
-                    <div>
-                        <span class="rounded-lg inline-flex p-3 bg-primary-50 text-primary-600 ring-4 ring-white">
-                            <i class="fas fa-magic text-xl"></i>
+                <div class="glass p-4 rounded-2xl">
+                    <div class="flex flex-col sm:text-right gap-2">
+                        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium w-fit sm:ml-auto
+                            {% if current_user.account_tier == 'pro' %}text-white{% else %}text-white{% endif %}"
+                            style="background: var(--gradient-primary);">
+                            {{ current_user.account_tier|title }} Plan
                         </span>
+                        <p class="text-sm text-gray-600 font-medium">{{ current_user.tokens }} tokens remaining</p>
                     </div>
-                    <div class="mt-4">
-                        <h3 class="text-lg font-medium text-gray-900">
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            <div class="modern-card p-6 animate-slide-up">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background: var(--gradient-primary);">
+                            <i class="fas fa-folder text-white text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <dt class="text-sm font-medium text-gray-600 mb-1">Total Projects</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ stats.total_projects }}</dd>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modern-card p-6 animate-slide-up" style="animation-delay: 0.1s;">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background: var(--gradient-primary);">
+                            <i class="fas fa-coins text-white text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <dt class="text-sm font-medium text-gray-600 mb-1">Tokens Remaining</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ current_user.tokens }}</dd>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modern-card p-6 animate-slide-up" style="animation-delay: 0.2s;">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-2xl flex items-center justify-center" style="background: var(--gradient-primary);">
+                            <i class="fas fa-magic text-white text-lg"></i>
+                        </div>
+                    </div>
+                    <div class="ml-4 flex-1">
+                        <dt class="text-sm font-medium text-gray-600 mb-1">AI Generations</dt>
+                        <dd class="text-2xl font-bold text-gray-900">{{ stats.total_projects }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="modern-card p-8 mb-12 animate-scale-in">
+            <h3 class="text-2xl font-bold text-gray-900 mb-8 text-center">Quick Actions</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <a href="{{ url_for('dashboard.generator') }}" 
+                   class="modern-card p-6 group hover:scale-105 transition-all duration-300">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: var(--gradient-primary);">
+                            <i class="fas fa-magic text-2xl text-white"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-2">
                             Generate Pitch Deck
-                        </h3>
-                        <p class="mt-2 text-sm text-gray-500">
+                        </h4>
+                        <p class="text-sm text-gray-600">
                             Create investor-ready pitch decks from GitHub repositories
                         </p>
                     </div>
@@ -104,17 +92,15 @@
 
                 {% if current_user.github_id %}
                 <a href="{{ url_for('auth.request_repo_access') if not current_user.github_token else url_for('auth.select_repo') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
-                    <div>
-                        <span class="rounded-lg inline-flex p-3 bg-gray-900 text-white ring-4 ring-white">
-                            <i class="fab fa-github text-xl"></i>
-                        </span>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-lg font-medium text-gray-900">
+                   class="modern-card p-6 group hover:scale-105 transition-all duration-300">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-gray-900">
+                            <i class="fab fa-github text-2xl text-white"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-2">
                             Select from GitHub
-                        </h3>
-                        <p class="mt-2 text-sm text-gray-500">
+                        </h4>
+                        <p class="text-sm text-gray-600">
                             Quick-start with your GitHub repositories
                         </p>
                     </div>
@@ -122,96 +108,89 @@
                 {% endif %}
 
                 <a href="{{ url_for('dashboard.projects') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
-                    <div>
-                        <span class="rounded-lg inline-flex p-3 bg-green-50 text-green-600 ring-4 ring-white">
-                            <i class="fas fa-folder-open text-xl"></i>
-                        </span>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-lg font-medium text-gray-900">
+                   class="modern-card p-6 group hover:scale-105 transition-all duration-300">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                            <i class="fas fa-folder-open text-2xl text-white"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-2">
                             View All Projects
-                        </h3>
-                        <p class="mt-2 text-sm text-gray-500">
+                        </h4>
+                        <p class="text-sm text-gray-600">
                             Browse and manage your existing pitch deck projects
                         </p>
                     </div>
                 </a>
 
                 <a href="{{ url_for('dashboard.settings') }}" 
-                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">
-                    <div>
-                        <span class="rounded-lg inline-flex p-3 bg-gray-50 text-gray-600 ring-4 ring-white">
-                            <i class="fas fa-cog text-xl"></i>
-                        </span>
-                    </div>
-                    <div class="mt-4">
-                        <h3 class="text-lg font-medium text-gray-900">
+                   class="modern-card p-6 group hover:scale-105 transition-all duration-300">
+                    <div class="text-center">
+                        <div class="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
+                            <i class="fas fa-cog text-2xl text-white"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 mb-2">
                             Account Settings
-                        </h3>
-                        <p class="mt-2 text-sm text-gray-500">
+                        </h4>
+                        <p class="text-sm text-gray-600">
                             Manage your account preferences and API settings
                         </p>
                     </div>
                 </a>
             </div>
         </div>
-    </div>
 
-    <!-- Recent Projects -->
-    {% if recent_projects %}
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Projects</h3>
-                <a href="{{ url_for('dashboard.projects') }}" class="text-sm text-primary-600 hover:text-primary-500">
+        <!-- Recent Projects -->
+        {% if recent_projects %}
+        <div class="modern-card p-8 animate-fade-in">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-2xl font-bold text-gray-900">Recent Projects</h3>
+                <a href="{{ url_for('dashboard.projects') }}" class="text-sm gradient-text font-medium hover:opacity-80 transition-opacity">
                     View all <i class="fas fa-arrow-right ml-1"></i>
                 </a>
             </div>
             <div class="space-y-4">
                 {% for project in recent_projects %}
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors gap-3">
-                    <div class="flex items-center space-x-4 min-w-0 flex-1">
-                        <div class="flex-shrink-0">
-                            <div class="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center">
-                                <i class="fab fa-github text-white"></i>
+                <div class="modern-card p-6 hover:scale-[1.02] transition-all duration-300">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div class="flex items-center space-x-4 min-w-0 flex-1">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-gray-900 rounded-2xl flex items-center justify-center">
+                                    <i class="fab fa-github text-white text-lg"></i>
+                                </div>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 class="text-lg font-bold text-gray-900 truncate">{{ project.title }}</h4>
+                                <p class="text-sm text-gray-600 truncate">{{ project.repo_owner }}/{{ project.repo_name }}</p>
+                                <p class="text-xs text-gray-500">{{ project.created_at.strftime('%B %d, %Y') }}</p>
                             </div>
                         </div>
-                        <div class="min-w-0 flex-1">
-                            <h4 class="text-sm font-medium text-gray-900 truncate">{{ project.title }}</h4>
-                            <p class="text-sm text-gray-500 truncate">{{ project.repo_owner }}/{{ project.repo_name }}</p>
-                            <p class="text-xs text-gray-400">{{ project.created_at.strftime('%B %d, %Y') }}</p>
+                        <div class="flex-shrink-0">
+                            <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
+                               class="btn-primary px-4 py-2 text-sm inline-flex items-center">
+                                <i class="fas fa-eye mr-2"></i>
+                                View Project
+                            </a>
                         </div>
-                    </div>
-                    <div class="flex items-center space-x-2 flex-shrink-0">
-                        <a href="{{ url_for('dashboard.project_detail', project_id=project.id) }}" 
-                           class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                            View Project
-                        </a>
                     </div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-    </div>
-    {% else %}
-    <!-- Empty State -->
-    <div class="bg-white shadow rounded-lg">
-        <div class="px-4 py-12 sm:px-6 lg:px-8 text-center">
-            <div class="mx-auto h-12 w-12 text-gray-400">
-                <i class="fas fa-folder-open text-4xl"></i>
+        {% else %}
+        <!-- Empty State -->
+        <div class="modern-card p-12 text-center animate-fade-in">
+            <div class="w-20 h-20 rounded-2xl mx-auto mb-6 flex items-center justify-center" style="background: var(--gradient-primary);">
+                <i class="fas fa-folder-open text-3xl text-white"></i>
             </div>
-            <h3 class="mt-4 text-lg font-medium text-gray-900">No projects yet</h3>
-            <p class="mt-2 text-sm text-gray-500">Get started by generating your first investor-ready pitch deck from any project.</p>
-            <div class="mt-6">
-                <a href="{{ url_for('dashboard.generator') }}" 
-                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                    <i class="fas fa-magic mr-2"></i>
-                    Generate First Investor Deck
-                </a>
-            </div>
+            <h3 class="text-2xl font-bold text-gray-900 mb-4">No projects yet</h3>
+            <p class="text-lg text-gray-600 mb-8 max-w-md mx-auto">Get started by generating your first investor-ready pitch deck from any project.</p>
+            <a href="{{ url_for('dashboard.generator') }}" 
+               class="btn-primary text-lg px-8 py-4 inline-flex items-center">
+                <i class="fas fa-magic mr-2"></i>
+                Generate First Investor Deck
+            </a>
         </div>
+        {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}
