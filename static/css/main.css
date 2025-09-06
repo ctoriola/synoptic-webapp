@@ -149,12 +149,23 @@
 
 /* Custom CSS for Synoptic */
 
-/* Modern Gradient Color Palette */
+/* Coral/Peach Color Palette */
 :root {
-    --primary: #6366f1;
-    --primary-light: #8b5cf6;
-    --primary-dark: #4f46e5;
-    --secondary: #8b5cf6;
+    --primary-50: #fef7f6 !important;
+    --primary-100: #fdeeed !important;
+    --primary-200: #ff9081 !important;
+    --primary-300: #ff8678 !important;
+    --primary-400: #ed7f73 !important;
+    --primary-500: #e96354 !important;
+    --primary-600: #d44c3f !important;
+    --primary-700: #b73a2f !important;
+    --primary-800: #97312a !important;
+    --primary-900: #7d2d28 !important;
+    
+    --primary: #e96354;
+    --primary-light: #ff8678;
+    --primary-dark: #d44c3f;
+    --secondary: #ff8678;
     --accent: #06b6d4;
     --success: #10b981;
     --warning: #f59e0b;
@@ -172,7 +183,7 @@
     
     /* Gradient backgrounds */
     --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
-    --gradient-hero: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --gradient-hero: linear-gradient(135deg, #e96354 0%, #ff8678 100%);
     --gradient-card: linear-gradient(145deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
 }
 
