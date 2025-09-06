@@ -179,6 +179,180 @@
     }
 }
 
+/* Primary Buttons */
+.btn-primary, 
+.bg-blue-600, 
+.bg-blue-500, 
+.bg-indigo-600, 
+.bg-indigo-500,
+.bg-purple-600,
+.bg-purple-500 {
+    background-color: var(--primary-500) !important;
+    border-color: var(--primary-500) !important;
+}
+
+.btn-primary:hover,
+.bg-blue-600:hover,
+.bg-blue-500:hover,
+.bg-indigo-600:hover,
+.bg-indigo-500:hover,
+.bg-purple-600:hover,
+.bg-purple-500:hover,
+.hover\:bg-blue-700:hover,
+.hover\:bg-indigo-700:hover,
+.hover\:bg-purple-700:hover {
+    background-color: var(--primary-600) !important;
+    border-color: var(--primary-600) !important;
+}
+
+/* Text Colors */
+.text-blue-600,
+.text-blue-500,
+.text-indigo-600,
+.text-indigo-500,
+.text-purple-600,
+.text-purple-500 {
+    color: var(--primary-500) !important;
+}
+
+.text-blue-700,
+.text-indigo-700,
+.text-purple-700 {
+    color: var(--primary-600) !important;
+}
+
+.hover\:text-blue-700:hover,
+.hover\:text-indigo-700:hover,
+.hover\:text-purple-700:hover {
+    color: var(--primary-600) !important;
+}
+
+/* Border Colors */
+.border-blue-500,
+.border-blue-600,
+.border-indigo-500,
+.border-indigo-600,
+.border-purple-500,
+.border-purple-600 {
+    border-color: var(--primary-500) !important;
+}
+
+/* Focus States */
+.focus\:ring-blue-500:focus,
+.focus\:ring-indigo-500:focus,
+.focus\:ring-purple-500:focus {
+    --tw-ring-color: var(--primary-500) !important;
+}
+
+.focus\:border-blue-500:focus,
+.focus\:border-indigo-500:focus,
+.focus\:border-purple-500:focus {
+    border-color: var(--primary-500) !important;
+}
+
+/* Icons */
+.text-blue-600 i,
+.text-blue-500 i,
+.text-indigo-600 i,
+.text-indigo-500 i,
+.text-purple-600 i,
+.text-purple-500 i {
+    color: var(--primary-500) !important;
+}
+
+/* Custom button classes */
+.btn-coral {
+    background-color: var(--primary-500);
+    border-color: var(--primary-500);
+    color: white;
+}
+
+.btn-coral:hover {
+    background-color: var(--primary-600);
+    border-color: var(--primary-600);
+}
+
+.btn-coral-outline {
+    background-color: transparent;
+    border-color: var(--primary-500);
+    color: var(--primary-500);
+}
+
+.btn-coral-outline:hover {
+    background-color: var(--primary-500);
+    border-color: var(--primary-500);
+    color: white;
+}
+
+/* Override Tailwind primary colors with coral */
+.bg-primary-50 { background-color: var(--primary-50) !important; }
+.bg-primary-100 { background-color: var(--primary-100) !important; }
+.bg-primary-200 { background-color: var(--primary-200) !important; }
+.bg-primary-300 { background-color: var(--primary-300) !important; }
+.bg-primary-400 { background-color: var(--primary-400) !important; }
+.bg-primary-500 { background-color: var(--primary-500) !important; }
+.bg-primary-600 { background-color: var(--primary-600) !important; }
+.bg-primary-700 { background-color: var(--primary-700) !important; }
+.bg-primary-800 { background-color: var(--primary-800) !important; }
+.bg-primary-900 { background-color: var(--primary-900) !important; }
+
+.text-primary-50 { color: var(--primary-50) !important; }
+.text-primary-100 { color: var(--primary-100) !important; }
+.text-primary-200 { color: var(--primary-200) !important; }
+.text-primary-300 { color: var(--primary-300) !important; }
+.text-primary-400 { color: var(--primary-400) !important; }
+.text-primary-500 { color: var(--primary-500) !important; }
+.text-primary-600 { color: var(--primary-600) !important; }
+.text-primary-700 { color: var(--primary-700) !important; }
+.text-primary-800 { color: var(--primary-800) !important; }
+.text-primary-900 { color: var(--primary-900) !important; }
+
+.border-primary-50 { border-color: var(--primary-50) !important; }
+.border-primary-100 { border-color: var(--primary-100) !important; }
+.border-primary-200 { border-color: var(--primary-200) !important; }
+.border-primary-300 { border-color: var(--primary-300) !important; }
+.border-primary-400 { border-color: var(--primary-400) !important; }
+.border-primary-500 { border-color: var(--primary-500) !important; }
+.border-primary-600 { border-color: var(--primary-600) !important; }
+.border-primary-700 { border-color: var(--primary-700) !important; }
+.border-primary-800 { border-color: var(--primary-800) !important; }
+.border-primary-900 { border-color: var(--primary-900) !important; }
+
+/* Hover states */
+.hover\:bg-primary-50:hover { background-color: var(--primary-50) !important; }
+.hover\:bg-primary-100:hover { background-color: var(--primary-100) !important; }
+.hover\:bg-primary-200:hover { background-color: var(--primary-200) !important; }
+.hover\:bg-primary-300:hover { background-color: var(--primary-300) !important; }
+.hover\:bg-primary-400:hover { background-color: var(--primary-400) !important; }
+.hover\:bg-primary-500:hover { background-color: var(--primary-500) !important; }
+.hover\:bg-primary-600:hover { background-color: var(--primary-600) !important; }
+.hover\:bg-primary-700:hover { background-color: var(--primary-700) !important; }
+.hover\:bg-primary-800:hover { background-color: var(--primary-800) !important; }
+.hover\:bg-primary-900:hover { background-color: var(--primary-900) !important; }
+
+.hover\:text-primary-50:hover { color: var(--primary-50) !important; }
+.hover\:text-primary-100:hover { color: var(--primary-100) !important; }
+.hover\:text-primary-200:hover { color: var(--primary-200) !important; }
+.hover\:text-primary-300:hover { color: var(--primary-300) !important; }
+.hover\:text-primary-400:hover { color: var(--primary-400) !important; }
+.hover\:text-primary-500:hover { color: var(--primary-500) !important; }
+.hover\:text-primary-600:hover { color: var(--primary-600) !important; }
+.hover\:text-primary-700:hover { color: var(--primary-700) !important; }
+.hover\:text-primary-800:hover { color: var(--primary-800) !important; }
+.hover\:text-primary-900:hover { color: var(--primary-900) !important; }
+
+/* Focus ring states */
+.focus\:ring-primary-50:focus { --tw-ring-color: var(--primary-50) !important; }
+.focus\:ring-primary-100:focus { --tw-ring-color: var(--primary-100) !important; }
+.focus\:ring-primary-200:focus { --tw-ring-color: var(--primary-200) !important; }
+.focus\:ring-primary-300:focus { --tw-ring-color: var(--primary-300) !important; }
+.focus\:ring-primary-400:focus { --tw-ring-color: var(--primary-400) !important; }
+.focus\:ring-primary-500:focus { --tw-ring-color: var(--primary-500) !important; }
+.focus\:ring-primary-600:focus { --tw-ring-color: var(--primary-600) !important; }
+.focus\:ring-primary-700:focus { --tw-ring-color: var(--primary-700) !important; }
+.focus\:ring-primary-800:focus { --tw-ring-color: var(--primary-800) !important; }
+.focus\:ring-primary-900:focus { --tw-ring-color: var(--primary-900) !important; }
+
 /* Override Tailwind primary colors with coral */
 .bg-primary-50 { background-color: var(--primary-50) !important; }
 .bg-primary-100 { background-color: var(--primary-100) !important; }
