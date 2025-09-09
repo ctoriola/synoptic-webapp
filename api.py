@@ -6,7 +6,7 @@ from datetime import datetime
 from io import BytesIO
 
 import requests
-from flask import Blueprint, jsonify, request, send_file, session
+from flask import Blueprint, request, jsonify, send_file, redirect, url_for, session
 from flask_login import login_required, current_user
 import google.generativeai as genai
 # PDF generation temporarily disabled for Vercel compatibility
@@ -461,7 +461,7 @@ def get_project(project_id):
 def export_project_docx(project_id):
     # Check if user has tokens for export
     if not current_user.can_export_files():
-        return jsonify({'error': 'No tokens available for file export'}), 400
+        return redirect(url_for('dashboard.out_of_tokens'))
     
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
@@ -522,7 +522,7 @@ def export_project_docx(project_id):
 def export_project_pptx(project_id):
     # Check if user has tokens for export
     if not current_user.can_export_files():
-        return jsonify({'error': 'No tokens available for file export'}), 400
+        return redirect(url_for('dashboard.out_of_tokens'))
     
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
@@ -913,7 +913,7 @@ Write in a friendly, accessible tone suitable for end users. Use clear headings,
 def export_project_pdf(project_id):
     # Check if user has tokens for export
     if not current_user.can_export_files():
-        return jsonify({'error': 'No tokens available for file export'}), 400
+        return redirect(url_for('dashboard.out_of_tokens'))
     
     # PDF export temporarily disabled due to reportlab build issues on Vercel
     return jsonify({
@@ -1106,7 +1106,7 @@ def export_project(project_id, format):
 def export_documentation_docx(project_id):
     # Check if user has tokens for export
     if not current_user.can_export_files():
-        return jsonify({'error': 'No tokens available for file export'}), 400
+        return redirect(url_for('dashboard.out_of_tokens'))
     
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
@@ -1164,7 +1164,7 @@ def export_documentation_docx(project_id):
 def export_user_guide_docx(project_id):
     # Check if user has tokens for export
     if not current_user.can_export_files():
-        return jsonify({'error': 'No tokens available for file export'}), 400
+        return redirect(url_for('dashboard.out_of_tokens'))
     
     project = Project.get(project_id)
     if not project or project.user_id != current_user.id:
