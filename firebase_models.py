@@ -257,9 +257,12 @@ class User(UserMixin):
     
     @staticmethod
     def get_all_users(limit=100):
-        """Get all users for admin dashboard (excluding deleted users)"""
+        """Get all users for admin dashboard (excluding deleted users and deduplicating)"""
         db = get_db()
         users = []
+        seen_emails = set()
+        seen_github_ids = set()
+        
         if db:
             # Get all users and filter out deleted ones in Python since some users may not have is_deleted field
             docs = db.collection('users').limit(limit).stream()
@@ -268,6 +271,22 @@ class User(UserMixin):
                 # Skip users that are explicitly marked as deleted
                 if data.get('is_deleted', False):
                     continue
+                
+                # Deduplicate by email and github_id
+                email = data.get('email')
+                github_id = data.get('github_id')
+                
+                # Skip if we've already seen this email or github_id
+                if email and email in seen_emails:
+                    continue
+                if github_id and github_id in seen_github_ids:
+                    continue
+                
+                # Add to seen sets
+                if email:
+                    seen_emails.add(email)
+                if github_id:
+                    seen_github_ids.add(github_id)
                     
                 users.append(User(
                     id=doc.id,
