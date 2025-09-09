@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Create New Survey - Admin{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center mb-4">
+                <a href="{{ url_for('dashboard.admin_surveys') }}" 
+                   class="text-blue-600 hover:text-blue-800 mr-4">
+                    <i class="fas fa-arrow-left"></i> Back to Surveys
+                </a>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900">Create New Survey</h1>
+            <p class="text-gray-600 mt-2">Generate AI-powered survey questions using Google Gemini</p>
+        </div>
+
+        <!-- Create Survey Form -->
+        <div class="bg-white shadow-lg rounded-lg p-8">
+            <form action="{{ url_for('dashboard.admin_new_survey') }}" method="POST" id="surveyForm">
+                <div class="mb-6">
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
+                        Survey Title
+                    </label>
+                    <input 
+                        type="text" 
+                        id="title" 
+                        name="title" 
+                        value="User Feedback Survey"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                        required>
+                </div>
+
+                <div class="mb-8">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">AI Question Generation</h3>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <i class="fas fa-robot text-blue-600 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="font-medium text-blue-900 mb-2">Powered by Google Gemini AI</h4>
+                                <p class="text-blue-800 text-sm mb-3">
+                                    Our AI will generate 8-10 intelligent survey questions designed to understand:
+                                </p>
+                                <ul class="text-blue-800 text-sm space-y-1 ml-4">
+                                    <li>• User's business background and experience</li>
+                                    <li>• What they're looking for in a pitch deck tool</li>
+                                    <li>• Their pain points with current solutions</li>
+                                    <li>• Feature preferences and priorities</li>
+                                    <li>• Feedback on AI-generated content quality</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <a href="{{ url_for('dashboard.admin_surveys') }}" 
+                       class="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition duration-200">
+                        Cancel
+                    </a>
+                    <button 
+                        type="submit" 
+                        id="submitBtn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-200">
+                        <i class="fas fa-magic mr-2"></i>Generate Survey with AI
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Info Section -->
+        <div class="mt-8 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-yellow-600 mt-1 mr-3"></i>
+                <div>
+                    <h4 class="font-medium text-yellow-900 mb-2">How it works</h4>
+                    <ul class="text-yellow-800 text-sm space-y-1">
+                        <li>• AI generates contextually relevant questions for pitch deck users</li>
+                        <li>• Questions include multiple choice, rating scales, and open-ended formats</li>
+                        <li>• Only one survey can be active at a time</li>
+                        <li>• Waitlisted users must complete the survey to unlock their free export</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('surveyForm').addEventListener('submit', function(e) {
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating Questions...';
+    submitBtn.disabled = true;
+});
+</script>
+{% endblock %}

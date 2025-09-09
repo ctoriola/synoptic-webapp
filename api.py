@@ -1257,3 +1257,105 @@ def export_user_guide_docx(project_id):
     filename = f"{project.title.replace(' ', '_')}_user_guide.docx"
     return send_file(buffer, as_attachment=True, download_name=filename, 
                     mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+
+@api_bp.route('/validate-coupon', methods=['POST'])
+@login_required
+def validate_coupon():
+    """Validate coupon code and return discount information"""
+    try:
+        from firebase_models import Coupon
+        from datetime import datetime
+        
+        data = request.get_json()
+        coupon_code = data.get('code', '').upper().strip()
+        plan_type = data.get('plan', 'basic')  # basic or pro
+        
+        if not coupon_code:
+            return jsonify({'valid': False, 'error': 'Coupon code is required'}), 400
+        
+        # Get coupon by code
+        coupon = Coupon.get_by_code(coupon_code)
+        
+        if not coupon:
+            return jsonify({'valid': False, 'error': 'Invalid coupon code'}), 404
+        
+        # Check if coupon is valid
+        if not coupon.is_valid():
+            if not coupon.is_active:
+                return jsonify({'valid': False, 'error': 'This coupon is no longer active'}), 400
+            elif coupon.expires_at and datetime.utcnow() > coupon.expires_at:
+                return jsonify({'valid': False, 'error': 'This coupon has expired'}), 400
+            elif coupon.max_uses and coupon.current_uses >= coupon.max_uses:
+                return jsonify({'valid': False, 'error': 'This coupon has reached its usage limit'}), 400
+            else:
+                return jsonify({'valid': False, 'error': 'This coupon is not valid'}), 400
+        
+        # Check if coupon applies to the selected plan
+        if coupon.applies_to != 'all' and coupon.applies_to != plan_type:
+            return jsonify({
+                'valid': False, 
+                'error': f'This coupon only applies to {coupon.applies_to} plans'
+            }), 400
+        
+        # Calculate discount
+        plan_prices = {'basic': 9.99, 'pro': 19.99}
+        original_price = plan_prices.get(plan_type, 9.99)
+        
+        if coupon.discount_type == 'percentage':
+            discount_amount = original_price * (coupon.discount_value / 100)
+        else:
+            discount_amount = min(coupon.discount_value, original_price)  # Don't exceed original price
+        
+        final_price = max(0, original_price - discount_amount)
+        
+        return jsonify({
+            'valid': True,
+            'coupon': {
+                'code': coupon.code,
+                'discount_type': coupon.discount_type,
+                'discount_value': coupon.discount_value,
+                'applies_to': coupon.applies_to
+            },
+            'pricing': {
+                'original_price': original_price,
+                'discount_amount': round(discount_amount, 2),
+                'final_price': round(final_price, 2),
+                'savings_percentage': round((discount_amount / original_price) * 100, 1)
+            }
+        })
+    
+    except Exception as e:
+        return jsonify({'valid': False, 'error': f'Failed to validate coupon: {str(e)}'}), 500
+
+
+@api_bp.route('/apply-coupon', methods=['POST'])
+@login_required
+def apply_coupon():
+    """Apply coupon to user account for checkout"""
+    try:
+        from firebase_models import Coupon
+        
+        data = request.get_json()
+        coupon_code = data.get('code', '').upper().strip()
+        
+        if not coupon_code:
+            return jsonify({'success': False, 'error': 'Coupon code is required'}), 400
+        
+        # Validate coupon first
+        coupon = Coupon.get_by_code(coupon_code)
+        if not coupon or not coupon.is_valid():
+            return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
+        
+        # Store coupon code in user's account for checkout
+        current_user.coupon_code = coupon_code
+        current_user.save()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Coupon {coupon_code} applied successfully!',
+            'coupon_code': coupon_code
+        })
+    
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to apply coupon: {str(e)}'}), 500

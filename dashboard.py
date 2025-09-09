@@ -555,3 +555,316 @@ def delete_account():
     
     except Exception as e:
         return jsonify({'error': f'Failed to delete account: {str(e)}'}), 500
+
+
+@dashboard_bp.route('/survey')
+@login_required
+def survey():
+    """Display survey for waitlisted users"""
+    if current_user.account_tier != 'waitlisted':
+        flash('Survey is only available for waitlisted users.', 'info')
+        return redirect(url_for('dashboard.index'))
+    
+    if current_user.survey_completed:
+        flash('You have already completed the survey.', 'info')
+        return redirect(url_for('dashboard.index'))
+    
+    from firebase_models import Survey
+    active_survey = Survey.get_active()
+    
+    if not active_survey:
+        flash('No survey is currently available.', 'info')
+        return redirect(url_for('dashboard.index'))
+    
+    return render_template('dashboard/survey.html', survey=active_survey)
+
+
+@dashboard_bp.route('/survey/submit', methods=['POST'])
+@login_required
+def submit_survey():
+    """Submit survey responses"""
+    if current_user.account_tier != 'waitlisted':
+        return jsonify({'error': 'Survey is only available for waitlisted users'}), 403
+    
+    if current_user.survey_completed:
+        return jsonify({'error': 'You have already completed the survey'}), 400
+    
+    try:
+        from firebase_models import Survey, SurveyResponse
+        
+        active_survey = Survey.get_active()
+        if not active_survey:
+            return jsonify({'error': 'No active survey found'}), 404
+        
+        # Get responses from form
+        responses = {}
+        for i, question in enumerate(active_survey.questions):
+            response_key = f'question_{i}'
+            if response_key in request.form:
+                responses[str(i)] = request.form[response_key]
+        
+        # Save survey response
+        survey_response = SurveyResponse(
+            survey_id=active_survey.id,
+            user_id=current_user.id,
+            responses=responses
+        )
+        
+        if survey_response.save():
+            # Mark user as having completed survey
+            current_user.survey_completed = True
+            current_user.save()
+            
+            flash('Survey completed successfully! You can now export your pitch deck.', 'success')
+            return redirect(url_for('dashboard.index'))
+        else:
+            return jsonify({'error': 'Failed to save survey responses'}), 500
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to submit survey: {str(e)}'}), 500
+
+
+# Admin routes for survey management
+@dashboard_bp.route('/admin/surveys')
+@login_required
+@admin_required
+def admin_surveys():
+    """Admin survey management"""
+    from firebase_models import Survey
+    surveys = Survey.get_all()
+    return render_template('dashboard/admin_surveys.html', surveys=surveys)
+
+
+@dashboard_bp.route('/admin/surveys/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_new_survey():
+    """Create new survey with Gemini-generated questions"""
+    if request.method == 'POST':
+        try:
+            import google.generativeai as genai
+            import os
+            
+            # Configure Gemini AI
+            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+            model = genai.GenerativeModel('gemini-pro')
+            
+            survey_title = request.form.get('title', 'User Feedback Survey')
+            
+            # Generate survey questions using Gemini
+            prompt = """
+            Generate 8-10 survey questions for users of a pitch deck generation AI tool. 
+            The questions should help us understand:
+            1. User's business background and experience
+            2. What they're looking for in a pitch deck tool
+            3. Their pain points with current solutions
+            4. Feature preferences and priorities
+            5. Feedback on AI-generated content quality
+            
+            Return the questions as a JSON array of objects with this format:
+            [
+                {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Other"]},
+                {"question": "How would you rate the quality of AI-generated content?", "type": "rating", "scale": 5},
+                {"question": "What features are most important to you?", "type": "text"}
+            ]
+            
+            Question types can be: "text", "multiple_choice", "rating", "yes_no"
+            """
+            
+            response = model.generate_content(prompt)
+            
+            # Parse the JSON response
+            import json
+            import re
+            
+            # Extract JSON from response
+            json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
+            if json_match:
+                questions_json = json_match.group()
+                questions = json.loads(questions_json)
+            else:
+                # Fallback questions if Gemini fails
+                questions = [
+                    {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Investor", "Other"]},
+                    {"question": "How many pitch decks have you created before?", "type": "multiple_choice", "options": ["0", "1-3", "4-10", "10+"]},
+                    {"question": "What's your biggest challenge in creating pitch decks?", "type": "text"},
+                    {"question": "How important is AI-generated content quality to you?", "type": "rating", "scale": 5},
+                    {"question": "Would you recommend this tool to others?", "type": "yes_no"},
+                    {"question": "What features would you like to see added?", "type": "text"},
+                    {"question": "How satisfied are you with the current tool?", "type": "rating", "scale": 5},
+                    {"question": "What's your industry or business sector?", "type": "text"}
+                ]
+            
+            # Create and save survey
+            from firebase_models import Survey
+            
+            # Deactivate existing surveys
+            existing_surveys = Survey.get_all()
+            for survey in existing_surveys:
+                if survey.is_active:
+                    survey.is_active = False
+                    survey.save()
+            
+            new_survey = Survey(
+                title=survey_title,
+                questions=questions,
+                is_active=True
+            )
+            
+            if new_survey.save():
+                flash('Survey created successfully with AI-generated questions!', 'success')
+                return redirect(url_for('dashboard.admin_surveys'))
+            else:
+                flash('Failed to save survey', 'error')
+        
+        except Exception as e:
+            flash(f'Failed to create survey: {str(e)}', 'error')
+    
+    return render_template('dashboard/admin_new_survey.html')
+
+
+@dashboard_bp.route('/admin/surveys/<survey_id>/responses')
+@login_required
+@admin_required
+def admin_survey_responses(survey_id):
+    """View survey responses and analytics"""
+    from firebase_models import Survey, SurveyResponse, User
+    
+    survey = Survey.get(survey_id)
+    if not survey:
+        flash('Survey not found', 'error')
+        return redirect(url_for('dashboard.admin_surveys'))
+    
+    responses = SurveyResponse.get_all_by_survey(survey_id)
+    
+    # Get user details for responses
+    response_data = []
+    for response in responses:
+        user = User.get(response.user_id)
+        response_data.append({
+            'response': response,
+            'user': user
+        })
+    
+    # Generate analytics
+    analytics = {
+        'total_responses': len(responses),
+        'question_analytics': {}
+    }
+    
+    # Analyze each question
+    for i, question in enumerate(survey.questions):
+        question_responses = []
+        for response in responses:
+            if str(i) in response.responses:
+                question_responses.append(response.responses[str(i)])
+        
+        analytics['question_analytics'][i] = {
+            'question': question,
+            'responses': question_responses,
+            'response_count': len(question_responses)
+        }
+        
+        # Add specific analytics based on question type
+        if question.get('type') == 'rating':
+            if question_responses:
+                ratings = [int(r) for r in question_responses if r.isdigit()]
+                if ratings:
+                    analytics['question_analytics'][i]['average_rating'] = sum(ratings) / len(ratings)
+        
+        elif question.get('type') == 'multiple_choice':
+            from collections import Counter
+            analytics['question_analytics'][i]['option_counts'] = dict(Counter(question_responses))
+    
+    return render_template('dashboard/admin_survey_responses.html', 
+                         survey=survey, 
+                         response_data=response_data,
+                         analytics=analytics)
+
+
+# Admin routes for coupon management
+@dashboard_bp.route('/admin/coupons')
+@login_required
+@admin_required
+def admin_coupons():
+    """Admin coupon management"""
+    from firebase_models import Coupon
+    coupons = Coupon.get_all()
+    return render_template('dashboard/admin_coupons.html', coupons=coupons)
+
+
+@dashboard_bp.route('/admin/coupons/new', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_new_coupon():
+    """Create new coupon"""
+    if request.method == 'POST':
+        try:
+            from firebase_models import Coupon
+            from datetime import datetime, timedelta
+            
+            code = request.form.get('code', '').upper()
+            discount_type = request.form.get('discount_type', 'percentage')
+            discount_value = float(request.form.get('discount_value', 0))
+            applies_to = request.form.get('applies_to', 'all')
+            max_uses = request.form.get('max_uses')
+            expires_days = request.form.get('expires_days')
+            
+            # Validate required fields
+            if not code:
+                flash('Coupon code is required', 'error')
+                return render_template('dashboard/admin_new_coupon.html')
+            
+            # Check if coupon code already exists
+            existing_coupon = Coupon.get_by_code(code)
+            if existing_coupon:
+                flash('Coupon code already exists', 'error')
+                return render_template('dashboard/admin_new_coupon.html')
+            
+            # Calculate expiration date
+            expires_at = None
+            if expires_days:
+                expires_at = datetime.utcnow() + timedelta(days=int(expires_days))
+            
+            # Create coupon
+            coupon = Coupon(
+                code=code,
+                discount_type=discount_type,
+                discount_value=discount_value,
+                applies_to=applies_to,
+                max_uses=int(max_uses) if max_uses else None,
+                expires_at=expires_at
+            )
+            
+            if coupon.save():
+                flash(f'Coupon "{code}" created successfully!', 'success')
+                return redirect(url_for('dashboard.admin_coupons'))
+            else:
+                flash('Failed to create coupon', 'error')
+        
+        except Exception as e:
+            flash(f'Failed to create coupon: {str(e)}', 'error')
+    
+    return render_template('dashboard/admin_new_coupon.html')
+
+
+@dashboard_bp.route('/admin/coupons/<coupon_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_coupon(coupon_id):
+    """Toggle coupon active status"""
+    try:
+        from firebase_models import Coupon
+        
+        coupon = Coupon.get_by_code(coupon_id)  # coupon_id is actually the code
+        if not coupon:
+            return jsonify({'error': 'Coupon not found'}), 404
+        
+        coupon.is_active = not coupon.is_active
+        if coupon.save():
+            return jsonify({'success': True, 'is_active': coupon.is_active})
+        else:
+            return jsonify({'error': 'Failed to update coupon'}), 500
+    
+    except Exception as e:
+        return jsonify({'error': f'Failed to toggle coupon: {str(e)}'}), 500

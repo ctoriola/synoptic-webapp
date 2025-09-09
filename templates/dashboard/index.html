@@ -15,10 +15,23 @@
                 <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium w-fit sm:ml-auto
                     {% if current_user.account_tier == 'pro' %}bg-purple-100 text-purple-800
                     {% elif current_user.account_tier == 'basic' %}bg-blue-100 text-blue-800
+                    {% elif current_user.account_tier == 'waitlisted' %}bg-yellow-100 text-yellow-800
                     {% else %}bg-gray-100 text-gray-800{% endif %}">
                     {{ current_user.account_tier|title }} Plan
                 </span>
-                <p class="text-sm text-gray-500">{{ current_user.tokens }} tokens remaining</p>
+                {% if current_user.account_tier == 'waitlisted' %}
+                    {% if current_user.survey_completed %}
+                        {% if current_user.survey_export_used %}
+                            <p class="text-sm text-gray-500">Survey export used</p>
+                        {% else %}
+                            <p class="text-sm text-green-600">1 free export available!</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-sm text-orange-600">Complete survey to unlock export</p>
+                    {% endif %}
+                {% else %}
+                    <p class="text-sm text-gray-500">{{ current_user.tokens }} tokens remaining</p>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -137,6 +150,25 @@
                         </p>
                     </div>
                 </a>
+
+                {% if current_user.account_tier == 'waitlisted' and not current_user.survey_completed %}
+                <a href="{{ url_for('dashboard.survey') }}" 
+                   class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-yellow-500 border border-yellow-200 rounded-lg hover:border-yellow-300 transition-colors w-64 flex-shrink-0 bg-yellow-50">
+                    <div>
+                        <span class="rounded-lg inline-flex p-3 bg-yellow-100 text-yellow-600 ring-4 ring-white">
+                            <i class="fas fa-poll text-xl"></i>
+                        </span>
+                    </div>
+                    <div class="mt-4">
+                        <h3 class="text-lg font-medium text-gray-900">
+                            Complete Survey
+                        </h3>
+                        <p class="mt-2 text-sm text-yellow-700">
+                            Unlock your free pitch deck export by completing our survey
+                        </p>
+                    </div>
+                </a>
+                {% endif %}
 
                 <a href="{{ url_for('dashboard.settings') }}" 
                    class="relative group bg-white p-6 focus-within:ring-2 focus-within:ring-inset focus-within:ring-primary-500 border border-gray-200 rounded-lg hover:border-primary-300 transition-colors w-64 flex-shrink-0">

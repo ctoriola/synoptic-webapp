@@ -57,20 +57,43 @@
                 <div class="p-6">
                     <h2 class="text-lg leading-6 font-medium text-gray-900">Basic</h2>
                     <p class="mt-4 text-sm text-gray-500">Great for small teams and regular use</p>
-                    <p class="mt-8">
-                        <span class="text-4xl font-extrabold text-gray-900">$9</span>
-                        <span class="text-base font-medium text-gray-500">/month</span>
-                    </p>
+                    <div class="mt-8">
+                        <div class="flex items-baseline justify-center">
+                            <span id="basic-original-price" class="text-4xl font-extrabold text-gray-900">$9.99</span>
+                            <span class="text-base font-medium text-gray-500 ml-1">/month</span>
+                        </div>
+                        <div id="basic-discount-info" class="hidden mt-2 text-center">
+                            <span class="text-lg line-through text-gray-400" id="basic-crossed-price">$9.99</span>
+                            <span class="text-2xl font-bold text-green-600 ml-2" id="basic-final-price">$7.99</span>
+                            <div class="text-sm text-green-600 font-medium" id="basic-savings">Save 20%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Coupon Input for Basic -->
+                    <div class="mt-4">
+                        <div class="flex">
+                            <input type="text" 
+                                   id="basic-coupon-input" 
+                                   placeholder="Enter coupon code"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md text-sm focus:ring-primary-500 focus:border-primary-500">
+                            <button onclick="applyCoupon('basic')" 
+                                    class="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md text-sm hover:bg-gray-200">
+                                Apply
+                            </button>
+                        </div>
+                        <div id="basic-coupon-message" class="mt-1 text-sm hidden"></div>
+                    </div>
+
                     {% if current_user.is_authenticated and current_user.account_tier == 'basic' %}
-                    <span class="mt-8 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
+                    <span class="mt-4 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
                         Current Plan
                     </span>
                     {% elif current_user.is_authenticated %}
-                    <button onclick="upgradeWithStripe('basic')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <button onclick="upgradeWithStripe('basic')" class="mt-4 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Upgrade to Basic
                     </button>
                     {% else %}
-                    <a href="{{ url_for('auth.register') }}" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <a href="{{ url_for('auth.register') }}" class="mt-4 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Get Started
                     </a>
                     {% endif %}
@@ -112,20 +135,43 @@
                 <div class="p-6">
                     <h2 class="text-lg leading-6 font-medium text-gray-900">Pro</h2>
                     <p class="mt-4 text-sm text-gray-500">Perfect for agencies and power users</p>
-                    <p class="mt-8">
-                        <span class="text-4xl font-extrabold text-gray-900">$29</span>
-                        <span class="text-base font-medium text-gray-500">/month</span>
-                    </p>
+                    <div class="mt-8">
+                        <div class="flex items-baseline justify-center">
+                            <span id="pro-original-price" class="text-4xl font-extrabold text-gray-900">$19.99</span>
+                            <span class="text-base font-medium text-gray-500 ml-1">/month</span>
+                        </div>
+                        <div id="pro-discount-info" class="hidden mt-2 text-center">
+                            <span class="text-lg line-through text-gray-400" id="pro-crossed-price">$19.99</span>
+                            <span class="text-2xl font-bold text-green-600 ml-2" id="pro-final-price">$15.99</span>
+                            <div class="text-sm text-green-600 font-medium" id="pro-savings">Save 20%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Coupon Input for Pro -->
+                    <div class="mt-4">
+                        <div class="flex">
+                            <input type="text" 
+                                   id="pro-coupon-input" 
+                                   placeholder="Enter coupon code"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md text-sm focus:ring-primary-500 focus:border-primary-500">
+                            <button onclick="applyCoupon('pro')" 
+                                    class="px-4 py-2 bg-gray-100 border border-l-0 border-gray-300 rounded-r-md text-sm hover:bg-gray-200">
+                                Apply
+                            </button>
+                        </div>
+                        <div id="pro-coupon-message" class="mt-1 text-sm hidden"></div>
+                    </div>
+
                     {% if current_user.is_authenticated and current_user.account_tier == 'pro' %}
-                    <span class="mt-8 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
+                    <span class="mt-4 block w-full bg-gray-100 border border-gray-300 rounded-md py-2 text-sm font-semibold text-gray-500 text-center">
                         Current Plan
                     </span>
                     {% elif current_user.is_authenticated %}
-                    <button onclick="upgradeWithStripe('pro')" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <button onclick="upgradeWithStripe('pro')" class="mt-4 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Upgrade to Pro
                     </button>
                     {% else %}
-                    <a href="{{ url_for('auth.register') }}" class="mt-8 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
+                    <a href="{{ url_for('auth.register') }}" class="mt-4 block w-full bg-primary-600 border border-primary-600 rounded-md py-2 text-sm font-semibold text-white text-center hover:bg-primary-700">
                         Get Started
                     </a>
                     {% endif %}
@@ -286,6 +332,155 @@ function showNotification(message, type = 'info') {
             notification.remove();
         }
     }, 5000);
+}
+
+// Coupon functionality
+let appliedCoupons = {
+    basic: null,
+    pro: null
+};
+
+function applyCoupon(plan) {
+    const input = document.getElementById(`${plan}-coupon-input`);
+    const messageDiv = document.getElementById(`${plan}-coupon-message`);
+    const couponCode = input.value.trim().toUpperCase();
+    
+    if (!couponCode) {
+        showCouponMessage(plan, 'Please enter a coupon code', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const button = input.nextElementSibling;
+    const originalText = button.textContent;
+    button.textContent = 'Checking...';
+    button.disabled = true;
+    
+    fetch('/api/validate-coupon', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            code: couponCode,
+            plan: plan
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.valid) {
+            appliedCoupons[plan] = data;
+            updatePricing(plan, data.pricing);
+            showCouponMessage(plan, `Coupon applied! Save ${data.pricing.savings_percentage}%`, 'success');
+            input.value = couponCode;
+            button.textContent = 'Applied';
+            button.classList.add('bg-green-100', 'text-green-700');
+        } else {
+            showCouponMessage(plan, data.error, 'error');
+            button.textContent = originalText;
+            button.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showCouponMessage(plan, 'Failed to validate coupon', 'error');
+        button.textContent = originalText;
+        button.disabled = false;
+    });
+}
+
+function updatePricing(plan, pricing) {
+    const originalPriceEl = document.getElementById(`${plan}-original-price`);
+    const discountInfoEl = document.getElementById(`${plan}-discount-info`);
+    const crossedPriceEl = document.getElementById(`${plan}-crossed-price`);
+    const finalPriceEl = document.getElementById(`${plan}-final-price`);
+    const savingsEl = document.getElementById(`${plan}-savings`);
+    
+    if (pricing.discount_amount > 0) {
+        // Show discount pricing
+        originalPriceEl.classList.add('hidden');
+        discountInfoEl.classList.remove('hidden');
+        
+        crossedPriceEl.textContent = `$${pricing.original_price}`;
+        finalPriceEl.textContent = `$${pricing.final_price}`;
+        savingsEl.textContent = `Save ${pricing.savings_percentage}%`;
+    } else {
+        // Hide discount pricing
+        originalPriceEl.classList.remove('hidden');
+        discountInfoEl.classList.add('hidden');
+    }
+}
+
+function showCouponMessage(plan, message, type) {
+    const messageDiv = document.getElementById(`${plan}-coupon-message`);
+    messageDiv.textContent = message;
+    messageDiv.classList.remove('hidden', 'text-red-600', 'text-green-600');
+    
+    if (type === 'error') {
+        messageDiv.classList.add('text-red-600');
+    } else if (type === 'success') {
+        messageDiv.classList.add('text-green-600');
+    }
+}
+
+// Update Stripe upgrade function to include coupon
+function upgradeWithStripe(plan) {
+    // Apply coupon if one is set
+    const couponCode = appliedCoupons[plan] ? appliedCoupons[plan].coupon.code : null;
+    
+    if (couponCode) {
+        // Store coupon in user account first
+        fetch('/api/apply-coupon', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                code: couponCode
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Proceed with Stripe checkout
+                proceedToStripe(plan);
+            } else {
+                showNotification('Failed to apply coupon: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error applying coupon:', error);
+            showNotification('Failed to apply coupon', 'error');
+        });
+    } else {
+        // No coupon, proceed directly
+        proceedToStripe(plan);
+    }
+}
+
+function proceedToStripe(plan) {
+    // Original Stripe checkout logic
+    fetch('/api/stripe/create-checkout-session', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            plan: plan
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.url) {
+            window.location.href = data.url;
+        } else {
+            showNotification('Failed to create checkout session', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Failed to start checkout process', 'error');
+    });
 }
 </script>
 {% endblock %}

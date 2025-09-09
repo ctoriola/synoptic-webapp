@@ -9,7 +9,8 @@ class User(UserMixin):
     def __init__(self, id=None, email=None, username=None, password_hash=None, 
                  is_admin=False, account_tier='free', tokens=0, github_id=None, 
                  github_username=None, github_token=None, created_at=None, is_deleted=False, is_whitelisted=False,
-                 stripe_customer_id=None, stripe_subscription_id=None):
+                 stripe_customer_id=None, stripe_subscription_id=None, survey_completed=False, 
+                 survey_export_used=False, coupon_code=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
@@ -25,6 +26,9 @@ class User(UserMixin):
         self.is_whitelisted = is_whitelisted
         self.stripe_customer_id = stripe_customer_id
         self.stripe_subscription_id = stripe_subscription_id
+        self.survey_completed = survey_completed
+        self.survey_export_used = survey_export_used
+        self.coupon_code = coupon_code
     
     def set_password(self, password):
         """Set password hash"""
@@ -38,6 +42,7 @@ class User(UserMixin):
         """Get token limits for account tiers"""
         limits = {
             'free': 0,
+            'waitlisted': 0,
             'basic': 10,
             'pro': 50
         }
@@ -45,11 +50,19 @@ class User(UserMixin):
     
     def can_export_files(self):
         """Check if user has tokens available for file exports"""
+        if self.account_tier == 'waitlisted':
+            return self.survey_completed and not self.survey_export_used
         return self.tokens > 0
     
     def use_token(self):
-        """Deduct one token for file export"""
-        if self.tokens > 0:
+        """Deduct one token for file export or mark survey export as used"""
+        if self.account_tier == 'waitlisted':
+            if self.survey_completed and not self.survey_export_used:
+                self.survey_export_used = True
+                self.save()
+                return True
+            return False
+        elif self.tokens > 0:
             self.tokens -= 1
             self.save()
             return True
@@ -59,6 +72,7 @@ class User(UserMixin):
         """Upgrade user account tier and reset tokens"""
         tier_tokens = {
             'free': 0,
+            'waitlisted': 0,
             'basic': 10,
             'pro': 50
         }
@@ -85,7 +99,10 @@ class User(UserMixin):
             'is_deleted': self.is_deleted,
             'is_whitelisted': self.is_whitelisted,
             'stripe_customer_id': self.stripe_customer_id,
-            'stripe_subscription_id': self.stripe_subscription_id
+            'stripe_subscription_id': self.stripe_subscription_id,
+            'survey_completed': self.survey_completed,
+            'survey_export_used': self.survey_export_used,
+            'coupon_code': self.coupon_code
         }
     
     def save(self):
@@ -118,6 +135,9 @@ class User(UserMixin):
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
                     is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False),
                     stripe_customer_id=data.get('stripe_customer_id'),
                     stripe_subscription_id=data.get('stripe_subscription_id')
@@ -144,7 +164,10 @@ class User(UserMixin):
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code')
                 )
         return None
     
@@ -168,7 +191,10 @@ class User(UserMixin):
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code')
                 )
         return None
     
@@ -192,7 +218,10 @@ class User(UserMixin):
                     github_username=data.get('github_username'),
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
-                    is_deleted=data.get('is_deleted', False)
+                    is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code')
                 )
         return None
     
@@ -217,6 +246,9 @@ class User(UserMixin):
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
                     is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False),
                     stripe_customer_id=data.get('stripe_customer_id'),
                     stripe_subscription_id=data.get('stripe_subscription_id')
@@ -250,6 +282,9 @@ class User(UserMixin):
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
                     is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False)
                 ))
         return users
@@ -285,6 +320,9 @@ class User(UserMixin):
                     github_token=data.get('github_token'),
                     created_at=data.get('created_at'),
                     is_deleted=data.get('is_deleted', False),
+                    survey_completed=data.get('survey_completed', False),
+                    survey_export_used=data.get('survey_export_used', False),
+                    coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False)
                 ))
         return users
@@ -295,7 +333,253 @@ class User(UserMixin):
         self.github_token = None  # Clear GitHub token
         self.email = None  # Clear email to prevent conflicts
         self.password_hash = None  # Clear password
-        return self.save()
+        return False
+
+class Survey:
+    def __init__(self, id=None, title=None, questions=None, is_active=True, created_at=None):
+        self.id = id or str(uuid.uuid4())
+        self.title = title
+        self.questions = questions or []
+        self.is_active = is_active
+        self.created_at = created_at or datetime.utcnow()
+    
+    def to_dict(self):
+        """Convert survey to dictionary for Firestore"""
+        return {
+            'title': self.title,
+            'questions': self.questions,
+            'is_active': self.is_active,
+            'created_at': self.created_at
+        }
+    
+    def save(self):
+        """Save survey to Firestore"""
+        db = get_db()
+        if db:
+            survey_data = self.to_dict()
+            db.collection('surveys').document(self.id).set(survey_data)
+            return True
+        return False
+    
+    @staticmethod
+    def get(survey_id):
+        """Get survey by ID"""
+        db = get_db()
+        if db:
+            doc = db.collection('surveys').document(survey_id).get()
+            if doc.exists:
+                data = doc.to_dict()
+                return Survey(
+                    id=survey_id,
+                    title=data.get('title'),
+                    questions=data.get('questions', []),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                )
+        return None
+    
+    @staticmethod
+    def get_active():
+        """Get active survey"""
+        db = get_db()
+        if db:
+            surveys = db.collection('surveys').where('is_active', '==', True).limit(1).stream()
+            for survey in surveys:
+                data = survey.to_dict()
+                return Survey(
+                    id=survey.id,
+                    title=data.get('title'),
+                    questions=data.get('questions', []),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                )
+        return None
+    
+    @staticmethod
+    def get_all():
+        """Get all surveys"""
+        db = get_db()
+        surveys = []
+        if db:
+            docs = db.collection('surveys').stream()
+            for doc in docs:
+                data = doc.to_dict()
+                surveys.append(Survey(
+                    id=doc.id,
+                    title=data.get('title'),
+                    questions=data.get('questions', []),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                ))
+        return surveys
+
+
+class SurveyResponse:
+    def __init__(self, id=None, survey_id=None, user_id=None, responses=None, created_at=None):
+        self.id = id or str(uuid.uuid4())
+        self.survey_id = survey_id
+        self.user_id = user_id
+        self.responses = responses or {}
+        self.created_at = created_at or datetime.utcnow()
+    
+    def to_dict(self):
+        """Convert survey response to dictionary for Firestore"""
+        return {
+            'survey_id': self.survey_id,
+            'user_id': self.user_id,
+            'responses': self.responses,
+            'created_at': self.created_at
+        }
+    
+    def save(self):
+        """Save survey response to Firestore"""
+        db = get_db()
+        if db:
+            response_data = self.to_dict()
+            db.collection('survey_responses').document(self.id).set(response_data)
+            return True
+        return False
+    
+    @staticmethod
+    def get_by_user_and_survey(user_id, survey_id):
+        """Get survey response by user and survey"""
+        db = get_db()
+        if db:
+            responses = db.collection('survey_responses')\
+                         .where('user_id', '==', user_id)\
+                         .where('survey_id', '==', survey_id)\
+                         .limit(1).stream()
+            for response in responses:
+                data = response.to_dict()
+                return SurveyResponse(
+                    id=response.id,
+                    survey_id=data.get('survey_id'),
+                    user_id=data.get('user_id'),
+                    responses=data.get('responses', {}),
+                    created_at=data.get('created_at')
+                )
+        return None
+    
+    @staticmethod
+    def get_all_by_survey(survey_id):
+        """Get all responses for a survey"""
+        db = get_db()
+        responses = []
+        if db:
+            docs = db.collection('survey_responses').where('survey_id', '==', survey_id).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                responses.append(SurveyResponse(
+                    id=doc.id,
+                    survey_id=data.get('survey_id'),
+                    user_id=data.get('user_id'),
+                    responses=data.get('responses', {}),
+                    created_at=data.get('created_at')
+                ))
+        return responses
+
+
+class Coupon:
+    def __init__(self, id=None, code=None, discount_type='percentage', discount_value=0, 
+                 applies_to='all', max_uses=None, current_uses=0, expires_at=None, 
+                 is_active=True, created_at=None):
+        self.id = id or str(uuid.uuid4())
+        self.code = code
+        self.discount_type = discount_type  # 'percentage' or 'fixed'
+        self.discount_value = discount_value
+        self.applies_to = applies_to  # 'all', 'basic', 'pro'
+        self.max_uses = max_uses
+        self.current_uses = current_uses
+        self.expires_at = expires_at
+        self.is_active = is_active
+        self.created_at = created_at or datetime.utcnow()
+    
+    def to_dict(self):
+        """Convert coupon to dictionary for Firestore"""
+        return {
+            'code': self.code,
+            'discount_type': self.discount_type,
+            'discount_value': self.discount_value,
+            'applies_to': self.applies_to,
+            'max_uses': self.max_uses,
+            'current_uses': self.current_uses,
+            'expires_at': self.expires_at,
+            'is_active': self.is_active,
+            'created_at': self.created_at
+        }
+    
+    def save(self):
+        """Save coupon to Firestore"""
+        db = get_db()
+        if db:
+            coupon_data = self.to_dict()
+            db.collection('coupons').document(self.id).set(coupon_data)
+            return True
+        return False
+    
+    def is_valid(self):
+        """Check if coupon is valid for use"""
+        if not self.is_active:
+            return False
+        if self.expires_at and datetime.utcnow() > self.expires_at:
+            return False
+        if self.max_uses and self.current_uses >= self.max_uses:
+            return False
+        return True
+    
+    def use_coupon(self):
+        """Increment usage count"""
+        if self.is_valid():
+            self.current_uses += 1
+            self.save()
+            return True
+        return False
+    
+    @staticmethod
+    def get_by_code(code):
+        """Get coupon by code"""
+        db = get_db()
+        if db:
+            coupons = db.collection('coupons').where('code', '==', code).limit(1).stream()
+            for coupon in coupons:
+                data = coupon.to_dict()
+                return Coupon(
+                    id=coupon.id,
+                    code=data.get('code'),
+                    discount_type=data.get('discount_type', 'percentage'),
+                    discount_value=data.get('discount_value', 0),
+                    applies_to=data.get('applies_to', 'all'),
+                    max_uses=data.get('max_uses'),
+                    current_uses=data.get('current_uses', 0),
+                    expires_at=data.get('expires_at'),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                )
+        return None
+    
+    @staticmethod
+    def get_all():
+        """Get all coupons"""
+        db = get_db()
+        coupons = []
+        if db:
+            docs = db.collection('coupons').stream()
+            for doc in docs:
+                data = doc.to_dict()
+                coupons.append(Coupon(
+                    id=doc.id,
+                    code=data.get('code'),
+                    discount_type=data.get('discount_type', 'percentage'),
+                    discount_value=data.get('discount_value', 0),
+                    applies_to=data.get('applies_to', 'all'),
+                    max_uses=data.get('max_uses'),
+                    current_uses=data.get('current_uses', 0),
+                    expires_at=data.get('expires_at'),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                ))
+        return coupons
+
 
 class Project:
     def __init__(self, id=None, title=None, repo_url=None, repo_owner=None, repo_name=None, 
