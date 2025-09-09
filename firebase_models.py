@@ -291,10 +291,10 @@ class User(UserMixin):
     
     @staticmethod
     def get_user_count():
-        """Get total number of users"""
+        """Get total number of active (non-deleted) users"""
         db = get_db()
         if db:
-            users = list(db.collection('users').stream())
+            users = list(db.collection('users').where('is_deleted', '!=', True).stream())
             return len(users)
         return 0
     
