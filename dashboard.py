@@ -1038,7 +1038,7 @@ def out_of_tokens():
     """Page shown when users are out of tokens"""
     try:
         # Get user's project count for stats
-        user_projects = Project.get_by_user_id(current_user.id)
+        user_projects = Project.get_by_user(current_user.id)
         user_projects_count = len(user_projects) if user_projects else 0
         
         return render_template('dashboard/out_of_tokens.html', 
