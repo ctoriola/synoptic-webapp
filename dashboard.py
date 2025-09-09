@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
 from flask_login import login_required, current_user
-from firebase_models import Project, User
+from firebase_models import Project, User, Survey, SurveyResponse, Coupon
 from datetime import datetime
 from functools import wraps
 
@@ -242,7 +242,7 @@ def search():
 @dashboard_bp.route('/admin')
 @login_required
 @admin_required
-def admin_dashboard():
+def admin():
     """Admin dashboard with user statistics"""
     # Get statistics
     total_users = User.get_user_count()
@@ -934,7 +934,7 @@ def admin_edit_survey(survey_id):
 @admin_required
 def admin_user_management():
     try:
-        users = User.get_all()
+        users = User.get_all_users()
         return render_template('dashboard/admin_user_management.html', users=users)
     except Exception as e:
         flash(f'Error loading users: {str(e)}', 'error')
