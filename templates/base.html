@@ -113,7 +113,7 @@
                     <a href="{{ url_for('dashboard.generator') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"><i class="fas fa-magic mr-2"></i>Generator</a>
                     <a href="{{ url_for('dashboard.projects') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"><i class="fas fa-folder mr-2"></i>Projects</a>
                     {% if current_user.is_admin %}
-                    <a href="{{ url_for('dashboard.admin_dashboard') }}" class="block px-3 py-2 rounded-md text-base font-medium text-purple-700 hover:bg-gray-100"><i class="fas fa-shield-alt mr-2"></i>Admin</a>
+                    <a href="{{ url_for('dashboard.admin') }}" class="block px-3 py-2 rounded-md text-base font-medium text-purple-700 hover:bg-gray-100"><i class="fas fa-shield-alt mr-2"></i>Admin</a>
                     {% endif %}
                     <a href="{{ url_for('dashboard.settings') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"><i class="fas fa-cog mr-2"></i>Settings</a>
                     <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"><i class="fas fa-sign-out-alt mr-2"></i>Logout</a>
