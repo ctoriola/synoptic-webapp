@@ -6,6 +6,22 @@ from functools import wraps
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
+def _has_generation_access(user):
+    """Check if user has access to generate pitch decks"""
+    # Free tier users have no access
+    if user.account_tier == 'free':
+        return user.tokens_remaining and user.tokens_remaining > 0
+    
+    # Waitlisted users can generate if they completed survey and haven't used export
+    if user.account_tier == 'waitlisted':
+        return user.survey_completed and not user.survey_export_used
+    
+    # Basic and Pro users need tokens
+    if user.account_tier in ['basic', 'pro']:
+        return user.tokens_remaining and user.tokens_remaining > 0
+    
+    return False
+
 def admin_required(f):
     """Decorator to require admin access"""
     @wraps(f)
@@ -48,7 +64,9 @@ def generator():
         from datetime import datetime
         
         try:
-            # Generation is now free - no token check needed
+            # Check if user has tokens or is waitlisted with survey completed
+            if not _has_generation_access(current_user):
+                return redirect(url_for('dashboard.out_of_tokens'))
             
             repo_url = selected_repo['url']
             repo_owner = selected_repo['owner']
@@ -1013,3 +1031,18 @@ def admin_survey_analytics():
     except Exception as e:
         flash(f'Error loading survey analytics: {str(e)}', 'error')
         return redirect(url_for('dashboard.admin'))
+
+@dashboard_bp.route('/out-of-tokens')
+@login_required
+def out_of_tokens():
+    """Page shown when users are out of tokens"""
+    try:
+        # Get user's project count for stats
+        user_projects = Project.get_by_user_id(current_user.id)
+        user_projects_count = len(user_projects) if user_projects else 0
+        
+        return render_template('dashboard/out_of_tokens.html', 
+                             user_projects_count=user_projects_count)
+    except Exception as e:
+        flash(f'Error loading page: {str(e)}', 'error')
+        return redirect(url_for('dashboard.index'))

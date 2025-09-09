@@ -251,7 +251,10 @@ def api_fetch_readme():
 @api_bp.route('/generate', methods=['POST'])
 @login_required
 def api_generate():
-    # Generation is now free - no token check needed
+    # Check if user has tokens or is waitlisted with survey completed
+    from dashboard import _has_generation_access
+    if not _has_generation_access(current_user):
+        return jsonify({'error': 'No tokens remaining or access denied'}), 403
 
     # Handle both form data and JSON data
     if request.content_type and 'multipart/form-data' in request.content_type:
@@ -707,12 +710,15 @@ def export_project_pptx(project_id):
 @login_required
 def generate_documentation(project_id):
     """Generate technical documentation for a project"""
+    # Check if user has generation access
+    from dashboard import _has_generation_access
+    if not _has_generation_access(current_user):
+        return jsonify({'error': 'No tokens remaining or access denied'}), 403
+    
     project = Project.get(project_id)
     
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found or access denied'}), 404
-    
-    # Generation is free - only exports cost tokens
     
     try:
         # Configure Gemini AI
@@ -802,12 +808,15 @@ Format the response as structured markdown with clear headings and code examples
 @login_required
 def generate_user_guide(project_id):
     """Generate user guide for a project"""
+    # Check if user has generation access
+    from dashboard import _has_generation_access
+    if not _has_generation_access(current_user):
+        return jsonify({'error': 'No tokens remaining or access denied'}), 403
+    
     project = Project.get(project_id)
     
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found or access denied'}), 404
-    
-    # Generation is free - only exports cost tokens
     
     try:
         # Configure Gemini AI

@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+
+{% block title %}Out of Tokens - PitchPerfectAI{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">You're Out of Tokens!</h1>
+            
+            {% if current_user.account_tier == 'waitlisted' %}
+            <p class="text-lg text-gray-600 mb-6">
+                Complete our quick survey to unlock your free pitch deck export and help us improve PitchPerfectAI!
+            </p>
+            {% else %}
+            <p class="text-lg text-gray-600 mb-6">
+                You've used all your available tokens for generating pitch decks. Upgrade your plan to continue creating amazing presentations!
+            </p>
+            {% endif %}
+        </div>
+
+        {% if current_user.account_tier == 'waitlisted' %}
+        <!-- Waitlisted User Section -->
+        <div class="bg-white shadow-xl rounded-lg overflow-hidden mb-8">
+            <div class="bg-yellow-50 px-6 py-4 border-b border-yellow-200">
+                <h2 class="text-xl font-semibold text-yellow-800">
+                    <i class="fas fa-poll mr-2"></i>Complete Survey to Continue
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0">
+                        <div class="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                            <i class="fas fa-gift text-yellow-600 text-xl"></i>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">Unlock Your Free Export</h3>
+                        <p class="text-gray-600 mb-4">
+                            As a waitlisted user, you can export one pitch deck for free after completing our survey. 
+                            Your feedback helps us improve PitchPerfectAI for everyone!
+                        </p>
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                            <h4 class="font-medium text-yellow-800 mb-2">What you'll get:</h4>
+                            <ul class="text-sm text-yellow-700 space-y-1">
+                                <li><i class="fas fa-check mr-2"></i>One free pitch deck export</li>
+                                <li><i class="fas fa-check mr-2"></i>Access to all slide formats (PDF, PowerPoint)</li>
+                                <li><i class="fas fa-check mr-2"></i>Professional design templates</li>
+                                <li><i class="fas fa-check mr-2"></i>Priority consideration for plan upgrades</li>
+                            </ul>
+                        </div>
+                        <div class="flex space-x-3">
+                            <a href="{{ url_for('dashboard.survey') }}" 
+                               class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                                <i class="fas fa-poll mr-2"></i>Complete Survey Now
+                            </a>
+                            <a href="{{ url_for('dashboard.index') }}" 
+                               class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors">
+                                Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Regular User Section -->
+        <div class="bg-white shadow-xl rounded-lg overflow-hidden mb-8">
+            <div class="bg-gradient-to-r from-primary-500 to-purple-600 px-6 py-4">
+                <h2 class="text-xl font-semibold text-white">
+                    <i class="fas fa-rocket mr-2"></i>Upgrade Your Plan
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Basic Plan -->
+                    <div class="border border-gray-200 rounded-lg p-6 hover:border-primary-300 transition-colors">
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-900">Basic Plan</h3>
+                            <div class="mt-2">
+                                <span class="text-3xl font-bold text-primary-600">$9.99</span>
+                                <span class="text-gray-500">/month</span>
+                            </div>
+                        </div>
+                        <ul class="space-y-3 mb-6">
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                10 AI pitch deck generations
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Professional templates
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                PDF & PowerPoint export
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Email support
+                            </li>
+                        </ul>
+                        <a href="{{ url_for('main.pricing') }}" 
+                           class="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-4 rounded-lg font-medium text-center block transition-colors">
+                            Upgrade to Basic
+                        </a>
+                    </div>
+
+                    <!-- Pro Plan -->
+                    <div class="border-2 border-purple-500 rounded-lg p-6 relative bg-purple-50">
+                        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                            <span class="bg-purple-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                                Most Popular
+                            </span>
+                        </div>
+                        <div class="text-center mb-4">
+                            <h3 class="text-xl font-bold text-gray-900">Pro Plan</h3>
+                            <div class="mt-2">
+                                <span class="text-3xl font-bold text-purple-600">$19.99</span>
+                                <span class="text-gray-500">/month</span>
+                            </div>
+                        </div>
+                        <ul class="space-y-3 mb-6">
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                50 AI pitch deck generations
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Premium templates & themes
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Advanced customization
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Priority support
+                            </li>
+                            <li class="flex items-center text-sm text-gray-600">
+                                <i class="fas fa-check text-green-500 mr-3"></i>
+                                Team collaboration
+                            </li>
+                        </ul>
+                        <a href="{{ url_for('main.pricing') }}" 
+                           class="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-lg font-medium text-center block transition-colors">
+                            Upgrade to Pro
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Why Upgrade Section -->
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Why Upgrade?</h3>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <div class="h-12 w-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-magic text-blue-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-medium text-gray-900 mb-2">More Generations</h4>
+                    <p class="text-sm text-gray-600">Create multiple pitch decks for different projects and iterations</p>
+                </div>
+                <div class="text-center">
+                    <div class="h-12 w-12 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-palette text-green-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-medium text-gray-900 mb-2">Premium Templates</h4>
+                    <p class="text-sm text-gray-600">Access to professional designs that impress investors</p>
+                </div>
+                <div class="text-center">
+                    <div class="h-12 w-12 mx-auto bg-purple-100 rounded-full flex items-center justify-center mb-3">
+                        <i class="fas fa-headset text-purple-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-medium text-gray-900 mb-2">Priority Support</h4>
+                    <p class="text-sm text-gray-600">Get help when you need it with faster response times</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Current Usage Stats -->
+        <div class="bg-white shadow rounded-lg p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Your Current Usage</h3>
+            <div class="grid md:grid-cols-3 gap-6">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-red-600">{{ current_user.tokens_remaining or 0 }}</div>
+                    <div class="text-sm text-gray-500">Tokens Remaining</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600">{{ current_user.account_tier.title() }}</div>
+                    <div class="text-sm text-gray-500">Current Plan</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600">{{ user_projects_count or 0 }}</div>
+                    <div class="text-sm text-gray-500">Projects Created</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Back to Dashboard -->
+        <div class="text-center mt-8">
+            <a href="{{ url_for('dashboard.index') }}" 
+               class="text-primary-600 hover:text-primary-800 font-medium">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
