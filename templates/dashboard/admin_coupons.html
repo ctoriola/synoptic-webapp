@@ -103,14 +103,13 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                 <div class="flex space-x-2">
-                                    <button 
-                                        onclick="toggleCoupon('{{ coupon.code }}')"
-                                        class="text-blue-600 hover:text-blue-900">
-                                        {% if coupon.is_active %}
-                                            <i class="fas fa-pause mr-1"></i>Deactivate
-                                        {% else %}
-                                            <i class="fas fa-play mr-1"></i>Activate
-                                        {% endif %}
+                                    <a href="{{ url_for('dashboard.admin_edit_coupon', coupon_id=coupon.id) }}" 
+                                       class="text-primary-600 hover:text-primary-900 text-sm font-medium mr-3">
+                                        <i class="fas fa-edit mr-1"></i>Edit
+                                    </a>
+                                    <button onclick="toggleCoupon('{{ coupon.id }}')" 
+                                            class="text-sm px-3 py-1 rounded {{ 'bg-red-100 text-red-700 hover:bg-red-200' if coupon.is_active else 'bg-green-100 text-green-700 hover:bg-green-200' }}">
+                                        {{ 'Deactivate' if coupon.is_active else 'Activate' }}
                                     </button>
                                 </div>
                             </td>

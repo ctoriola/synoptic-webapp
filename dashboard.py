@@ -847,24 +847,169 @@ def admin_new_coupon():
     
     return render_template('dashboard/admin_new_coupon.html')
 
-
-@dashboard_bp.route('/admin/coupons/<coupon_id>/toggle', methods=['POST'])
+@dashboard_bp.route('/admin/coupons/<coupon_id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
-def admin_toggle_coupon(coupon_id):
-    """Toggle coupon active status"""
-    try:
-        from firebase_models import Coupon
-        
-        coupon = Coupon.get_by_code(coupon_id)  # coupon_id is actually the code
-        if not coupon:
-            return jsonify({'error': 'Coupon not found'}), 404
-        
-        coupon.is_active = not coupon.is_active
-        if coupon.save():
-            return jsonify({'success': True, 'is_active': coupon.is_active})
-        else:
-            return jsonify({'error': 'Failed to update coupon'}), 500
+def admin_edit_coupon(coupon_id):
+    coupon = Coupon.get_by_id(coupon_id)
+    if not coupon:
+        flash('Coupon not found', 'error')
+        return redirect(url_for('dashboard.admin_coupons'))
     
+    if request.method == 'POST':
+        try:
+            # Update coupon details
+            coupon.discount_type = request.form.get('discount_type')
+            coupon.discount_value = float(request.form.get('discount_value'))
+            coupon.applies_to = request.form.get('applies_to')
+            coupon.max_uses = int(request.form.get('max_uses', 0)) if request.form.get('max_uses') else None
+            
+            # Handle expiration date
+            expires_at = request.form.get('expires_at')
+            if expires_at:
+                coupon.expires_at = datetime.strptime(expires_at, '%Y-%m-%d')
+            else:
+                coupon.expires_at = None
+            
+            coupon.save()
+            flash('Coupon updated successfully!', 'success')
+            return redirect(url_for('dashboard.admin_coupons'))
+            
+        except Exception as e:
+            flash(f'Error updating coupon: {str(e)}', 'error')
+    
+    return render_template('dashboard/admin_edit_coupon.html', coupon=coupon)
+
+@dashboard_bp.route('/admin/surveys/<survey_id>/edit', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_survey(survey_id):
+    survey = Survey.get_by_id(survey_id)
+    if not survey:
+        flash('Survey not found', 'error')
+        return redirect(url_for('dashboard.admin_surveys'))
+    
+    if request.method == 'POST':
+        try:
+            survey.title = request.form.get('title')
+            
+            # Parse questions from form
+            questions = []
+            question_count = int(request.form.get('question_count', 0))
+            
+            for i in range(question_count):
+                question_text = request.form.get(f'question_{i}_text')
+                question_type = request.form.get(f'question_{i}_type')
+                
+                if question_text and question_type:
+                    question = {
+                        'text': question_text,
+                        'type': question_type
+                    }
+                    
+                    # Add options for multiple choice questions
+                    if question_type == 'multiple_choice':
+                        options = []
+                        for j in range(5):  # Max 5 options
+                            option = request.form.get(f'question_{i}_option_{j}')
+                            if option:
+                                options.append(option)
+                        question['options'] = options
+                    
+                    questions.append(question)
+            
+            survey.questions = questions
+            survey.save()
+            
+            flash('Survey updated successfully!', 'success')
+            return redirect(url_for('dashboard.admin_surveys'))
+            
+        except Exception as e:
+            flash(f'Error updating survey: {str(e)}', 'error')
+    
+    return render_template('dashboard/admin_edit_survey.html', survey=survey)
+
+@dashboard_bp.route('/admin/user-management')
+@login_required
+@admin_required
+def admin_user_management():
+    try:
+        users = User.get_all()
+        return render_template('dashboard/admin_user_management.html', users=users)
     except Exception as e:
-        return jsonify({'error': f'Failed to toggle coupon: {str(e)}'}), 500
+        flash(f'Error loading users: {str(e)}', 'error')
+        return redirect(url_for('dashboard.admin'))
+
+@dashboard_bp.route('/admin/user-management/<user_id>/change-plan', methods=['POST'])
+@login_required
+@admin_required
+def admin_change_user_plan(user_id):
+    try:
+        user = User.get(user_id)
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('dashboard.admin_user_management'))
+        
+        new_plan = request.form.get('new_plan')
+        if new_plan not in ['free', 'basic', 'pro', 'waitlisted']:
+            flash('Invalid plan selected', 'error')
+            return redirect(url_for('dashboard.admin_user_management'))
+        
+        old_plan = user.account_tier
+        user.account_tier = new_plan
+        
+        # Reset survey fields if changing to waitlisted
+        if new_plan == 'waitlisted':
+            user.survey_completed = False
+            user.survey_export_used = False
+        
+        user.save()
+        
+        flash(f'User {user.username} plan changed from {old_plan} to {new_plan}', 'success')
+        
+    except Exception as e:
+        flash(f'Error changing user plan: {str(e)}', 'error')
+    
+    return redirect(url_for('dashboard.admin_user_management'))
+
+@dashboard_bp.route('/admin/survey-analytics')
+@login_required
+@admin_required
+def admin_survey_analytics():
+    try:
+        surveys = Survey.get_all()
+        analytics_data = []
+        
+        for survey in surveys:
+            responses = SurveyResponse.get_all_by_survey(survey.id)
+            
+            # Calculate analytics
+            total_responses = len(responses)
+            completion_rate = 0
+            avg_ratings = {}
+            
+            if total_responses > 0:
+                # Calculate average ratings for rating questions
+                for question in survey.questions:
+                    if question.get('type') == 'rating':
+                        ratings = []
+                        for response in responses:
+                            answer = response.responses.get(question['text'])
+                            if answer and str(answer).isdigit():
+                                ratings.append(int(answer))
+                        
+                        if ratings:
+                            avg_ratings[question['text']] = sum(ratings) / len(ratings)
+            
+            analytics_data.append({
+                'survey': survey,
+                'total_responses': total_responses,
+                'avg_ratings': avg_ratings,
+                'responses': responses
+            })
+        
+        return render_template('dashboard/admin_survey_analytics.html', analytics_data=analytics_data)
+        
+    except Exception as e:
+        flash(f'Error loading survey analytics: {str(e)}', 'error')
+        return redirect(url_for('dashboard.admin'))

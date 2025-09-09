@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">User Management</h1>
+                    <p class="mt-2 text-gray-600">Manage user accounts and change subscription plans</p>
+                </div>
+                <a href="{{ url_for('dashboard.admin') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Admin
+                </a>
+            </div>
+        </div>
+
+        <!-- Users Table -->
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">All Users</h3>
+            </div>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Plan</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tokens</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Survey Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for user in users %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-white">{{ user.username[0].upper() }}</span>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">{{ user.username }}</div>
+                                        <div class="text-sm text-gray-500">{{ user.email }}</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                    {% if user.account_tier == 'free' %}bg-gray-100 text-gray-800
+                                    {% elif user.account_tier == 'basic' %}bg-blue-100 text-blue-800
+                                    {% elif user.account_tier == 'pro' %}bg-purple-100 text-purple-800
+                                    {% elif user.account_tier == 'waitlisted' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ user.account_tier.title() }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ user.tokens_remaining if user.tokens_remaining is not none else 'Unlimited' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if user.account_tier == 'waitlisted' %}
+                                    {% if user.survey_completed %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <i class="fas fa-check mr-1"></i>Completed
+                                        </span>
+                                        {% if user.survey_export_used %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 ml-1">
+                                                Export Used
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-1">
+                                                Export Available
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                            <i class="fas fa-clock mr-1"></i>Pending
+                                        </span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-sm text-gray-500">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ user.created_at.strftime('%m/%d/%Y') if user.created_at else 'Unknown' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <button onclick="openChangePlanModal('{{ user.id }}', '{{ user.username }}', '{{ user.account_tier }}')" 
+                                        class="text-primary-600 hover:text-primary-900 mr-3">
+                                    <i class="fas fa-edit mr-1"></i>Change Plan
+                                </button>
+                                {% if user.is_admin %}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Admin
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Change Plan Modal -->
+<div id="changePlanModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Change User Plan</h3>
+                <button onclick="closeChangePlanModal()" class="text-gray-400 hover:text-gray-600">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <form id="changePlanForm" method="POST">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">User</label>
+                    <p id="modalUsername" class="text-sm text-gray-900 font-medium"></p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Current Plan</label>
+                    <p id="modalCurrentPlan" class="text-sm text-gray-600"></p>
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">New Plan</label>
+                    <select name="new_plan" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                        <option value="">Select a plan...</option>
+                        <option value="free">Free</option>
+                        <option value="basic">Basic</option>
+                        <option value="pro">Pro</option>
+                        <option value="waitlisted">Waitlisted</option>
+                    </select>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+                    <div class="flex">
+                        <i class="fas fa-exclamation-triangle text-yellow-400 mt-0.5 mr-2"></i>
+                        <div class="text-sm text-yellow-700">
+                            <p><strong>Note:</strong> Changing to "Waitlisted" will reset survey completion status and allow one free export after survey completion.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeChangePlanModal()" 
+                            class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit" 
+                            class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Change Plan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openChangePlanModal(userId, username, currentPlan) {
+    document.getElementById('modalUsername').textContent = username;
+    document.getElementById('modalCurrentPlan').textContent = currentPlan.charAt(0).toUpperCase() + currentPlan.slice(1);
+    document.getElementById('changePlanForm').action = `/dashboard/admin/user-management/${userId}/change-plan`;
+    document.getElementById('changePlanModal').classList.remove('hidden');
+}
+
+function closeChangePlanModal() {
+    document.getElementById('changePlanModal').classList.add('hidden');
+}
+
+// Close modal when clicking outside
+document.getElementById('changePlanModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeChangePlanModal();
+    }
+});
+</script>
+{% endblock %}

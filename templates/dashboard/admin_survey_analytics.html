@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+
+{% block title %}Survey Analytics - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Survey Analytics</h1>
+                    <p class="mt-2 text-gray-600">View survey results and response analytics</p>
+                </div>
+                <a href="{{ url_for('dashboard.admin') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Admin
+                </a>
+            </div>
+        </div>
+
+        <!-- Survey Analytics Cards -->
+        {% for data in analytics_data %}
+        <div class="bg-white shadow rounded-lg mb-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg font-medium text-gray-900">{{ data.survey.title }}</h3>
+                        <p class="text-sm text-gray-500">
+                            Created: {{ data.survey.created_at.strftime('%B %d, %Y') if data.survey.created_at else 'Unknown' }}
+                            | Status: 
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if data.survey.is_active else 'bg-red-100 text-red-800' }}">
+                                {{ 'Active' if data.survey.is_active else 'Inactive' }}
+                            </span>
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <a href="{{ url_for('dashboard.admin_edit_survey', survey_id=data.survey.id) }}" 
+                           class="text-primary-600 hover:text-primary-900 text-sm font-medium">
+                            <i class="fas fa-edit mr-1"></i>Edit Survey
+                        </a>
+                        <a href="{{ url_for('dashboard.admin_survey_responses', survey_id=data.survey.id) }}" 
+                           class="text-green-600 hover:text-green-900 text-sm font-medium">
+                            <i class="fas fa-eye mr-1"></i>View Responses
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-6">
+                <!-- Summary Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-users text-blue-600 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-blue-600">Total Responses</p>
+                                <p class="text-2xl font-bold text-blue-900">{{ data.total_responses }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-chart-line text-green-600 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-green-600">Questions</p>
+                                <p class="text-2xl font-bold text-green-900">{{ data.survey.questions|length }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <i class="fas fa-star text-purple-600 text-2xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-purple-600">Avg Rating</p>
+                                <p class="text-2xl font-bold text-purple-900">
+                                    {% if data.avg_ratings %}
+                                        {{ "%.1f"|format(data.avg_ratings.values()|list|sum / data.avg_ratings.values()|list|length) }}
+                                    {% else %}
+                                        N/A
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rating Questions Analytics -->
+                {% if data.avg_ratings %}
+                <div class="mb-8">
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Rating Questions Analysis</h4>
+                    <div class="space-y-4">
+                        {% for question, avg_rating in data.avg_ratings.items() %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <h5 class="font-medium text-gray-900">{{ question }}</h5>
+                                <span class="text-lg font-bold text-primary-600">{{ "%.1f"|format(avg_rating) }}/5</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div class="bg-primary-600 h-2 rounded-full" style="width: {{ (avg_rating / 5 * 100)|round }}%"></div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Question Breakdown -->
+                <div class="mb-6">
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Question Breakdown</h4>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {% for question in data.survey.questions %}
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h5 class="font-medium text-gray-900 mb-2">{{ question.text }}</h5>
+                            <div class="flex items-center space-x-4 text-sm text-gray-600">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {{ question.type.replace('_', ' ').title() }}
+                                </span>
+                                {% if question.type == 'multiple_choice' and question.get('options') %}
+                                <span>{{ question.options|length }} options</span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Response Distribution for Multiple Choice -->
+                            {% if question.type == 'multiple_choice' and question.get('options') %}
+                            <div class="mt-3">
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Response Distribution:</h6>
+                                {% set question_responses = [] %}
+                                {% for response in data.responses %}
+                                    {% set answer = response.responses.get(question.text) %}
+                                    {% if answer %}
+                                        {% set _ = question_responses.append(answer) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% for option in question.options %}
+                                    {% set option_count = question_responses.count(option) %}
+                                    {% set percentage = (option_count / question_responses|length * 100) if question_responses|length > 0 else 0 %}
+                                    <div class="flex items-center justify-between text-sm mb-1">
+                                        <span class="text-gray-600">{{ option }}</span>
+                                        <span class="font-medium">{{ option_count }} ({{ "%.0f"|format(percentage) }}%)</span>
+                                    </div>
+                                    <div class="w-full bg-gray-200 rounded-full h-1 mb-2">
+                                        <div class="bg-blue-600 h-1 rounded-full" style="width: {{ percentage }}%"></div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Recent Responses -->
+                {% if data.responses %}
+                <div>
+                    <h4 class="text-lg font-medium text-gray-900 mb-4">Recent Responses</h4>
+                    <div class="bg-gray-50 rounded-lg overflow-hidden">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Submitted</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for response in data.responses[:5] %}
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        User {{ response.user_id[:8] }}...
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ response.created_at.strftime('%m/%d/%Y %I:%M %p') if response.created_at else 'Unknown' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button onclick="viewResponse('{{ response.id }}')" 
+                                                class="text-primary-600 hover:text-primary-900">
+                                            View Details
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% if data.responses|length > 5 %}
+                        <div class="bg-gray-50 px-6 py-3 text-center">
+                            <a href="{{ url_for('dashboard.admin_survey_responses', survey_id=data.survey.id) }}" 
+                               class="text-primary-600 hover:text-primary-900 text-sm font-medium">
+                                View All {{ data.responses|length }} Responses
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-8">
+                    <i class="fas fa-inbox text-gray-400 text-4xl mb-4"></i>
+                    <h4 class="text-lg font-medium text-gray-900 mb-2">No Responses Yet</h4>
+                    <p class="text-gray-600">This survey hasn't received any responses yet.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="bg-white shadow rounded-lg">
+            <div class="text-center py-12">
+                <i class="fas fa-poll text-gray-400 text-4xl mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-900 mb-2">No Surveys Found</h3>
+                <p class="text-gray-600 mb-4">Create your first survey to start collecting user feedback.</p>
+                <a href="{{ url_for('dashboard.admin_new_survey') }}" 
+                   class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-plus mr-2"></i>Create Survey
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function viewResponse(responseId) {
+    // This could open a modal or redirect to a detailed view
+    // For now, we'll redirect to the survey responses page
+    window.location.href = `/dashboard/admin/surveys/responses?highlight=${responseId}`;
+}
+</script>
+{% endblock %}

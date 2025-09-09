@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Coupon - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Edit Coupon</h1>
+                    <p class="mt-2 text-gray-600">Update coupon details and settings</p>
+                </div>
+                <a href="{{ url_for('dashboard.admin_coupons') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Coupons
+                </a>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Coupon Details</h3>
+            </div>
+            
+            <form method="POST" class="p-6 space-y-6">
+                <!-- Coupon Code (Read-only) -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Coupon Code</label>
+                    <input type="text" value="{{ coupon.code }}" readonly 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-500">
+                    <p class="mt-1 text-sm text-gray-500">Coupon code cannot be changed after creation</p>
+                </div>
+
+                <!-- Discount Type -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Discount Type</label>
+                    <select name="discount_type" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                        <option value="percentage" {{ 'selected' if coupon.discount_type == 'percentage' else '' }}>Percentage</option>
+                        <option value="fixed" {{ 'selected' if coupon.discount_type == 'fixed' else '' }}>Fixed Amount</option>
+                    </select>
+                </div>
+
+                <!-- Discount Value -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Discount Value</label>
+                    <input type="number" name="discount_value" step="0.01" min="0" 
+                           value="{{ coupon.discount_value }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                    <p class="mt-1 text-sm text-gray-500">For percentage: enter 20 for 20%. For fixed: enter dollar amount.</p>
+                </div>
+
+                <!-- Applies To -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Applies To</label>
+                    <select name="applies_to" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                        <option value="all" {{ 'selected' if coupon.applies_to == 'all' else '' }}>All Plans</option>
+                        <option value="basic" {{ 'selected' if coupon.applies_to == 'basic' else '' }}>Basic Plan Only</option>
+                        <option value="pro" {{ 'selected' if coupon.applies_to == 'pro' else '' }}>Pro Plan Only</option>
+                    </select>
+                </div>
+
+                <!-- Max Uses -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Maximum Uses</label>
+                    <input type="number" name="max_uses" min="1" 
+                           value="{{ coupon.max_uses if coupon.max_uses else '' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                           placeholder="Leave empty for unlimited uses">
+                    <p class="mt-1 text-sm text-gray-500">Current uses: {{ coupon.current_uses }}</p>
+                </div>
+
+                <!-- Expiration Date -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Expiration Date</label>
+                    <input type="date" name="expires_at" 
+                           value="{{ coupon.expires_at.strftime('%Y-%m-%d') if coupon.expires_at else '' }}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                    <p class="mt-1 text-sm text-gray-500">Leave empty for no expiration</p>
+                </div>
+
+                <!-- Current Status -->
+                <div class="bg-gray-50 p-4 rounded-md">
+                    <h4 class="text-sm font-medium text-gray-900 mb-2">Current Status</h4>
+                    <div class="flex items-center space-x-4">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ 'bg-green-100 text-green-800' if coupon.is_active else 'bg-red-100 text-red-800' }}">
+                            {{ 'Active' if coupon.is_active else 'Inactive' }}
+                        </span>
+                        <span class="text-sm text-gray-600">
+                            Created: {{ coupon.created_at.strftime('%B %d, %Y') if coupon.created_at else 'Unknown' }}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('dashboard.admin_coupons') }}" 
+                       class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Update Coupon
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

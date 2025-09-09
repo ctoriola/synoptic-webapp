@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Survey - Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Edit Survey</h1>
+                    <p class="mt-2 text-gray-600">Modify survey questions and settings</p>
+                </div>
+                <a href="{{ url_for('dashboard.admin_surveys') }}" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Surveys
+                </a>
+            </div>
+        </div>
+
+        <!-- Edit Form -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900">Survey Details</h3>
+            </div>
+            
+            <form method="POST" class="p-6" id="surveyForm">
+                <!-- Survey Title -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Survey Title</label>
+                    <input type="text" name="title" value="{{ survey.title }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                </div>
+
+                <!-- Questions Section -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-lg font-medium text-gray-900">Questions</h4>
+                        <button type="button" onclick="addQuestion()" 
+                                class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm font-medium">
+                            <i class="fas fa-plus mr-2"></i>Add Question
+                        </button>
+                    </div>
+
+                    <div id="questionsContainer">
+                        {% for question in survey.questions %}
+                        <div class="question-item bg-gray-50 p-4 rounded-lg mb-4" data-question-index="{{ loop.index0 }}">
+                            <div class="flex items-center justify-between mb-3">
+                                <h5 class="font-medium text-gray-900">Question {{ loop.index }}</h5>
+                                <button type="button" onclick="removeQuestion(this)" 
+                                        class="text-red-600 hover:text-red-800 text-sm">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                                    <textarea name="question_{{ loop.index0 }}_text" required
+                                              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                                              rows="2">{{ question.text }}</textarea>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+                                    <select name="question_{{ loop.index0 }}_type" required onchange="toggleOptions(this)"
+                                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                                        <option value="text" {{ 'selected' if question.type == 'text' else '' }}>Text Response</option>
+                                        <option value="multiple_choice" {{ 'selected' if question.type == 'multiple_choice' else '' }}>Multiple Choice</option>
+                                        <option value="rating" {{ 'selected' if question.type == 'rating' else '' }}>Rating (1-5)</option>
+                                        <option value="yes_no" {{ 'selected' if question.type == 'yes_no' else '' }}>Yes/No</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Options for Multiple Choice -->
+                            <div class="options-container {{ 'hidden' if question.type != 'multiple_choice' else '' }}">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Answer Options</label>
+                                <div class="space-y-2">
+                                    {% for option in question.get('options', []) %}
+                                    <input type="text" name="question_{{ loop.index0 }}_option_{{ loop.index0 }}" 
+                                           value="{{ option }}"
+                                           placeholder="Option {{ loop.index }}"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                                    {% endfor %}
+                                    {% for i in range(question.get('options', [])|length, 5) %}
+                                    <input type="text" name="question_{{ loop.index0 }}_option_{{ i }}" 
+                                           placeholder="Option {{ i + 1 }}"
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <input type="hidden" name="question_count" id="questionCount" value="{{ survey.questions|length }}">
+                </div>
+
+                <!-- Submit Button -->
+                <div class="flex justify-end space-x-3">
+                    <a href="{{ url_for('dashboard.admin_surveys') }}" 
+                       class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-md text-sm font-medium">
+                        Cancel
+                    </a>
+                    <button type="submit" 
+                            class="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Update Survey
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let questionIndex = {{ survey.questions|length }};
+
+function addQuestion() {
+    const container = document.getElementById('questionsContainer');
+    const questionDiv = document.createElement('div');
+    questionDiv.className = 'question-item bg-gray-50 p-4 rounded-lg mb-4';
+    questionDiv.setAttribute('data-question-index', questionIndex);
+    
+    questionDiv.innerHTML = `
+        <div class="flex items-center justify-between mb-3">
+            <h5 class="font-medium text-gray-900">Question ${questionIndex + 1}</h5>
+            <button type="button" onclick="removeQuestion(this)" 
+                    class="text-red-600 hover:text-red-800 text-sm">
+                <i class="fas fa-trash"></i> Remove
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                <textarea name="question_${questionIndex}_text" required
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                          rows="2" placeholder="Enter your question..."></textarea>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+                <select name="question_${questionIndex}_type" required onchange="toggleOptions(this)"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                    <option value="text">Text Response</option>
+                    <option value="multiple_choice">Multiple Choice</option>
+                    <option value="rating">Rating (1-5)</option>
+                    <option value="yes_no">Yes/No</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="options-container hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Answer Options</label>
+            <div class="space-y-2">
+                ${Array.from({length: 5}, (_, i) => `
+                    <input type="text" name="question_${questionIndex}_option_${i}" 
+                           placeholder="Option ${i + 1}"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500">
+                `).join('')}
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(questionDiv);
+    questionIndex++;
+    updateQuestionCount();
+}
+
+function removeQuestion(button) {
+    const questionItem = button.closest('.question-item');
+    questionItem.remove();
+    updateQuestionNumbers();
+    updateQuestionCount();
+}
+
+function toggleOptions(select) {
+    const questionItem = select.closest('.question-item');
+    const optionsContainer = questionItem.querySelector('.options-container');
+    
+    if (select.value === 'multiple_choice') {
+        optionsContainer.classList.remove('hidden');
+    } else {
+        optionsContainer.classList.add('hidden');
+    }
+}
+
+function updateQuestionNumbers() {
+    const questionItems = document.querySelectorAll('.question-item');
+    questionItems.forEach((item, index) => {
+        const header = item.querySelector('h5');
+        header.textContent = `Question ${index + 1}`;
+    });
+}
+
+function updateQuestionCount() {
+    const count = document.querySelectorAll('.question-item').length;
+    document.getElementById('questionCount').value = count;
+}
+
+// Initialize options visibility on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const selects = document.querySelectorAll('select[name*="_type"]');
+    selects.forEach(select => toggleOptions(select));
+});
+</script>
+{% endblock %}
