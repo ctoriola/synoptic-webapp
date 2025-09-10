@@ -14,7 +14,7 @@
                 </a>
             </div>
             <h1 class="text-3xl font-bold text-gray-900">Create New Survey</h1>
-            <p class="text-gray-600 mt-2">Generate AI-powered survey questions using Google Gemini</p>
+            <p class="text-gray-600 mt-2">Create surveys with AI generation or manually</p>
         </div>
 
         <!-- Create Survey Form -->
@@ -34,8 +34,24 @@
                 </div>
 
                 <div class="mb-8">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">AI Question Generation</h3>
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Survey Creation Method</h3>
+                    
+                    <!-- Method Selection -->
+                    <div class="mb-6">
+                        <div class="flex space-x-4">
+                            <label class="flex items-center">
+                                <input type="radio" name="creation_method" value="ai" checked class="mr-2">
+                                <span class="text-sm font-medium text-gray-700">AI Generated</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="creation_method" value="manual" class="mr-2">
+                                <span class="text-sm font-medium text-gray-700">Manual Creation</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- AI Generation Section -->
+                    <div id="ai-section" class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <div class="flex items-start">
                             <i class="fas fa-robot text-blue-600 mt-1 mr-3"></i>
                             <div>
@@ -53,6 +69,53 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Manual Creation Section -->
+                    <div id="manual-section" class="bg-green-50 border border-green-200 rounded-lg p-4 hidden">
+                        <div class="flex items-start">
+                            <i class="fas fa-edit text-green-600 mt-1 mr-3"></i>
+                            <div>
+                                <h4 class="font-medium text-green-900 mb-2">Manual Survey Creation</h4>
+                                <p class="text-green-800 text-sm mb-4">
+                                    Create custom survey questions manually. Add questions one by one with different types.
+                                </p>
+                                
+                                <div id="questions-container">
+                                    <div class="question-item mb-4 p-4 border border-green-300 rounded-lg bg-white">
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+                                            <input type="text" name="questions[0][text]" placeholder="Enter your question..." 
+                                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+                                            <select name="questions[0][type]" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                                                <option value="text">Text (Short Answer)</option>
+                                                <option value="textarea">Long Text</option>
+                                                <option value="radio">Multiple Choice (Single)</option>
+                                                <option value="checkbox">Multiple Choice (Multiple)</option>
+                                                <option value="rating">Rating Scale (1-5)</option>
+                                            </select>
+                                        </div>
+                                        <div class="options-container hidden">
+                                            <label class="block text-sm font-medium text-gray-700 mb-1">Options (one per line)</label>
+                                            <textarea name="questions[0][options]" rows="3" placeholder="Option 1&#10;Option 2&#10;Option 3" 
+                                                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"></textarea>
+                                        </div>
+                                        <div class="flex justify-end mt-2">
+                                            <button type="button" class="remove-question text-red-600 hover:text-red-800 text-sm">
+                                                <i class="fas fa-trash mr-1"></i>Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button type="button" id="add-question" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm">
+                                    <i class="fas fa-plus mr-1"></i>Add Question
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex justify-end space-x-4">
@@ -64,7 +127,7 @@
                         type="submit" 
                         id="submitBtn"
                         class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-200">
-                        <i class="fas fa-magic mr-2"></i>Generate Survey with AI
+                        <i class="fas fa-magic mr-2"></i><span id="button-text">Generate Survey with AI</span>
                     </button>
                 </div>
             </form>
@@ -89,9 +152,108 @@
 </div>
 
 <script>
+let questionCount = 1;
+
+// Toggle between AI and manual sections
+document.querySelectorAll('input[name="creation_method"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const aiSection = document.getElementById('ai-section');
+        const manualSection = document.getElementById('manual-section');
+        const buttonText = document.getElementById('button-text');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        if (this.value === 'ai') {
+            aiSection.classList.remove('hidden');
+            manualSection.classList.add('hidden');
+            buttonText.textContent = 'Generate Survey with AI';
+            submitBtn.className = 'bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md transition duration-200';
+        } else {
+            aiSection.classList.add('hidden');
+            manualSection.classList.remove('hidden');
+            buttonText.textContent = 'Create Manual Survey';
+            submitBtn.className = 'bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-md transition duration-200';
+        }
+    });
+});
+
+// Add new question
+document.getElementById('add-question').addEventListener('click', function() {
+    const container = document.getElementById('questions-container');
+    const questionItem = document.createElement('div');
+    questionItem.className = 'question-item mb-4 p-4 border border-green-300 rounded-lg bg-white';
+    questionItem.innerHTML = `
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
+            <input type="text" name="questions[${questionCount}][text]" placeholder="Enter your question..." 
+                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+        </div>
+        <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Question Type</label>
+            <select name="questions[${questionCount}][type]" class="question-type w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500">
+                <option value="text">Text (Short Answer)</option>
+                <option value="textarea">Long Text</option>
+                <option value="radio">Multiple Choice (Single)</option>
+                <option value="checkbox">Multiple Choice (Multiple)</option>
+                <option value="rating">Rating Scale (1-5)</option>
+            </select>
+        </div>
+        <div class="options-container hidden">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Options (one per line)</label>
+            <textarea name="questions[${questionCount}][options]" rows="3" placeholder="Option 1&#10;Option 2&#10;Option 3" 
+                      class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"></textarea>
+        </div>
+        <div class="flex justify-end mt-2">
+            <button type="button" class="remove-question text-red-600 hover:text-red-800 text-sm">
+                <i class="fas fa-trash mr-1"></i>Remove
+            </button>
+        </div>
+    `;
+    container.appendChild(questionItem);
+    questionCount++;
+    
+    // Add event listeners for the new question
+    addQuestionEventListeners(questionItem);
+});
+
+// Remove question
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-question') || e.target.parentElement.classList.contains('remove-question')) {
+        const questionItem = e.target.closest('.question-item');
+        if (document.querySelectorAll('.question-item').length > 1) {
+            questionItem.remove();
+        } else {
+            alert('You must have at least one question.');
+        }
+    }
+});
+
+// Show/hide options based on question type
+function addQuestionEventListeners(questionItem) {
+    const typeSelect = questionItem.querySelector('.question-type');
+    const optionsContainer = questionItem.querySelector('.options-container');
+    
+    typeSelect.addEventListener('change', function() {
+        if (this.value === 'radio' || this.value === 'checkbox') {
+            optionsContainer.classList.remove('hidden');
+        } else {
+            optionsContainer.classList.add('hidden');
+        }
+    });
+}
+
+// Add event listeners to initial question
+document.querySelectorAll('.question-item').forEach(addQuestionEventListeners);
+
+// Form submission
 document.getElementById('surveyForm').addEventListener('submit', function(e) {
     const submitBtn = document.getElementById('submitBtn');
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating Questions...';
+    const creationMethod = document.querySelector('input[name="creation_method"]:checked').value;
+    
+    if (creationMethod === 'ai') {
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Generating Questions...';
+    } else {
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Survey...';
+    }
     submitBtn.disabled = true;
 });
 </script>

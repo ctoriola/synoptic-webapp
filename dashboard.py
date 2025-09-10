@@ -657,61 +657,101 @@ def admin_surveys():
 @login_required
 @admin_required
 def admin_new_survey():
-    """Create new survey with Gemini-generated questions"""
+    """Create new survey with AI-generated or manual questions"""
     if request.method == 'POST':
         try:
-            import google.generativeai as genai
-            import os
-            
-            # Configure Gemini AI
-            genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-            model = genai.GenerativeModel('gemini-pro')
-            
             survey_title = request.form.get('title', 'User Feedback Survey')
+            creation_method = request.form.get('creation_method', 'ai')
             
-            # Generate survey questions using Gemini
-            prompt = """
-            Generate 8-10 survey questions for users of a pitch deck generation AI tool. 
-            The questions should help us understand:
-            1. User's business background and experience
-            2. What they're looking for in a pitch deck tool
-            3. Their pain points with current solutions
-            4. Feature preferences and priorities
-            5. Feedback on AI-generated content quality
-            
-            Return the questions as a JSON array of objects with this format:
-            [
-                {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Other"]},
-                {"question": "How would you rate the quality of AI-generated content?", "type": "rating", "scale": 5},
-                {"question": "What features are most important to you?", "type": "text"}
-            ]
-            
-            Question types can be: "text", "multiple_choice", "rating", "yes_no"
-            """
-            
-            response = model.generate_content(prompt)
-            
-            # Parse the JSON response
-            import json
-            import re
-            
-            # Extract JSON from response
-            json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
-            if json_match:
-                questions_json = json_match.group()
-                questions = json.loads(questions_json)
+            if creation_method == 'manual':
+                # Handle manual survey creation
+                questions = []
+                form_data = request.form
+                
+                # Extract questions from form data
+                question_indices = set()
+                for key in form_data.keys():
+                    if key.startswith('questions[') and key.endswith('][text]'):
+                        # Extract index from questions[0][text] format
+                        index = key.split('[')[1].split(']')[0]
+                        question_indices.add(int(index))
+                
+                for i in sorted(question_indices):
+                    question_text = form_data.get(f'questions[{i}][text]', '').strip()
+                    question_type = form_data.get(f'questions[{i}][type]', 'text')
+                    question_options = form_data.get(f'questions[{i}][options]', '').strip()
+                    
+                    if question_text:  # Only add non-empty questions
+                        question_data = {
+                            "question": question_text,
+                            "type": question_type
+                        }
+                        
+                        # Add options for multiple choice questions
+                        if question_type in ['radio', 'checkbox'] and question_options:
+                            options = [opt.strip() for opt in question_options.split('\n') if opt.strip()]
+                            question_data["options"] = options
+                        elif question_type == 'rating':
+                            question_data["scale"] = 5
+                            
+                        questions.append(question_data)
+                
+                if not questions:
+                    flash('Please add at least one question.', 'error')
+                    return render_template('dashboard/admin_new_survey.html')
+                    
             else:
-                # Fallback questions if Gemini fails
-                questions = [
-                    {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Investor", "Other"]},
-                    {"question": "How many pitch decks have you created before?", "type": "multiple_choice", "options": ["0", "1-3", "4-10", "10+"]},
-                    {"question": "What's your biggest challenge in creating pitch decks?", "type": "text"},
-                    {"question": "How important is AI-generated content quality to you?", "type": "rating", "scale": 5},
-                    {"question": "Would you recommend this tool to others?", "type": "yes_no"},
-                    {"question": "What features would you like to see added?", "type": "text"},
-                    {"question": "How satisfied are you with the current tool?", "type": "rating", "scale": 5},
-                    {"question": "What's your industry or business sector?", "type": "text"}
+                # AI generation
+                import google.generativeai as genai
+                import os
+                
+                # Configure Gemini AI
+                genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
+                model = genai.GenerativeModel('gemini-1.5-flash')
+            
+                # Generate survey questions using Gemini
+                prompt = """
+                Generate 8-10 survey questions for users of a pitch deck generation AI tool. 
+                The questions should help us understand:
+                1. User's business background and experience
+                2. What they're looking for in a pitch deck tool
+                3. Their pain points with current solutions
+                4. Feature preferences and priorities
+                5. Feedback on AI-generated content quality
+                
+                Return the questions as a JSON array of objects with this format:
+                [
+                    {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Other"]},
+                    {"question": "How would you rate the quality of AI-generated content?", "type": "rating", "scale": 5},
+                    {"question": "What features are most important to you?", "type": "text"}
                 ]
+                
+                Question types can be: "text", "multiple_choice", "rating", "yes_no"
+                """
+                
+                response = model.generate_content(prompt)
+                
+                # Parse the JSON response
+                import json
+                import re
+                
+                # Extract JSON from response
+                json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
+                if json_match:
+                    questions_json = json_match.group()
+                    questions = json.loads(questions_json)
+                else:
+                    # Fallback questions if Gemini fails
+                    questions = [
+                        {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Investor", "Other"]},
+                        {"question": "How many pitch decks have you created before?", "type": "multiple_choice", "options": ["0", "1-3", "4-10", "10+"]},
+                        {"question": "What's your biggest challenge in creating pitch decks?", "type": "text"},
+                        {"question": "How important is AI-generated content quality to you?", "type": "rating", "scale": 5},
+                        {"question": "Would you recommend this tool to others?", "type": "yes_no"},
+                        {"question": "What features would you like to see added?", "type": "text"},
+                        {"question": "How satisfied are you with the current tool?", "type": "rating", "scale": 5},
+                        {"question": "What's your industry or business sector?", "type": "text"}
+                    ]
             
             # Create and save survey
             from firebase_models import Survey
