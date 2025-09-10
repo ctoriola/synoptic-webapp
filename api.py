@@ -1088,6 +1088,60 @@ def delete_user():
         return jsonify({'success': False, 'error': f'Deletion failed: {str(e)}'}), 500
 
 
+@api_bp.route('/admin/permanently-delete-user', methods=['DELETE'])
+@login_required
+def permanently_delete_user():
+    """Permanently delete a user account and all associated data from database (admin only)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    data = request.get_json()
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'success': False, 'error': 'User ID required'}), 400
+    
+    # Don't allow deleting self
+    if user_id == current_user.id:
+        return jsonify({'success': False, 'error': 'Cannot delete your own account'}), 400
+    
+    # Get the user to delete
+    from firebase_models import User, Project, SurveyResponse
+    user = User.get(user_id)
+    if not user:
+        return jsonify({'success': False, 'error': 'User not found'}), 404
+    
+    # Only allow permanent deletion of already soft-deleted users
+    if not getattr(user, 'is_deleted', False):
+        return jsonify({'success': False, 'error': 'User must be soft-deleted first'}), 400
+    
+    try:
+        # Delete all user's projects first
+        projects = Project.get_by_user(user_id)
+        for project in projects:
+            project.delete()
+        
+        # Delete all user's survey responses
+        survey_responses = SurveyResponse.get_by_user(user_id)
+        for response in survey_responses:
+            response.delete()
+        
+        # Permanently delete the user account from Firestore
+        from firebase_config import get_db
+        db = get_db()
+        if db:
+            db.collection('users').document(user_id).delete()
+            return jsonify({
+                'success': True,
+                'message': f'User account permanently deleted from database'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Permanent deletion failed: {str(e)}'}), 500
+
+
 @api_bp.route('/export/<project_id>/<format>')
 @login_required
 def export_project(project_id, format):

@@ -352,7 +352,7 @@ class User(UserMixin):
         self.github_token = None  # Clear GitHub token
         self.email = None  # Clear email to prevent conflicts
         self.password_hash = None  # Clear password
-        return False
+        return self.save()  # Save the changes and return the result
 
 class Survey:
     def __init__(self, id=None, title=None, questions=None, is_active=True, created_at=None):
@@ -501,6 +501,32 @@ class SurveyResponse:
                     created_at=data.get('created_at')
                 ))
         return responses
+    
+    @staticmethod
+    def get_by_user(user_id):
+        """Get all survey responses by user ID"""
+        db = get_db()
+        responses = []
+        if db:
+            docs = db.collection('survey_responses').where('user_id', '==', user_id).stream()
+            for doc in docs:
+                data = doc.to_dict()
+                responses.append(SurveyResponse(
+                    id=doc.id,
+                    survey_id=data.get('survey_id'),
+                    user_id=data.get('user_id'),
+                    responses=data.get('responses', {}),
+                    created_at=data.get('created_at')
+                ))
+        return responses
+    
+    def delete(self):
+        """Delete survey response from Firestore"""
+        db = get_db()
+        if db:
+            db.collection('survey_responses').document(self.id).delete()
+            return True
+        return False
 
 
 class Coupon:
