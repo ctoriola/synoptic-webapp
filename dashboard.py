@@ -803,8 +803,17 @@ def admin_survey_responses(survey_id):
     for response in responses:
         user = User.get(response.user_id)
         response_data.append({
-            'response': response,
-            'user': user
+            'response': {
+                'id': response.id,
+                'user_id': response.user_id,
+                'responses': response.responses,
+                'created_at': response.created_at.isoformat() if response.created_at else None
+            },
+            'user': {
+                'id': user.id if user else None,
+                'username': user.username if user else 'Unknown',
+                'email': user.email if user else 'Unknown'
+            }
         })
     
     # Generate analytics
@@ -821,7 +830,11 @@ def admin_survey_responses(survey_id):
                 question_responses.append(response.responses[str(i)])
         
         analytics['question_analytics'][i] = {
-            'question': question,
+            'question': {
+                'question': question.get('question', ''),
+                'type': question.get('type', ''),
+                'options': question.get('options', [])
+            },
             'responses': question_responses,
             'response_count': len(question_responses)
         }
