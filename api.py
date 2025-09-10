@@ -1142,6 +1142,57 @@ def permanently_delete_user():
         return jsonify({'success': False, 'error': f'Permanent deletion failed: {str(e)}'}), 500
 
 
+@api_bp.route('/admin/permanently-delete-all-users', methods=['DELETE'])
+@login_required
+def permanently_delete_all_users():
+    """Permanently delete all soft-deleted users from database (admin only)"""
+    if not current_user.is_admin:
+        return jsonify({'error': 'Admin access required'}), 403
+    
+    try:
+        from firebase_models import User, Project, SurveyResponse
+        from firebase_config import get_db
+        
+        # Get all deleted users
+        deleted_users = User.get_deleted_users()
+        
+        if not deleted_users:
+            return jsonify({'success': True, 'message': 'No deleted users to purge'})
+        
+        db = get_db()
+        if not db:
+            return jsonify({'success': False, 'error': 'Database connection failed'}), 500
+        
+        deleted_count = 0
+        
+        for user in deleted_users:
+            # Don't allow deleting self
+            if user.id == current_user.id:
+                continue
+                
+            # Delete all user's projects
+            projects = Project.get_by_user(user.id)
+            for project in projects:
+                project.delete()
+            
+            # Delete all user's survey responses
+            survey_responses = SurveyResponse.get_by_user(user.id)
+            for response in survey_responses:
+                response.delete()
+            
+            # Permanently delete the user account from Firestore
+            db.collection('users').document(user.id).delete()
+            deleted_count += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully permanently deleted {deleted_count} user accounts from database'
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Bulk permanent deletion failed: {str(e)}'}), 500
+
+
 @api_bp.route('/export/<project_id>/<format>')
 @login_required
 def export_project(project_id, format):

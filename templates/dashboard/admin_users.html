@@ -182,8 +182,18 @@
         {% if deleted_users %}
         <div class="mt-8 bg-white shadow overflow-hidden sm:rounded-md">
             <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Deleted Users ({{ deleted_users|length }})</h3>
-                <p class="mt-1 max-w-2xl text-sm text-gray-500">Users who have been deleted from the system</p>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Deleted Users ({{ deleted_users|length }})</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Users who have been deleted from the system</p>
+                    </div>
+                    {% if deleted_users %}
+                    <button onclick="permanentlyDeleteAllUsers()" 
+                            class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>Permanently Delete All
+                    </button>
+                    {% endif %}
+                </div>
             </div>
             
             <div class="overflow-x-auto">
@@ -234,7 +244,7 @@
                                     <p class="text-sm text-gray-500">Joined {{ user.created_at.strftime('%B %d, %Y') }}</p>
                                 {% endif %}
                             </div>
-                            <div class="flex-shrink-0">
+                            <div class="flex-shrink-0 flex space-x-2">
                                 {% if user.is_whitelisted %}
                                     <button onclick="toggleWhitelist('{{ user.id }}', false)" 
                                             class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors">
@@ -246,6 +256,10 @@
                                         Whitelist
                                     </button>
                                 {% endif %}
+                                <button data-user-id="{{ user.id }}" data-username="{% if user.username %}{{ user.username }}{% else %}Deleted User{% endif %}" 
+                                        class="permanently-delete-btn px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors">
+                                    <i class="fas fa-exclamation-triangle mr-1"></i>Permanently Delete
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -446,6 +460,44 @@ function permanentlyDeleteUser(userId, username) {
         }
     }
 }
+
+function permanentlyDeleteAllUsers() {
+    const deletedCount = parseInt('{{ deleted_users|length }}');
+    if (confirm(`Are you sure you want to PERMANENTLY delete ALL ${deletedCount} deleted users? This will completely remove all their data from the database and CANNOT be undone.`)) {
+        if (confirm(`This will PERMANENTLY DELETE ALL DATA for ${deletedCount} deleted users from the database. This action is irreversible.`) && 
+            prompt('Type "PURGE ALL" to confirm permanent deletion of all deleted users:') === 'PURGE ALL') {
+            fetch('/api/admin/permanently-delete-all-users', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    location.reload();
+                } else {
+                    alert('Bulk permanent deletion failed: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Bulk permanent deletion failed. Please try again.');
+            });
+        }
+    }
+}
+
+// Add event listeners for permanent delete buttons
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.permanently-delete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            const username = this.getAttribute('data-username');
+            permanentlyDeleteUser(userId, username);
+        });
+    });
+});
 
 // Close menus when clicking outside
 document.addEventListener('click', function(event) {
