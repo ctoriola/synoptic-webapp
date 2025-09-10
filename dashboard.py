@@ -942,7 +942,7 @@ def admin_edit_coupon(coupon_id):
 @login_required
 @admin_required
 def admin_edit_survey(survey_id):
-    survey = Survey.get_by_id(survey_id)
+    survey = Survey.get(survey_id)
     if not survey:
         flash('Survey not found', 'error')
         return redirect(url_for('dashboard.admin_surveys'))

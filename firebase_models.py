@@ -398,6 +398,11 @@ class Survey:
         return None
     
     @staticmethod
+    def get_by_id(survey_id):
+        """Get survey by ID (alias for get method)"""
+        return Survey.get(survey_id)
+    
+    @staticmethod
     def get_active():
         """Get active survey"""
         db = get_db()
