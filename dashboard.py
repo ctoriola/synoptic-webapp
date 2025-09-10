@@ -633,13 +633,16 @@ def submit_survey():
             current_user.survey_completed = True
             current_user.save()
             
-            flash('Survey completed successfully! You can now export your pitch deck.', 'success')
-            return redirect(url_for('dashboard.index'))
+            return jsonify({
+                'success': True,
+                'message': 'Survey completed successfully! You can now export your pitch deck.',
+                'redirect': url_for('dashboard.index')
+            })
         else:
-            return jsonify({'error': 'Failed to save survey responses'}), 500
-    
+            return jsonify({'error': 'Error saving survey response. Please try again.'}), 500
+            
     except Exception as e:
-        return jsonify({'error': f'Failed to submit survey: {str(e)}'}), 500
+        return jsonify({'error': f'Error submitting survey: {str(e)}'}), 500
 
 
 # Admin routes for survey management

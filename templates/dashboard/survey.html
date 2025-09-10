@@ -13,10 +13,10 @@
 
         <!-- Survey Form -->
         <div class="bg-white rounded-lg shadow-lg p-8">
-            <form action="{{ url_for('dashboard.submit_survey') }}" method="POST" id="surveyForm">
+            <form action="{{ url_for('dashboard.submit_survey') }}" method="POST" id="surveyForm" novalidate>
                 <div class="space-y-8">
                     {% for question in survey.questions %}
-                    <div class="border-b border-gray-200 pb-6 last:border-b-0">
+                    <div class="border-b border-gray-200 pb-6 last:border-b-0" data-question="{{ loop.index0 }}" data-question-type="{{ question.type }}">
                         <label class="block text-lg font-medium text-gray-900 mb-4">
                             {{ loop.index }}. {{ question.question }}
                             {% if question.type == 'rating' %}
@@ -38,7 +38,7 @@
                                 <label class="flex items-center">
                                     <input 
                                         type="radio" 
-                                        name="question_{{ loop.index0 }}" 
+                                        name="question_{{ loop.outer.index0 }}" 
                                         value="{{ option }}" 
                                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                         required>
@@ -111,9 +111,82 @@
 
 <script>
 document.getElementById('surveyForm').addEventListener('submit', function(e) {
-    const submitBtn = e.target.querySelector('button[type="submit"]');
+    e.preventDefault();
+    
+    // Custom validation
+    const form = e.target;
+    const questions = form.querySelectorAll('[data-question]');
+    let isValid = true;
+    let firstInvalidField = null;
+    
+    // Remove existing error messages
+    form.querySelectorAll('.error-message').forEach(msg => msg.remove());
+    
+    // Validate each question
+    questions.forEach((questionDiv, index) => {
+        const questionType = questionDiv.dataset.questionType;
+        const questionIndex = questionDiv.dataset.question;
+        
+        if (questionType === 'text') {
+            const textarea = questionDiv.querySelector('textarea');
+            if (!textarea.value.trim()) {
+                showError(textarea, 'This field is required.');
+                isValid = false;
+                if (!firstInvalidField) firstInvalidField = textarea;
+            }
+        } else if (questionType === 'multiple_choice' || questionType === 'rating' || questionType === 'yes_no') {
+            const radios = questionDiv.querySelectorAll(`input[name="question_${questionIndex}"]`);
+            const isChecked = Array.from(radios).some(radio => radio.checked);
+            
+            if (!isChecked) {
+                const container = questionDiv.querySelector('.space-y-3, .flex');
+                showError(container, 'Please select one of the options.');
+                isValid = false;
+                if (!firstInvalidField) firstInvalidField = radios[0];
+            }
+        }
+    });
+    
+    if (!isValid) {
+        if (firstInvalidField) {
+            firstInvalidField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstInvalidField.focus();
+        }
+        return;
+    }
+    
+    // If valid, submit the form
+    const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
     submitBtn.disabled = true;
+    
+    // Submit form data
+    const formData = new FormData(form);
+    fetch(form.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.redirect || '/dashboard';
+        } else {
+            throw new Error(data.error || 'Submission failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        submitBtn.innerHTML = 'Complete Survey & Unlock Export';
+        submitBtn.disabled = false;
+        alert('Error submitting survey: ' + error.message);
+    });
 });
+
+function showError(element, message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message text-red-600 text-sm mt-1';
+    errorDiv.textContent = message;
+    element.parentNode.appendChild(errorDiv);
+}
 </script>
 {% endblock %}
