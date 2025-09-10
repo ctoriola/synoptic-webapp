@@ -33,12 +33,13 @@
                                 required></textarea>
 
                         {% elif question.type == 'multiple_choice' %}
+                            {% set question_index = loop.index0 %}
                             <div class="space-y-3">
                                 {% for option in question.options %}
                                 <label class="flex items-center">
                                     <input 
                                         type="radio" 
-                                        name="question_{{ loop.outer.index0 }}" 
+                                        name="question_{{ question_index }}" 
                                         value="{{ option }}" 
                                         class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                         required>
