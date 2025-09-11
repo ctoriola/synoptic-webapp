@@ -677,12 +677,18 @@ def export_project_pptx(project_id):
             print(f"First slide preview: {slides[0][:100]}...")
             
         if slides:
-            for slide_text in slides:
+            for i, slide_text in enumerate(slides):
                 lines = slide_text.strip().split('\n')
                 if lines:
-                    # Create new slide with enhanced design
-                    slide_layout = prs.slide_layouts[1]  # Title and content layout
-                    slide = prs.slides.add_slide(slide_layout)
+                    # For the first slide, replace the Demo Page (slide index 1) if it exists
+                    if i == 0 and len(prs.slides) > 1:
+                        # Replace the Demo Page content with Title Slide content
+                        slide = prs.slides[1]  # Demo Page is the second slide (index 1)
+                        print(f"Replacing Demo Page with Title Slide content")
+                    else:
+                        # Create new slide with enhanced design for remaining slides
+                        slide_layout = prs.slide_layouts[1]  # Title and content layout
+                        slide = prs.slides.add_slide(slide_layout)
                     
                     # First line is the slide title - handle both formats
                     slide_title = lines[0].replace(':', '').strip()
@@ -705,8 +711,19 @@ def export_project_pptx(project_id):
                     
                     # Rest is content
                     slide_content = '\n'.join(lines[1:]).strip()
-                    if slide_content and len(slide.placeholders) > 1:
+                    
+                    # Find content placeholder - handle both template slides and new slides
+                    content_placeholder = None
+                    if i == 0 and len(prs.slides) > 1:
+                        # For Demo Page replacement, find the content text box
+                        for shape in slide.shapes:
+                            if hasattr(shape, 'text_frame') and shape != slide.shapes.title:
+                                content_placeholder = shape
+                                break
+                    elif len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
+                    
+                    if slide_content and content_placeholder:
                         text_frame = content_placeholder.text_frame
                         text_frame.clear()
                         
@@ -722,7 +739,10 @@ def export_project_pptx(project_id):
                         text_frame.margin_top = PptxInches(0.3)
                         text_frame.margin_bottom = PptxInches(0.3)
                         
-                        print(f"Created slide: {slide_title}")
+                        if i == 0:
+                            print(f"Replaced Demo Page with: {slide_title}")
+                        else:
+                            print(f"Created slide: {slide_title}")
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
