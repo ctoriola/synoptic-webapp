@@ -662,9 +662,16 @@ def export_project_pptx(project_id):
         content = project.pitch_deck.get('content', '')
         
         # Parse content into slides - handle both old and new formats
-        if 'Slide ' in content and ':' in content:
+        if '**Slide' in content:
+            # Parse structured slide content (old markdown format)
+            slides = content.split('**Slide')[1:]  # Skip empty first element
+        elif 'Slide ' in content and ':' in content:
             # Parse structured slide content (new plain text format)
             slides = content.split('Slide ')[1:]  # Skip empty first element
+        else:
+            slides = []
+            
+        if slides:
             for slide_text in slides:
                 lines = slide_text.strip().split('\n')
                 if lines:
