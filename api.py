@@ -32,6 +32,11 @@ def process_markdown_to_pptx(text, text_frame):
     from pptx.dml.color import RGBColor
     from pptx.enum.text import PP_ALIGN
     
+    # Clean up any remaining markdown symbols
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Remove ** bold markers
+    text = re.sub(r'##\s*', '', text)  # Remove ## headers
+    text = re.sub(r'#\s*', '', text)  # Remove # headers
+    
     # Split text into lines
     lines = text.split('\n')
     
@@ -46,8 +51,8 @@ def process_markdown_to_pptx(text, text_frame):
             p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
         
         # Set paragraph spacing for better readability
-        p.space_before = Pt(6)
-        p.space_after = Pt(6)
+        p.space_before = Pt(4)
+        p.space_after = Pt(4)
         
         # Check if this is a bullet point (starts with - or •)
         is_bullet = line.startswith('-') or line.startswith('•')
@@ -55,31 +60,28 @@ def process_markdown_to_pptx(text, text_frame):
             line = line[1:].strip()  # Remove bullet character
             p.level = 0  # Set bullet level
         
-        # Process any remaining markdown formatting
-        parts = re.split(r'\*\*(.*?)\*\*', line)
+        # Check if this is an image prompt (contains "Image:" or parentheses with image description)
+        is_image_prompt = ('(Image:' in line or 
+                          (line.startswith('(') and line.endswith(')') and 
+                           any(word in line.lower() for word in ['chart', 'graph', 'image', 'visual', 'diagram', 'screenshot'])))
         
-        for j, part in enumerate(parts):
-            if not part:  # Skip empty parts
-                continue
-                
-            run = p.add_run()
-            run.text = part
-            
-            # Enhanced font styling
-            run.font.name = 'Segoe UI'  # Modern, clean font
-            
-            # Make every second part bold (the content between **)
-            if j % 2 == 1:
-                run.font.bold = True
-                run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue for emphasis
-            else:
-                run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
-            
-            # Set font size based on content type
-            if is_bullet:
-                run.font.size = Pt(18)  # Slightly smaller for bullet points
-            else:
-                run.font.size = Pt(20)  # Standard content size
+        run = p.add_run()
+        run.text = line
+        
+        # Enhanced font styling
+        run.font.name = 'Segoe UI'  # Modern, clean font
+        
+        # Set font size and styling based on content type
+        if is_image_prompt:
+            run.font.size = Pt(10)  # Small size for image prompts
+            run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)  # Light gray for image prompts
+            run.font.italic = True
+        elif is_bullet:
+            run.font.size = Pt(16)  # Body text size for bullet points
+            run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
+        else:
+            run.font.size = Pt(16)  # Body text size for regular content
+            run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
 
 def add_slide_styling(slide, slide_title):
     """Add enhanced visual styling to slides"""
