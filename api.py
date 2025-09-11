@@ -662,14 +662,19 @@ def export_project_pptx(project_id):
         content = project.pitch_deck.get('content', '')
         
         # Parse content into slides - handle both old and new formats
+        slides = []
         if '**Slide' in content:
             # Parse structured slide content (old markdown format)
             slides = content.split('**Slide')[1:]  # Skip empty first element
-        elif 'Slide ' in content and ':' in content:
-            # Parse structured slide content (new plain text format)
+        elif 'Slide ' in content:
+            # Parse structured slide content (new plain text format) - removed ':' requirement
             slides = content.split('Slide ')[1:]  # Skip empty first element
-        else:
-            slides = []
+        
+        # Debug: Log what we're parsing
+        print(f"Content preview: {content[:200]}...")
+        print(f"Found {len(slides)} slides")
+        if slides:
+            print(f"First slide preview: {slides[0][:100]}...")
             
         if slides:
             for slide_text in slides:
@@ -679,19 +684,24 @@ def export_project_pptx(project_id):
                     slide_layout = prs.slide_layouts[1]  # Title and content layout
                     slide = prs.slides.add_slide(slide_layout)
                     
-                    # First line is the slide title
+                    # First line is the slide title - handle both formats
                     slide_title = lines[0].replace(':', '').strip()
+                    # Remove any remaining numbers from slide titles (e.g., "1: Title" -> "Title")
+                    slide_title = re.sub(r'^\d+\s*:?\s*', '', slide_title)
+                    
                     if slide.shapes.title:
                         slide.shapes.title.text = slide_title
-                        # Enhanced title formatting
+                        # Apply consistent enhanced title formatting
                         title_frame = slide.shapes.title.text_frame
-                        for paragraph in title_frame.paragraphs:
-                            paragraph.alignment = PP_ALIGN.LEFT
-                            for run in paragraph.runs:
-                                run.font.name = 'Segoe UI Semibold'
-                                run.font.size = Pt(32)
-                                run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue
-                                run.font.bold = True
+                        title_frame.clear()
+                        p = title_frame.paragraphs[0]
+                        p.alignment = PP_ALIGN.LEFT
+                        run = p.add_run()
+                        run.text = slide_title
+                        run.font.name = 'Segoe UI Semibold'
+                        run.font.size = Pt(32)
+                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue
+                        run.font.bold = True
                     
                     # Rest is content
                     slide_content = '\n'.join(lines[1:]).strip()
@@ -711,6 +721,8 @@ def export_project_pptx(project_id):
                         text_frame.margin_right = PptxInches(0.5)
                         text_frame.margin_top = PptxInches(0.3)
                         text_frame.margin_bottom = PptxInches(0.3)
+                        
+                        print(f"Created slide: {slide_title}")
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []
@@ -744,51 +756,72 @@ def export_project_pptx(project_id):
                 for i, paragraph in enumerate(paragraphs[:10]):  # Limit to 10 slides
                     slide_layout = prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
+                    slide_title = f"Content Slide {i + 1}"
+                    
                     if slide.shapes.title:
-                        slide.shapes.title.text = f"Slide {i + 1}"
-                        # Set title font size for template 1 only (28pt)
-                        if template == '1':
-                            for paragraph in slide.shapes.title.text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    run.font.size = Pt(28)
+                        slide.shapes.title.text = slide_title
+                        # Apply consistent enhanced title formatting
+                        title_frame = slide.shapes.title.text_frame
+                        title_frame.clear()
+                        p = title_frame.paragraphs[0]
+                        p.alignment = PP_ALIGN.LEFT
+                        run = p.add_run()
+                        run.text = slide_title
+                        run.font.name = 'Segoe UI Semibold'
+                        run.font.size = Pt(32)
+                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)
+                        run.font.bold = True
+                        
                     if len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
                         text_frame.clear()
                         
-                        # Process content with bold formatting
+                        # Process content with enhanced formatting
                         process_markdown_to_pptx(paragraph, text_frame)
                         
-                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
-                        font_size = Pt(16) if template == '1' else Pt(22)
-                        for p in text_frame.paragraphs:
-                            for run in p.runs:
-                                run.font.size = font_size
+                        # Add slide styling and margins
+                        add_slide_styling(slide, slide_title)
+                        text_frame.margin_left = PptxInches(0.5)
+                        text_frame.margin_right = PptxInches(0.5)
+                        text_frame.margin_top = PptxInches(0.3)
+                        text_frame.margin_bottom = PptxInches(0.3)
             else:
                 # Create slides from sections
                 for section_title, section_content in content_sections:
                     slide_layout = prs.slide_layouts[1]
                     slide = prs.slides.add_slide(slide_layout)
+                    
                     if slide.shapes.title:
                         slide.shapes.title.text = section_title
-                        # Set title font size for template 1 only (28pt)
-                        if template == '1':
-                            for paragraph in slide.shapes.title.text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    run.font.size = Pt(28)
+                        # Apply consistent enhanced title formatting
+                        title_frame = slide.shapes.title.text_frame
+                        title_frame.clear()
+                        p = title_frame.paragraphs[0]
+                        p.alignment = PP_ALIGN.LEFT
+                        run = p.add_run()
+                        run.text = section_title
+                        run.font.name = 'Segoe UI Semibold'
+                        run.font.size = Pt(32)
+                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)
+                        run.font.bold = True
+                        
                     if len(slide.placeholders) > 1:
                         content_placeholder = slide.placeholders[1]
                         text_frame = content_placeholder.text_frame
                         text_frame.clear()
                         
-                        # Process content with bold formatting
+                        # Process content with enhanced formatting
                         process_markdown_to_pptx(section_content, text_frame)
                         
-                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
-                        font_size = Pt(16) if template == '1' else Pt(22)
-                        for p in text_frame.paragraphs:
-                            for run in p.runs:
-                                run.font.size = font_size
+                        # Add slide styling and margins
+                        add_slide_styling(slide, section_title)
+                        text_frame.margin_left = PptxInches(0.5)
+                        text_frame.margin_right = PptxInches(0.5)
+                        text_frame.margin_top = PptxInches(0.3)
+                        text_frame.margin_bottom = PptxInches(0.3)
+                        
+                        print(f"Created section slide: {section_title}")
     
     # Save to buffer
     buffer = BytesIO()
