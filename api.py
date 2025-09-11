@@ -20,25 +20,42 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from pptx import Presentation
 from pptx.util import Inches as PptxInches, Pt
 from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
 
 from firebase_models import Project, User
 
 api_bp = Blueprint('api', __name__)
 
 def process_markdown_to_pptx(text, text_frame):
-    """Process markdown text and add it to PowerPoint text frame with proper formatting"""
+    """Process text and add it to PowerPoint text frame with enhanced formatting"""
     import re
+    from pptx.dml.color import RGBColor
+    from pptx.enum.text import PP_ALIGN
     
     # Split text into lines
     lines = text.split('\n')
     
     for i, line in enumerate(lines):
+        line = line.strip()
+        if not line:  # Skip empty lines
+            continue
+            
         if i > 0:  # Add new paragraph for each line except the first
             p = text_frame.add_paragraph()
         else:
             p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
         
-        # Process bold text (**text**)
+        # Set paragraph spacing for better readability
+        p.space_before = Pt(6)
+        p.space_after = Pt(6)
+        
+        # Check if this is a bullet point (starts with - or •)
+        is_bullet = line.startswith('-') or line.startswith('•')
+        if is_bullet:
+            line = line[1:].strip()  # Remove bullet character
+            p.level = 0  # Set bullet level
+        
+        # Process any remaining markdown formatting
         parts = re.split(r'\*\*(.*?)\*\*', line)
         
         for j, part in enumerate(parts):
@@ -48,12 +65,77 @@ def process_markdown_to_pptx(text, text_frame):
             run = p.add_run()
             run.text = part
             
+            # Enhanced font styling
+            run.font.name = 'Segoe UI'  # Modern, clean font
+            
             # Make every second part bold (the content between **)
             if j % 2 == 1:
                 run.font.bold = True
+                run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue for emphasis
+            else:
+                run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
             
-            # Set font size
-            run.font.size = Pt(22)
+            # Set font size based on content type
+            if is_bullet:
+                run.font.size = Pt(18)  # Slightly smaller for bullet points
+            else:
+                run.font.size = Pt(20)  # Standard content size
+
+def add_slide_styling(slide, slide_title):
+    """Add enhanced visual styling to slides"""
+    try:
+        from pptx.dml.color import RGBColor
+        from pptx.enum.dml import MSO_THEME_COLOR
+        
+        # Add subtle gradient or accent colors based on slide type
+        slide_type = slide_title.lower()
+        
+        # Define color schemes for different slide types
+        if any(word in slide_type for word in ['problem', 'challenge', 'pain']):
+            accent_color = RGBColor(0xd9, 0x53, 0x4f)  # Red for problems
+        elif any(word in slide_type for word in ['solution', 'product', 'demo']):
+            accent_color = RGBColor(0x5c, 0xb8, 0x5c)  # Green for solutions
+        elif any(word in slide_type for word in ['market', 'opportunity', 'growth']):
+            accent_color = RGBColor(0x42, 0x85, 0xf4)  # Blue for market
+        elif any(word in slide_type for word in ['team', 'about', 'founder']):
+            accent_color = RGBColor(0xff, 0x9f, 0x40)  # Orange for team
+        elif any(word in slide_type for word in ['financial', 'revenue', 'funding']):
+            accent_color = RGBColor(0x9c, 0x27, 0xb0)  # Purple for financials
+        else:
+            accent_color = RGBColor(0x1f, 0x4e, 0x79)  # Default professional blue
+        
+        # Try to add a subtle accent line or shape (this may not work on all templates)
+        try:
+            # Add a thin accent line at the top of the slide
+            from pptx.shapes.autoshape import Shape
+            from pptx.enum.shapes import MSO_SHAPE
+            
+            # Create a thin rectangle as accent line
+            left = PptxInches(0)
+            top = PptxInches(0)
+            width = PptxInches(10)
+            height = PptxInches(0.05)
+            
+            accent_shape = slide.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, left, top, width, height
+            )
+            
+            # Style the accent line
+            fill = accent_shape.fill
+            fill.solid()
+            fill.fore_color.rgb = accent_color
+            
+            # Remove border
+            line = accent_shape.line
+            line.fill.background()
+            
+        except Exception:
+            # If accent line fails, continue without it
+            pass
+            
+    except Exception:
+        # If styling fails, continue without enhanced styling
+        pass
 
 # Configuration
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -579,14 +661,14 @@ def export_project_pptx(project_id):
     if project.pitch_deck and project.pitch_deck.get('content'):
         content = project.pitch_deck.get('content', '')
         
-        # Parse content into slides
-        if '**Slide' in content:
-            # Parse structured slide content
-            slides = content.split('**Slide')[1:]  # Skip empty first element
+        # Parse content into slides - handle both old and new formats
+        if 'Slide ' in content and ':' in content:
+            # Parse structured slide content (new plain text format)
+            slides = content.split('Slide ')[1:]  # Skip empty first element
             for slide_text in slides:
                 lines = slide_text.strip().split('\n')
                 if lines:
-                    # Create new slide
+                    # Create new slide with enhanced design
                     slide_layout = prs.slide_layouts[1]  # Title and content layout
                     slide = prs.slides.add_slide(slide_layout)
                     
@@ -594,11 +676,15 @@ def export_project_pptx(project_id):
                     slide_title = lines[0].replace(':', '').strip()
                     if slide.shapes.title:
                         slide.shapes.title.text = slide_title
-                        # Set title font size for template 1 only (28pt)
-                        if template == '1':
-                            for paragraph in slide.shapes.title.text_frame.paragraphs:
-                                for run in paragraph.runs:
-                                    run.font.size = Pt(28)
+                        # Enhanced title formatting
+                        title_frame = slide.shapes.title.text_frame
+                        for paragraph in title_frame.paragraphs:
+                            paragraph.alignment = PP_ALIGN.LEFT
+                            for run in paragraph.runs:
+                                run.font.name = 'Segoe UI Semibold'
+                                run.font.size = Pt(32)
+                                run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue
+                                run.font.bold = True
                     
                     # Rest is content
                     slide_content = '\n'.join(lines[1:]).strip()
@@ -607,14 +693,17 @@ def export_project_pptx(project_id):
                         text_frame = content_placeholder.text_frame
                         text_frame.clear()
                         
-                        # Process content with bold formatting
-                        formatted_content = process_markdown_to_pptx(slide_content, text_frame)
+                        # Process content with enhanced formatting
+                        process_markdown_to_pptx(slide_content, text_frame)
                         
-                        # Set font size for all paragraphs - 16pt for template 1, 22pt for others
-                        font_size = Pt(16) if template == '1' else Pt(22)
-                        for paragraph in text_frame.paragraphs:
-                            for run in paragraph.runs:
-                                run.font.size = font_size
+                        # Add slide background styling
+                        add_slide_styling(slide, slide_title)
+                        
+                        # Ensure proper margins and spacing
+                        text_frame.margin_left = PptxInches(0.5)
+                        text_frame.margin_right = PptxInches(0.5)
+                        text_frame.margin_top = PptxInches(0.3)
+                        text_frame.margin_bottom = PptxInches(0.3)
         else:
             # Split content by common slide indicators or paragraphs
             content_sections = []

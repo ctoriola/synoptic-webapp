@@ -113,76 +113,76 @@ Repository: {repo_owner}/{repo_name}
 
 README Content:\n{content}\n\n
 
-Please generate a detailed pitch deck with the following slides:
+Please generate a detailed pitch deck with the following slides. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by content in bullet points using simple dashes:
 
-**Slide 1: Title Slide**
-   - Project name and tagline
-   - Team/creator information
-   - Date
+Slide 1: Title Slide
+   Project name and compelling tagline
+   Creator/team information
+   Current date
 
-**Slide 2: Problem**
-   - What problem does this project solve?
-   - Pain points and market gaps
-   - Why this matters now
+Slide 2: Problem Statement
+   What critical problem does this project solve
+   Current pain points in the market
+   Why this problem needs solving now
 
-**Slide 3: Solution**
-   - How does this project address the problem?
-   - Key features and functionality
-   - Unique value proposition
+Slide 3: Solution Overview
+   How this project uniquely addresses the problem
+   Core features and key functionality
+   What makes this solution different
 
-**Slide 4: Market Opportunity**
-   - Target market size
-   - User personas and segments
-   - Market trends and timing
+Slide 4: Market Opportunity
+   Target market size and potential
+   Key user segments and personas
+   Market trends supporting this solution
 
-**Slide 5: Product Demo**
-   - Key features walkthrough
-   - Screenshots or code examples
-   - User experience highlights
+Slide 5: Product Demonstration
+   Key features and capabilities
+   Technical highlights and innovations
+   User experience benefits
 
-**Slide 6: Business Model**
-   - Revenue streams
-   - Pricing strategy
-   - Go-to-market approach
+Slide 6: Business Model
+   Revenue generation strategy
+   Pricing approach and monetization
+   Go-to-market strategy
 
-**Slide 7: Traction & Metrics**
-   - User adoption
-   - Performance metrics
-   - Community engagement
+Slide 7: Traction and Growth
+   Current user adoption and metrics
+   Performance indicators and milestones
+   Community engagement and feedback
 
-**Slide 8: Competition**
-   - Competitive landscape
-   - Competitive advantages
-   - Market positioning
+Slide 8: Competitive Analysis
+   Current competitive landscape
+   Key competitive advantages
+   Market differentiation strategy
 
-**Slide 9: Technology**
-   - Technical architecture
-   - Scalability considerations
-   - Security and reliability
+Slide 9: Technology Stack
+   Technical architecture overview
+   Scalability and performance considerations
+   Security and reliability features
 
-**Slide 10: Team**
-   - Core team members
-   - Relevant experience
-   - Advisory board
+Slide 10: Team and Expertise
+   Core team members and their roles
+   Relevant experience and background
+   Advisory support and partnerships
 
-**Slide 11: Financials**
-   - Revenue projections
-   - Cost structure
-   - Funding requirements
+Slide 11: Financial Projections
+   Revenue forecasts and growth projections
+   Cost structure and unit economics
+   Funding requirements and timeline
 
-**Slide 12: Funding Ask**
-   - Amount seeking
-   - Use of funds
-   - Expected outcomes
+Slide 12: Investment Ask
+   Specific funding amount requested
+   Detailed use of funds breakdown
+   Expected milestones and outcomes
 
-**Slide 13: Next Steps**
-   - Immediate milestones
-   - Long-term vision
-   - Call to action
+Slide 13: Next Steps and Vision
+   Immediate development milestones
+   Long-term product vision
+   Partnership and growth opportunities
 
 Additional context: {extra}
 
-Format the response as a comprehensive pitch deck with clear sections and professional language suitable for investors."""
+IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content concise and investor-focused. Each slide should have 3-5 key points maximum."""
             
             response = model.generate_content(prompt)
             pitch_deck_content = response.text
