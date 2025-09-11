@@ -10,7 +10,7 @@ def _has_generation_access(user):
     """Check if user has access to generate pitch decks"""
     # Free tier users have no access
     if user.account_tier == 'free':
-        return user.tokens_remaining and user.tokens_remaining > 0
+        return user.tokens and user.tokens > 0
     
     # Waitlisted users can generate if they completed survey and haven't used export
     if user.account_tier == 'waitlisted':
@@ -18,7 +18,7 @@ def _has_generation_access(user):
     
     # Basic and Pro users need tokens
     if user.account_tier in ['basic', 'pro']:
-        return user.tokens_remaining and user.tokens_remaining > 0
+        return user.tokens and user.tokens > 0
     
     return False
 
