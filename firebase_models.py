@@ -313,8 +313,37 @@ class User(UserMixin):
         """Get total number of active (non-deleted) users"""
         db = get_db()
         if db:
-            users = list(db.collection('users').where('is_deleted', '!=', True).stream())
-            return len(users)
+            # Get all users and filter in Python to match get_all_users logic
+            docs = db.collection('users').stream()
+            count = 0
+            seen_emails = set()
+            seen_github_ids = set()
+            
+            for doc in docs:
+                data = doc.to_dict()
+                # Skip users that are explicitly marked as deleted
+                if data.get('is_deleted', False):
+                    continue
+                
+                # Deduplicate by email and github_id to match get_all_users
+                email = data.get('email')
+                github_id = data.get('github_id')
+                
+                # Skip if we've already seen this email or github_id
+                if email and email in seen_emails:
+                    continue
+                if github_id and github_id in seen_github_ids:
+                    continue
+                
+                # Add to seen sets
+                if email:
+                    seen_emails.add(email)
+                if github_id:
+                    seen_github_ids.add(github_id)
+                
+                count += 1
+            
+            return count
         return 0
     
     @staticmethod

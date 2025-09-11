@@ -1068,12 +1068,12 @@ def admin_survey_analytics():
                     if question.get('type') == 'rating':
                         ratings = []
                         for response in responses:
-                            answer = response.responses.get(question['text'])
+                            answer = response.responses.get(question['question'])
                             if answer and str(answer).isdigit():
                                 ratings.append(int(answer))
                         
                         if ratings:
-                            avg_ratings[question['text']] = sum(ratings) / len(ratings)
+                            avg_ratings[question['question']] = sum(ratings) / len(ratings)
             
             analytics_data.append({
                 'survey': survey,
