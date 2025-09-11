@@ -51,8 +51,8 @@ def process_markdown_to_pptx(text, text_frame):
             p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
         
         # Set paragraph spacing for better readability
-        p.space_before = Pt(4)
-        p.space_after = Pt(4)
+        p.space_before = Pt(6)
+        p.space_after = Pt(6)
         
         # Check if this is a bullet point (starts with - or •)
         is_bullet = line.startswith('-') or line.startswith('•')
@@ -60,28 +60,26 @@ def process_markdown_to_pptx(text, text_frame):
             line = line[1:].strip()  # Remove bullet character
             p.level = 0  # Set bullet level
         
-        # Check if this is an image prompt (contains "Image:" or parentheses with image description)
-        is_image_prompt = ('(Image:' in line or 
-                          (line.startswith('(') and line.endswith(')') and 
-                           any(word in line.lower() for word in ['chart', 'graph', 'image', 'visual', 'diagram', 'screenshot'])))
+        # Check if this is an image prompt (contains "Image:" and parentheses)
+        is_image_prompt = re.search(r'\(Image:', line, re.IGNORECASE)
         
+        # Create text run
         run = p.add_run()
         run.text = line
         
         # Enhanced font styling
         run.font.name = 'Segoe UI'  # Modern, clean font
+        run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
         
-        # Set font size and styling based on content type
+        # Set font size based on content type
         if is_image_prompt:
             run.font.size = Pt(10)  # Small size for image prompts
-            run.font.color.rgb = RGBColor(0x80, 0x80, 0x80)  # Light gray for image prompts
-            run.font.italic = True
+            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)  # Lighter gray for image prompts
+            run.font.italic = True  # Italicize image prompts
         elif is_bullet:
             run.font.size = Pt(16)  # Body text size for bullet points
-            run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
         else:
             run.font.size = Pt(16)  # Body text size for regular content
-            run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
 
 def add_slide_styling(slide, slide_title):
     """Add enhanced visual styling to slides"""
