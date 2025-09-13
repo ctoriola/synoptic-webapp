@@ -185,7 +185,7 @@ def generator():
             # Generate pitch deck content based on source
             if content_source == "code_analysis":
                 # Convert analysis_result to slide format
-                prompt = f"""Convert the following project analysis into a comprehensive pitch deck format. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by content in bullet points using simple dashes:
+                prompt = f"""You are an expert pitch deck consultant creating a compelling investor presentation. Convert the following project analysis into a comprehensive, detailed pitch deck that tells a compelling story and captures investor interest.
 
 Project Analysis:
 Title: {analysis_result['title']}
@@ -196,74 +196,99 @@ Target Audience: {analysis_result['target_audience']}
 Technology Stack: {analysis_result['technology_stack']}
 Future Scope: {analysis_result['future_scope']}
 
-Please format this as a 13-slide pitch deck with the following structure:
+Create a detailed, investor-ready 13-slide pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
 
 Slide 1: Title Slide
-   Project name and compelling tagline
-   Creator/team information
-   Current date
+   - Compelling project name with memorable tagline that captures the essence
+   - Repository owner and development team information
+   - Current date and version
+   - Brief one-liner describing the revolutionary impact
 
 Slide 2: Problem Statement
-   What critical problem does this project solve
-   Current pain points in the market
-   Why this problem needs solving now
+   - Detailed description of the critical problem this project solves
+   - Specific pain points users currently experience
+   - Market size and scope of the problem (quantify when possible)
+   - Why existing solutions fall short
+   - Urgency and timing - why this problem needs solving now
 
 Slide 3: Solution Overview
-   How this project uniquely addresses the problem
-   Core features and key functionality
-   What makes this solution different
+   - Comprehensive explanation of how this project uniquely addresses the problem
+   - Detailed core features and key functionality breakdown
+   - Unique value proposition and competitive differentiators
+   - User experience improvements and benefits
+   - Technical innovation and breakthrough aspects
 
 Slide 4: Market Opportunity
-   Target market size and potential
-   User personas and market segments
-   Market trends supporting this solution
+   - Total addressable market size and growth potential
+   - Detailed user personas and target market segments
+   - Market trends and drivers supporting this solution
+   - Geographic expansion opportunities
+   - Revenue potential and market penetration strategy
 
 Slide 5: Product Demo
-   Key features walkthrough
-   User experience highlights
-   Technical capabilities showcase
+   - Comprehensive walkthrough of key features and capabilities
+   - User experience highlights and interface advantages
+   - Technical capabilities showcase with specific examples
+   - Performance metrics and benchmarks
+   - Integration possibilities and ecosystem compatibility
 
 Slide 6: Technology Stack
-   Technical architecture overview
-   Scalability and performance considerations
-   Security and reliability features
+   - Detailed technical architecture overview and design decisions
+   - Scalability approach and performance optimization strategies
+   - Security measures, reliability features, and data protection
+   - Development methodology and quality assurance processes
+   - Innovation aspects and technical competitive advantages
 
 Slide 7: Business Model
-   Revenue generation strategy
-   Pricing structure and monetization
-   Customer acquisition approach
+   - Comprehensive revenue generation strategy and monetization approach
+   - Detailed pricing structure with multiple tiers or options
+   - Customer acquisition cost and lifetime value projections
+   - Partnership revenue opportunities
+   - Subscription, licensing, or transaction-based revenue streams
 
 Slide 8: Competitive Analysis
-   Current competitive landscape
-   Key competitive advantages
-   Market differentiation strategy
+   - Detailed competitive landscape mapping and key players
+   - Specific competitive advantages and unique differentiators
+   - Market positioning strategy and brand differentiation
+   - Barriers to entry and defensive moats
+   - Competitive response strategies and market dynamics
 
 Slide 9: Go-to-Market Strategy
-   Launch strategy and timeline
-   Marketing and distribution channels
-   Partnership opportunities
+   - Comprehensive launch strategy with detailed timeline and milestones
+   - Multi-channel marketing and distribution approach
+   - Strategic partnership opportunities and channel partnerships
+   - Customer acquisition tactics and conversion strategies
+   - Brand building and community development initiatives
 
 Slide 10: Team and Expertise
-   Core team members and their roles
-   Relevant experience and background
-   Advisory support and partnerships
+   - Detailed core team member profiles with relevant experience
+   - Specific background and expertise that validates execution capability
+   - Advisory support, mentors, and strategic partnerships
+   - Hiring plans and key positions to fill
+   - Track record of success and relevant achievements
 
 Slide 11: Financial Projections
-   Revenue forecasts and growth projections
-   Cost structure and unit economics
-   Funding requirements and timeline
+   - Detailed 3-5 year revenue forecasts with growth assumptions
+   - Comprehensive cost structure breakdown and unit economics
+   - Profitability timeline and path to positive cash flow
+   - Key financial metrics and performance indicators
+   - Funding requirements with specific use cases and timeline
 
 Slide 12: Investment Ask
-   Specific funding amount requested
-   Detailed use of funds breakdown
-   Expected milestones and outcomes
+   - Specific funding amount requested with clear justification
+   - Detailed breakdown of fund allocation across key areas
+   - Expected milestones and measurable outcomes for each funding tranche
+   - Investor benefits and potential return on investment
+   - Exit strategy considerations and value creation timeline
 
 Slide 13: Next Steps and Vision
-   Immediate development milestones
-   Long-term product vision
-   Partnership and growth opportunities
+   - Immediate development milestones with specific timelines
+   - Comprehensive long-term product vision and roadmap
+   - Strategic partnership opportunities and expansion plans
+   - Market expansion strategy and international opportunities
+   - Innovation pipeline and future product development
 
-IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content concise and investor-focused. Each slide should have 3-5 key points maximum."""
+IMPORTANT: Make each slide rich with specific details, compelling narratives, and actionable insights. Avoid generic statements. Use concrete examples, specific metrics when possible, and create a compelling story that builds investor confidence. Each slide should have 4-6 detailed points that provide substantial value and insight."""
 
                 response = model.generate_content(prompt)
                 pitch_deck_content = response.text
@@ -273,83 +298,108 @@ IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content con
                 extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
                 
                 # Generate pitch deck content from README
-                prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
+                prompt = f"""You are an expert pitch deck consultant creating a compelling investor presentation. Generate a comprehensive, detailed pitch deck for the following GitHub repository that tells a compelling story and captures investor interest.
 
 Project: {repo_name}
 Repository: {repo_owner}/{repo_name}
 
 README Content:\n{content}\n\n
 
-Please generate a detailed pitch deck with the following slides. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by content in bullet points using simple dashes:
+Create a detailed, investor-ready pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights derived from the README content and repository context. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
 
 Slide 1: Title Slide
-   Project name and compelling tagline
-   Creator/team information
-   Current date
+   - Compelling project name with memorable tagline that captures the essence
+   - Repository owner and development team information
+   - Current date and version
+   - Brief one-liner describing the revolutionary impact
 
 Slide 2: Problem Statement
-   What critical problem does this project solve
-   Current pain points in the market
-   Why this problem needs solving now
+   - Detailed description of the critical problem this project solves
+   - Specific pain points users currently experience
+   - Market size and scope of the problem (quantify when possible)
+   - Why existing solutions fall short
+   - Urgency and timing - why this problem needs solving now
 
 Slide 3: Solution Overview
-   How this project uniquely addresses the problem
-   Core features and key functionality
-   What makes this solution different
+   - Comprehensive explanation of how this project uniquely addresses the problem
+   - Detailed core features and key functionality breakdown
+   - Unique value proposition and competitive differentiators
+   - User experience improvements and benefits
+   - Technical innovation and breakthrough aspects
 
 Slide 4: Market Opportunity
-   Target market size and potential
-   Key user segments and personas
-   Market trends supporting this solution
+   - Total addressable market size and growth potential
+   - Detailed user personas and target market segments
+   - Market trends and drivers supporting this solution
+   - Geographic expansion opportunities
+   - Revenue potential and market penetration strategy
 
 Slide 5: Product Demonstration
-   Key features and capabilities
-   Technical highlights and innovations
-   User experience benefits
+   - Comprehensive walkthrough of key features and capabilities
+   - User experience highlights and interface advantages
+   - Technical capabilities showcase with specific examples
+   - Performance metrics and benchmarks
+   - Integration possibilities and ecosystem compatibility
 
 Slide 6: Business Model
-   Revenue generation strategy
-   Pricing approach and monetization
-   Go-to-market strategy
+   - Comprehensive revenue generation strategy and monetization approach
+   - Detailed pricing structure with multiple tiers or options
+   - Customer acquisition cost and lifetime value projections
+   - Partnership revenue opportunities
+   - Subscription, licensing, or transaction-based revenue streams
 
 Slide 7: Traction and Growth
-   Current user adoption and metrics
-   Performance indicators and milestones
-   Community engagement and feedback
+   - Current user adoption metrics and growth trajectory
+   - Performance indicators and key milestones achieved
+   - Community engagement statistics and user feedback
+   - Market validation and early adopter testimonials
+   - Growth rate projections and scaling strategies
 
 Slide 8: Competitive Analysis
-   Current competitive landscape
-   Key competitive advantages
-   Market differentiation strategy
+   - Detailed competitive landscape mapping and key players
+   - Specific competitive advantages and unique differentiators
+   - Market positioning strategy and brand differentiation
+   - Barriers to entry and defensive moats
+   - Competitive response strategies and market dynamics
 
 Slide 9: Technology Stack
-   Technical architecture overview
-   Scalability and performance considerations
-   Security and reliability features
+   - Detailed technical architecture overview and design decisions
+   - Scalability approach and performance optimization strategies
+   - Security measures, reliability features, and data protection
+   - Development methodology and quality assurance processes
+   - Innovation aspects and technical competitive advantages
 
 Slide 10: Team and Expertise
-   Core team members and their roles
-   Relevant experience and background
-   Advisory support and partnerships
+   - Detailed core team member profiles with relevant experience
+   - Specific background and expertise that validates execution capability
+   - Advisory support, mentors, and strategic partnerships
+   - Hiring plans and key positions to fill
+   - Track record of success and relevant achievements
 
 Slide 11: Financial Projections
-   Revenue forecasts and growth projections
-   Cost structure and unit economics
-   Funding requirements and timeline
+   - Detailed 3-5 year revenue forecasts with growth assumptions
+   - Comprehensive cost structure breakdown and unit economics
+   - Profitability timeline and path to positive cash flow
+   - Key financial metrics and performance indicators
+   - Funding requirements with specific use cases and timeline
 
 Slide 12: Investment Ask
-   Specific funding amount requested
-   Detailed use of funds breakdown
-   Expected milestones and outcomes
+   - Specific funding amount requested with clear justification
+   - Detailed breakdown of fund allocation across key areas
+   - Expected milestones and measurable outcomes for each funding tranche
+   - Investor benefits and potential return on investment
+   - Exit strategy considerations and value creation timeline
 
 Slide 13: Next Steps and Vision
-   Immediate development milestones
-   Long-term product vision
-   Partnership and growth opportunities
+   - Immediate development milestones with specific timelines
+   - Comprehensive long-term product vision and roadmap
+   - Strategic partnership opportunities and expansion plans
+   - Market expansion strategy and international opportunities
+   - Innovation pipeline and future product development
 
 Additional context: {extra}
 
-IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content concise and investor-focused. Each slide should have 3-5 key points maximum."""
+IMPORTANT: Make each slide rich with specific details, compelling narratives, and actionable insights derived from the README content. Avoid generic statements. Use concrete examples from the repository, specific metrics when available, and create a compelling story that builds investor confidence. Extract maximum value from the README content to create substantive, detailed slides. Each slide should have 4-6 detailed points that provide substantial value and insight."""
             
             response = model.generate_content(prompt)
             pitch_deck_content = response.text
