@@ -162,7 +162,7 @@
                                 {% set rating_responses = [] %}
                                 {% for response in data.responses %}
                                     {% set answer = response.responses.get(question_index|string) %}
-                                    {% if answer and answer|string|regex_search('^\d+$') %}
+                                    {% if answer and (answer|string).isdigit() %}
                                         {% set _ = rating_responses.append(answer|int) %}
                                     {% endif %}
                                 {% endfor %}
