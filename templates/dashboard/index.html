@@ -3,6 +3,62 @@
 {% block title %}Dashboard - Synoptic{% endblock %}
 
 {% block content %}
+<!-- Tips/Guides Popup System -->
+<div id="tipsOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+            <div class="p-6">
+                <!-- Tip Header -->
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center mr-3">
+                            <i id="tipIcon" class="fas fa-lightbulb text-primary-600"></i>
+                        </div>
+                        <div>
+                            <h3 id="tipTitle" class="text-lg font-semibold text-gray-900">Welcome to Synoptic!</h3>
+                            <p class="text-sm text-gray-500"><span id="tipStep">1</span> of <span id="tipTotal">4</span></p>
+                        </div>
+                    </div>
+                    <button id="closeTips" class="text-gray-400 hover:text-gray-600 focus:outline-none">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <!-- Tip Content -->
+                <div id="tipContent" class="mb-6">
+                    <p class="text-gray-700">Let's get you started with creating amazing pitch decks from your GitHub projects!</p>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mb-6">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div id="tipProgress" class="bg-primary-600 h-2 rounded-full transition-all duration-300" style="width: 25%"></div>
+                    </div>
+                </div>
+                
+                <!-- Tip Actions -->
+                <div class="flex justify-between">
+                    <div class="flex space-x-3">
+                        <button id="skipTips" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none">
+                            Skip for now
+                        </button>
+                        <button id="doneTips" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 focus:outline-none">
+                            Don't show again
+                        </button>
+                    </div>
+                    <div class="flex space-x-3">
+                        <button id="prevTip" class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed">
+                            Previous
+                        </button>
+                        <button id="nextTip" class="px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none">
+                            Next
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Header -->
     <div class="mb-8">
@@ -246,4 +302,171 @@
     </div>
     {% endif %}
 </div>
+
+<script>
+// Tips/Guides System
+const tips = [
+    {
+        title: "Welcome to Synoptic!",
+        icon: "fas fa-lightbulb",
+        content: "Let's get you started with creating amazing pitch decks from your GitHub projects! This quick tour will show you the key features.",
+        highlight: null
+    },
+    {
+        title: "Generate Your First Pitch Deck",
+        icon: "fas fa-magic",
+        content: "Click 'Generate Pitch Deck' to create investor-ready presentations from any GitHub repository. You can use public repos or connect your GitHub account for private ones.",
+        highlight: "a[href*='generator']"
+    },
+    {
+        title: "Quick GitHub Integration",
+        icon: "fab fa-github",
+        content: "{% if current_user.github_id %}Use 'Select from GitHub' to quickly choose from your repositories and generate pitch decks instantly.{% else %}Connect your GitHub account to access your private repositories and streamline the generation process.{% endif %}",
+        highlight: "{% if current_user.github_id %}a[href*='select_repo'], a[href*='request_repo_access']{% else %}null{% endif %}"
+    },
+    {
+        title: "Manage Your Projects",
+        icon: "fas fa-folder-open",
+        content: "View and manage all your generated pitch decks in 'View All Projects'. You can export them to PowerPoint, PDF, or Word formats when you have tokens.",
+        highlight: "a[href*='projects']"
+    }
+];
+
+let currentTip = 0;
+let tipsSkipped = false;
+
+function showTips() {
+    // Check if tips should be shown
+    const tipsDisabled = localStorage.getItem('synoptic_tips_disabled') === 'true';
+    const tipsSkippedSession = sessionStorage.getItem('synoptic_tips_skipped') === 'true';
+    
+    if (tipsDisabled || tipsSkippedSession) {
+        return;
+    }
+    
+    // Show tips overlay
+    document.getElementById('tipsOverlay').classList.remove('hidden');
+    updateTipDisplay();
+}
+
+function updateTipDisplay() {
+    const tip = tips[currentTip];
+    const totalTips = tips.length;
+    
+    // Update content
+    document.getElementById('tipTitle').textContent = tip.title;
+    document.getElementById('tipIcon').className = tip.icon + ' text-primary-600';
+    document.getElementById('tipContent').innerHTML = `<p class="text-gray-700">${tip.content}</p>`;
+    document.getElementById('tipStep').textContent = currentTip + 1;
+    document.getElementById('tipTotal').textContent = totalTips;
+    
+    // Update progress bar
+    const progress = ((currentTip + 1) / totalTips) * 100;
+    document.getElementById('tipProgress').style.width = progress + '%';
+    
+    // Update buttons
+    const prevBtn = document.getElementById('prevTip');
+    const nextBtn = document.getElementById('nextTip');
+    
+    prevBtn.disabled = currentTip === 0;
+    prevBtn.classList.toggle('opacity-50', currentTip === 0);
+    prevBtn.classList.toggle('cursor-not-allowed', currentTip === 0);
+    
+    if (currentTip === totalTips - 1) {
+        nextBtn.textContent = 'Get Started!';
+        nextBtn.className = 'px-4 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none';
+    } else {
+        nextBtn.textContent = 'Next';
+        nextBtn.className = 'px-4 py-2 text-sm bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none';
+    }
+    
+    // Highlight elements
+    clearHighlights();
+    if (tip.highlight && tip.highlight !== 'null') {
+        highlightElement(tip.highlight);
+    }
+}
+
+function highlightElement(selector) {
+    try {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            el.classList.add('ring-4', 'ring-primary-300', 'ring-opacity-75');
+            el.style.position = 'relative';
+            el.style.zIndex = '40';
+        });
+    } catch (e) {
+        console.log('Could not highlight element:', selector);
+    }
+}
+
+function clearHighlights() {
+    const highlighted = document.querySelectorAll('.ring-4.ring-primary-300');
+    highlighted.forEach(el => {
+        el.classList.remove('ring-4', 'ring-primary-300', 'ring-opacity-75');
+        el.style.position = '';
+        el.style.zIndex = '';
+    });
+}
+
+function hideTips() {
+    document.getElementById('tipsOverlay').classList.add('hidden');
+    clearHighlights();
+}
+
+function nextTip() {
+    if (currentTip < tips.length - 1) {
+        currentTip++;
+        updateTipDisplay();
+    } else {
+        hideTips();
+    }
+}
+
+function prevTip() {
+    if (currentTip > 0) {
+        currentTip--;
+        updateTipDisplay();
+    }
+}
+
+function skipTips() {
+    sessionStorage.setItem('synoptic_tips_skipped', 'true');
+    hideTips();
+}
+
+function disableTips() {
+    localStorage.setItem('synoptic_tips_disabled', 'true');
+    hideTips();
+}
+
+// Event listeners
+document.getElementById('nextTip').addEventListener('click', nextTip);
+document.getElementById('prevTip').addEventListener('click', prevTip);
+document.getElementById('skipTips').addEventListener('click', skipTips);
+document.getElementById('doneTips').addEventListener('click', disableTips);
+document.getElementById('closeTips').addEventListener('click', skipTips);
+
+// Keyboard navigation
+document.addEventListener('keydown', function(e) {
+    if (!document.getElementById('tipsOverlay').classList.contains('hidden')) {
+        if (e.key === 'ArrowRight' || e.key === 'Enter') {
+            e.preventDefault();
+            nextTip();
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            prevTip();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            skipTips();
+        }
+    }
+});
+
+// Show tips on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Small delay to ensure page is fully rendered
+    setTimeout(showTips, 500);
+});
+</script>
 {% endblock %}
