@@ -151,9 +151,9 @@ def process_markdown_to_pptx(text, text_frame):
             run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)  # Lighter gray for image prompts
             run.font.italic = True  # Italicize image prompts
         elif is_bullet:
-            run.font.size = Pt(16)  # Body text size for bullet points
+            run.font.size = Pt(12)  # Body text size for bullet points
         else:
-            run.font.size = Pt(16)  # Body text size for regular content
+            run.font.size = Pt(12)  # Body text size for regular content
 
 def add_slide_styling(slide, slide_title):
     """Add enhanced visual styling to slides"""
