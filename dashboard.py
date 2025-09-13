@@ -84,16 +84,7 @@ def generator():
             )
             preliminary_project.save()
             
-            # Check if user has tokens or is waitlisted with survey completed
-            if not _has_generation_access(current_user):
-                # Update the preliminary project to indicate generation was interrupted
-                preliminary_project.pitch_deck['content'] = 'Generation interrupted - insufficient tokens. Please upgrade your plan to complete generation.'
-                preliminary_project.pitch_deck['status'] = 'interrupted'
-                preliminary_project.save()
-                
-                # Store project ID in session so user can return to it
-                session['interrupted_project_id'] = preliminary_project.id
-                return redirect(url_for('dashboard.out_of_tokens'))
+            # All users can generate projects - token checks only apply to exports
             
             # Debug session data
             print(f"DEBUG: Selected repo data: {selected_repo}")
