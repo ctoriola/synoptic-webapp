@@ -143,11 +143,22 @@ def generator():
                 print(f"DEBUG: AI response length: {len(text)} chars")
                 print(f"DEBUG: AI response preview: {text[:200]}...")
                 
-                # Parse JSON response
+                # Parse JSON response - strip markdown code blocks if present
                 try:
-                    parsed = json.loads(text.strip())
+                    # Remove markdown code blocks if present
+                    clean_text = text.strip()
+                    if clean_text.startswith('```json'):
+                        clean_text = clean_text[7:]  # Remove ```json
+                    if clean_text.startswith('```'):
+                        clean_text = clean_text[3:]   # Remove ```
+                    if clean_text.endswith('```'):
+                        clean_text = clean_text[:-3]  # Remove trailing ```
+                    clean_text = clean_text.strip()
+                    
+                    parsed = json.loads(clean_text)
                 except json.JSONDecodeError as e:
                     print(f"DEBUG: JSON parsing failed. Raw response: {text}")
+                    print(f"DEBUG: Cleaned text: {clean_text}")
                     flash(f'Invalid response format from AI service: {str(e)}', 'error')
                     return redirect(url_for('dashboard.generator'))
                 
