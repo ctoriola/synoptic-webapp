@@ -90,8 +90,18 @@ def generator():
             # Debug session data
             print(f"DEBUG: Selected repo data: {selected_repo}")
             print(f"DEBUG: User token exists: {bool(current_user.github_token)}")
+            print(f"DEBUG: Fetching README for {repo_owner}/{repo_name}")
             
-            # For private repos, skip raw fetch and go directly to API with token
+            # Configure Gemini AI first (needed for both paths)
+            GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+            if not GOOGLE_API_KEY:
+                flash('AI service not configured', 'error')
+                return redirect(url_for('dashboard.index'))
+            
+            genai.configure(api_key=GOOGLE_API_KEY)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Try to get README content
             user_token = current_user.github_token if current_user.is_authenticated else None
             if user_token:
                 # Private repo - use API directly with user token
@@ -148,14 +158,6 @@ def generator():
                 content_source = "readme"
                 print(f"DEBUG: Found README for {repo_owner}/{repo_name}")
             
-            # Configure Gemini AI
-            GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-            if not GOOGLE_API_KEY:
-                flash('AI service not configured', 'error')
-                return redirect(url_for('dashboard.index'))
-            
-            genai.configure(api_key=GOOGLE_API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
             
             # Generate pitch deck content based on source
             if content_source == "code_analysis":
