@@ -125,17 +125,29 @@ def generator():
                 
                 # Generate content from code analysis
                 prompt = build_gemini_prompt_from_code(repo_analysis, repo_name, extra_context=None)
-                resp = model.generate_content(prompt)
+                print(f"DEBUG: Code analysis prompt length: {len(prompt)} chars")
+                
+                try:
+                    resp = model.generate_content(prompt)
+                except Exception as e:
+                    print(f"DEBUG: AI generation failed: {str(e)}")
+                    flash(f'AI service error: {str(e)}', 'error')
+                    return redirect(url_for('dashboard.generator'))
                 
                 text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
                 if not text:
+                    print(f"DEBUG: Empty AI response for {repo_owner}/{repo_name}")
                     flash('Failed to generate content from AI service', 'error')
                     return redirect(url_for('dashboard.generator'))
+                
+                print(f"DEBUG: AI response length: {len(text)} chars")
+                print(f"DEBUG: AI response preview: {text[:200]}...")
                 
                 # Parse JSON response
                 try:
                     parsed = json.loads(text.strip())
                 except json.JSONDecodeError as e:
+                    print(f"DEBUG: JSON parsing failed. Raw response: {text}")
                     flash(f'Invalid response format from AI service: {str(e)}', 'error')
                     return redirect(url_for('dashboard.generator'))
                 

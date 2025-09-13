@@ -637,16 +637,22 @@ def api_generate():
             # Generate pitch deck from code analysis
             try:
                 prompt = build_gemini_prompt_from_code(repo_analysis, repo, extra_context=None)
+                print(f"DEBUG: API code analysis prompt length: {len(prompt)} chars")
                 resp = model.generate_content(prompt)
                 
                 text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
                 if not text:
+                    print(f"DEBUG: Empty AI response for code analysis: {owner}/{repo}")
                     return jsonify({"error": "Failed to generate content from AI service"}), 500
+                
+                print(f"DEBUG: Code analysis AI response length: {len(text)} chars")
+                print(f"DEBUG: Code analysis AI response preview: {text[:200]}...")
                 
                 # Parse JSON response
                 try:
                     parsed = json.loads(text.strip())
                 except json.JSONDecodeError as e:
+                    print(f"DEBUG: Code analysis JSON parsing failed. Raw response: {text}")
                     return jsonify({"error": f"Invalid response format from AI service: {str(e)}"}), 500
                 
                 # Map the response to expected format (code analysis uses different keys)
