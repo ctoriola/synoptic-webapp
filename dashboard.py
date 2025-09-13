@@ -1071,11 +1071,12 @@ def admin_survey_analytics():
             
             if total_responses > 0:
                 # Calculate average ratings for rating questions
-                for question in survey.questions:
+                for i, question in enumerate(survey.questions):
                     if question.get('type') == 'rating':
                         ratings = []
                         for response in responses:
-                            answer = response.responses.get(question['question'])
+                            # Use question index as key (stored as string)
+                            answer = response.responses.get(str(i))
                             if answer and str(answer).isdigit():
                                 ratings.append(int(answer))
                         

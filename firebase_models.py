@@ -306,6 +306,9 @@ class User(UserMixin):
                     coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False)
                 ))
+        
+        # Sort users by created_at date (most recent first)
+        users.sort(key=lambda x: x.created_at or datetime.min, reverse=True)
         return users
     
     @staticmethod
