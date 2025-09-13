@@ -91,7 +91,8 @@
                         <input type="hidden" name="repo_name" value="{{ repo.name }}">
                         <input type="hidden" name="repo_owner" value="{{ repo.owner.login }}">
                         <button type="submit" 
-                                class="generate-btn w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                class="generate-btn w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                onclick="showLoadingModal(event, '{{ repo.name }}')">
                             <i class="fas fa-magic mr-2 btn-icon"></i>
                             <div class="hidden animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2 btn-spinner"></div>
                             <span class="btn-text">Generate Pitch Deck</span>
@@ -172,6 +173,31 @@
     </div>
 </div>
 
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3 text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-primary-100 mb-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">Generating Pitch Deck</h3>
+            <div class="mt-2 px-7 py-3">
+                <p class="text-sm text-gray-500" id="modalMessage">
+                    Analyzing repository and generating your pitch deck...
+                </p>
+                <div class="mt-4">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div class="bg-primary-600 h-2 rounded-full animate-pulse" style="width: 60%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="items-center px-4 py-3">
+                <p class="text-xs text-gray-400">This may take 30-60 seconds</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.getElementById('repoSearch');
@@ -223,6 +249,21 @@ document.addEventListener('DOMContentLoaded', function() {
             showMoreBtn.classList.remove('hidden');
         });
     }
+    
+    // Global function to show loading modal
+    window.showLoadingModal = function(event, repoName) {
+        const modal = document.getElementById('loadingModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        
+        modalTitle.textContent = `Generating Pitch Deck for ${repoName}`;
+        modalMessage.textContent = 'Analyzing repository structure, conducting market research, and generating your investor-ready pitch deck...';
+        
+        modal.classList.remove('hidden');
+        
+        // Don't prevent form submission, just show the modal
+        return true;
+    };
     
     // Loading state for generate buttons
     const generateBtns = document.querySelectorAll('.generate-btn');

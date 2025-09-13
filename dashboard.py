@@ -141,6 +141,8 @@ def generator():
             repo_owner = selected_repo['owner']
             repo_name = selected_repo['name']
             
+            print(f"DEBUG: Starting generation for {repo_owner}/{repo_name}")
+            
             # Create a preliminary project to save user's work before generation
             preliminary_project = Project(
                 title=repo_name,
@@ -156,6 +158,7 @@ def generator():
                 user_id=current_user.id
             )
             preliminary_project.save()
+            print(f"DEBUG: Created preliminary project with ID: {preliminary_project.id}")
             
             # All users can generate projects - token checks only apply to exports
             
@@ -519,10 +522,25 @@ IMPORTANT: Make each slide rich with specific details, compelling narratives, an
             # Clear session data
             session.pop('selected_repo', None)
             
+            print(f"DEBUG: Successfully generated pitch deck for project {preliminary_project.id}")
             flash('Pitch deck generated successfully!', 'success')
             return redirect(url_for('dashboard.project_detail', project_id=preliminary_project.id))
             
         except Exception as e:
+            print(f"DEBUG: Generation failed with error: {str(e)}")
+            print(f"DEBUG: Error type: {type(e).__name__}")
+            import traceback
+            print(f"DEBUG: Full traceback: {traceback.format_exc()}")
+            
+            # Update project status to failed if it exists
+            if 'preliminary_project' in locals():
+                try:
+                    preliminary_project.pitch_deck['status'] = 'failed'
+                    preliminary_project.pitch_deck['error'] = str(e)
+                    preliminary_project.save()
+                except:
+                    pass
+            
             flash(f'Failed to generate pitch deck: {str(e)}', 'error')
             return redirect(url_for('dashboard.index'))
     
