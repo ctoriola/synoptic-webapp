@@ -339,20 +339,21 @@ Slide 6: Technology Stack
 Slide 7: Business Model
    - Primary revenue streams with detailed monetization strategies
    - Pricing model analysis (freemium, subscription, one-time, usage-based)
-   - Customer acquisition cost (CAC) and customer lifetime value (CLV) metrics
+   - Customer acquisition cost: [Insert estimated CAC based on marketing strategy]
+   - Lifetime value: [Insert estimated LTV based on average order value and purchase frequency]
    - Unit economics breakdown with contribution margins
    - Strategic partnership revenue opportunities and channel strategies
    - Revenue diversification plan and recurring revenue components
    - Scalability factors and operational leverage points
 
 Slide 8: Competitive Analysis
-   - Direct competitors analysis with feature comparison matrix
-   - Indirect competitors and substitute solutions assessment
+   - Direct competitors: [List specific competitors and provide comparison matrix based on features, pricing, and target market]
+   - Indirect competitors: [List related online services that may provide alternative solutions]
    - Competitive positioning map showing market gaps and opportunities
    - Detailed SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
-   - Competitive pricing analysis and value proposition comparison
-   - Barriers to entry and sustainable competitive advantages (moats)
-   - Competitive response strategies and market share capture plan
+   - Feature comparison matrix with specific functionality differences
+   - Pricing comparison table with competitive advantages highlighted
+   - Market share analysis and competitive response strategies
 
 Slide 9: Go-to-Market Strategy
    - Phase-by-phase market entry strategy with specific timelines and milestones
@@ -393,7 +394,7 @@ Slide 13: Next Steps and Vision
    - Market expansion strategy and international opportunities
    - Innovation pipeline and future product development
 
-IMPORTANT: Make each slide rich with specific details, compelling narratives, and actionable insights derived from both the project analysis AND the market research data provided above. Incorporate market size figures, industry trends, competitive insights, and growth projections into relevant slides. Avoid generic statements. Use concrete examples, specific metrics when possible, and create a compelling story that builds investor confidence. Each slide should have 4-6 detailed points that provide substantial value and insight."""
+IMPORTANT: Make each slide rich with specific details, compelling narratives, and actionable insights derived from both the project analysis AND the market research data provided above. For competitive analysis, research and list actual competitor names with specific feature/pricing comparisons. For business model metrics, provide realistic CAC and LTV estimates based on the project type and market. Incorporate market size figures, industry trends, competitive insights, and growth projections into relevant slides. Avoid generic statements and placeholder text. Use concrete examples, specific metrics when possible, and create a compelling story that builds investor confidence. Each slide should have 4-6 detailed points that provide substantial value and insight."""
 
                 response = model.generate_content(prompt)
                 pitch_deck_content = response.text
@@ -470,13 +471,13 @@ Slide 7: Traction and Growth
    - Growth rate projections and scaling strategies
 
 Slide 8: Competitive Analysis
-   - Direct competitors analysis with feature comparison matrix
-   - Indirect competitors and substitute solutions assessment
+   - Direct competitors: [List specific competitors and provide comparison matrix based on features, pricing, and target market]
+   - Indirect competitors: [List related online services that may provide alternative solutions]
    - Competitive positioning map showing market gaps and opportunities
    - Detailed SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
-   - Competitive pricing analysis and value proposition comparison
-   - Barriers to entry and sustainable competitive advantages (moats)
-   - Competitive response strategies and market share capture plan
+   - Feature comparison matrix with specific functionality differences
+   - Pricing comparison table with competitive advantages highlighted
+   - Market share analysis and competitive response strategies
 
 Slide 9: Technology Stack
    - Detailed technical architecture overview and design decisions
