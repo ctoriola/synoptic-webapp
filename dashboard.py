@@ -64,13 +64,36 @@ def generator():
         from datetime import datetime
         
         try:
-            # Check if user has tokens or is waitlisted with survey completed
-            if not _has_generation_access(current_user):
-                return redirect(url_for('dashboard.out_of_tokens'))
-            
             repo_url = selected_repo['url']
             repo_owner = selected_repo['owner']
             repo_name = selected_repo['name']
+            
+            # Create a preliminary project to save user's work before generation
+            preliminary_project = Project(
+                title=repo_name,
+                repo_url=repo_url,
+                repo_owner=repo_owner,
+                repo_name=repo_name,
+                pitch_deck={
+                    'content': 'Generation in progress...',
+                    'generated_at': datetime.utcnow().isoformat(),
+                    'version': '0.1',
+                    'status': 'generating'
+                },
+                user_id=current_user.id
+            )
+            preliminary_project.save()
+            
+            # Check if user has tokens or is waitlisted with survey completed
+            if not _has_generation_access(current_user):
+                # Update the preliminary project to indicate generation was interrupted
+                preliminary_project.pitch_deck['content'] = 'Generation interrupted - insufficient tokens. Please upgrade your plan to complete generation.'
+                preliminary_project.pitch_deck['status'] = 'interrupted'
+                preliminary_project.save()
+                
+                # Store project ID in session so user can return to it
+                session['interrupted_project_id'] = preliminary_project.id
+                return redirect(url_for('dashboard.out_of_tokens'))
             
             # Debug session data
             print(f"DEBUG: Selected repo data: {selected_repo}")
@@ -187,28 +210,21 @@ IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content con
             response = model.generate_content(prompt)
             pitch_deck_content = response.text
             
-            # Create project
-            project = Project(
-                title=repo_name,
-                repo_url=repo_url,
-                repo_owner=repo_owner,
-                repo_name=repo_name,
-                pitch_deck={
-                    'content': pitch_deck_content,
-                    'generated_at': datetime.utcnow().isoformat(),
-                    'version': '1.0'
-                },
-                user_id=current_user.id
-            )
-            
-            project.save()
+            # Update the preliminary project with the generated content
+            preliminary_project.pitch_deck = {
+                'content': pitch_deck_content,
+                'generated_at': datetime.utcnow().isoformat(),
+                'version': '1.0',
+                'status': 'completed'
+            }
+            preliminary_project.save()
             # No token usage for generation - tokens are only for exports
             
             # Clear session data
             session.pop('selected_repo', None)
             
             flash('Pitch deck generated successfully!', 'success')
-            return redirect(url_for('dashboard.project_detail', project_id=project.id))
+            return redirect(url_for('dashboard.project_detail', project_id=preliminary_project.id))
             
         except Exception as e:
             flash(f'Failed to generate pitch deck: {str(e)}', 'error')
@@ -1097,8 +1113,17 @@ def out_of_tokens():
         user_projects = Project.get_by_user(current_user.id)
         user_projects_count = len(user_projects) if user_projects else 0
         
+        # Check if there's an interrupted project in session
+        interrupted_project_id = session.get('interrupted_project_id')
+        interrupted_project = None
+        if interrupted_project_id:
+            interrupted_project = Project.get(interrupted_project_id)
+            # Clear from session after retrieving
+            session.pop('interrupted_project_id', None)
+        
         return render_template('dashboard/out_of_tokens.html', 
-                             user_projects_count=user_projects_count)
+                             user_projects_count=user_projects_count,
+                             interrupted_project=interrupted_project)
     except Exception as e:
         flash(f'Error loading page: {str(e)}', 'error')
         return redirect(url_for('dashboard.index'))

@@ -6,22 +6,50 @@
 <div class="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 py-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Header -->
-        <div class="text-center mb-8">
-            <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-4">
-                <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+        <div class="text-center mb-6 sm:mb-8">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-red-100 mb-3 sm:mb-4">
+                <i class="fas fa-exclamation-triangle text-red-600 text-xl sm:text-2xl"></i>
             </div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-4">You're Out of Tokens!</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4 px-4">You're Out of Tokens!</h1>
             
             {% if current_user.account_tier == 'waitlisted' %}
-            <p class="text-lg text-gray-600 mb-6">
+            <p class="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6 px-4">
                 Complete our quick survey to unlock your free pitch deck export and help us improve PitchPerfectAI!
             </p>
             {% else %}
-            <p class="text-lg text-gray-600 mb-6">
+            <p class="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6 px-4">
                 You've used all your available tokens for generating pitch decks. Upgrade your plan to continue creating amazing presentations!
             </p>
             {% endif %}
         </div>
+
+        {% if interrupted_project %}
+        <!-- Interrupted Project Notice -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
+            <div class="flex items-start space-x-3">
+                <div class="flex-shrink-0">
+                    <i class="fas fa-info-circle text-blue-600 text-xl"></i>
+                </div>
+                <div class="flex-1">
+                    <h3 class="text-lg font-medium text-blue-900 mb-2">Project Saved</h3>
+                    <p class="text-blue-800 mb-3">
+                        Your project "<strong>{{ interrupted_project.title }}</strong>" has been saved to your dashboard. 
+                        While generation was interrupted due to insufficient tokens, you can upgrade your plan to complete it.
+                    </p>
+                    <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <a href="{{ url_for('dashboard.project_detail', project_id=interrupted_project.id) }}" 
+                           class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors text-center">
+                            <i class="fas fa-eye mr-2"></i>View Project
+                        </a>
+                        <a href="{{ url_for('dashboard.index') }}" 
+                           class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors text-center">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         {% if current_user.account_tier == 'waitlisted' %}
         <!-- Waitlisted User Section -->
@@ -53,13 +81,13 @@
                                 <li><i class="fas fa-check mr-2"></i>Priority consideration for plan upgrades</li>
                             </ul>
                         </div>
-                        <div class="flex space-x-3">
+                        <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
                             <a href="{{ url_for('dashboard.survey') }}" 
-                               class="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                               class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors text-center">
                                 <i class="fas fa-poll mr-2"></i>Complete Survey Now
                             </a>
                             <a href="{{ url_for('dashboard.index') }}" 
-                               class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors">
+                               class="bg-gray-300 hover:bg-gray-400 text-gray-700 px-4 sm:px-6 py-3 rounded-lg font-medium transition-colors text-center">
                                 Back to Dashboard
                             </a>
                         </div>
@@ -76,8 +104,8 @@
                     <i class="fas fa-rocket mr-2"></i>Upgrade Your Plan
                 </h2>
             </div>
-            <div class="p-6">
-                <div class="grid md:grid-cols-2 gap-6">
+            <div class="p-4 sm:p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                     <!-- Basic Plan -->
                     <div class="border border-gray-200 rounded-lg p-6 hover:border-primary-300 transition-colors">
                         <div class="text-center mb-4">
@@ -157,9 +185,9 @@
         </div>
 
         <!-- Why Upgrade Section -->
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
+        <div class="bg-white shadow rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Why Upgrade?</h3>
-            <div class="grid md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div class="text-center">
                     <div class="h-12 w-12 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-3">
                         <i class="fas fa-magic text-blue-600 text-xl"></i>
@@ -186,9 +214,9 @@
         {% endif %}
 
         <!-- Current Usage Stats -->
-        <div class="bg-white shadow rounded-lg p-6">
+        <div class="bg-white shadow rounded-lg p-4 sm:p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Your Current Usage</h3>
-            <div class="grid md:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                 <div class="text-center">
                     <div class="text-2xl font-bold text-red-600">{{ current_user.tokens_remaining or 0 }}</div>
                     <div class="text-sm text-gray-500">Tokens Remaining</div>
