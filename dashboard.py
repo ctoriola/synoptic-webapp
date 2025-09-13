@@ -57,10 +57,11 @@ def generator():
     # If coming from GitHub selection, auto-generate immediately
     if from_github and selected_repo:
         # Import here to avoid circular imports
-        from api import try_fetch_readme_raw, try_fetch_readme_api, fetch_additional_repo_signals
+        from api import try_fetch_readme_raw, try_fetch_readme_api, fetch_additional_repo_signals, analyze_repository_structure, build_gemini_prompt_from_code
         from firebase_models import Project
         import google.generativeai as genai
         import os
+        import json
         from datetime import datetime
         
         try:
@@ -103,8 +104,49 @@ def generator():
                     content, _ = try_fetch_readme_api(repo_owner, repo_name, user_token)
             
             if not content:
-                flash(f'README not found in repository {repo_owner}/{repo_name}. This may be a private repository or it may not have a README file.', 'error')
-                return redirect(url_for('dashboard.index'))
+                print(f"DEBUG: No README found for {repo_owner}/{repo_name}, analyzing code structure instead")
+                
+                # Use code analysis instead of README
+                repo_analysis = analyze_repository_structure(repo_owner, repo_name, user_token)
+                
+                if not repo_analysis.get("tech_stack") and repo_analysis.get("main_language") == "Unknown":
+                    flash('Unable to analyze repository structure. Repository may be empty or inaccessible.', 'error')
+                    return redirect(url_for('dashboard.generator'))
+                
+                # Generate content from code analysis
+                prompt = build_gemini_prompt_from_code(repo_analysis, repo_name, extra_context=None)
+                resp = model.generate_content(prompt)
+                
+                text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
+                if not text:
+                    flash('Failed to generate content from AI service', 'error')
+                    return redirect(url_for('dashboard.generator'))
+                
+                # Parse JSON response
+                try:
+                    parsed = json.loads(text.strip())
+                except json.JSONDecodeError as e:
+                    flash(f'Invalid response format from AI service: {str(e)}', 'error')
+                    return redirect(url_for('dashboard.generator'))
+                
+                # Map the response to expected format (code analysis uses different keys)
+                analysis_result = {
+                    "title": parsed.get("project_title", repo_name),
+                    "introduction": parsed.get("solution_overview", "Project analysis based on code structure."),
+                    "problem_statement": parsed.get("problem_statement", "Problem inferred from code analysis."),
+                    "solution_overview": parsed.get("solution_overview", "Solution based on technical implementation."),
+                    "key_features": parsed.get("key_features", "Features inferred from codebase."),
+                    "target_audience": parsed.get("target_audience", "Target audience based on technical stack."),
+                    "technology_stack": parsed.get("technology_stack", "Technology stack detected from code."),
+                    "future_scope": parsed.get("future_scope", "Future enhancements based on current foundation.")
+                }
+                
+                content_source = "code_analysis"
+                print(f"DEBUG: Generated content from code analysis for {repo_owner}/{repo_name}")
+            else:
+                # README found - process normally
+                content_source = "readme"
+                print(f"DEBUG: Found README for {repo_owner}/{repo_name}")
             
             # Configure Gemini AI
             GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
@@ -115,12 +157,17 @@ def generator():
             genai.configure(api_key=GOOGLE_API_KEY)
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            # Get additional repo signals
-            user_token = current_user.github_token if current_user.is_authenticated else None
-            extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
-            
-            # Generate pitch deck content
-            prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
+            # Generate pitch deck content based on source
+            if content_source == "code_analysis":
+                # Already have analysis_result from code analysis
+                pass
+            else:
+                # Process README content normally
+                user_token = current_user.github_token if current_user.is_authenticated else None
+                extra = fetch_additional_repo_signals(repo_owner, repo_name, user_token)
+                
+                # Generate pitch deck content from README
+                prompt = f"""Generate a comprehensive pitch deck for the following GitHub repository:
 
 Project: {repo_name}
 Repository: {repo_owner}/{repo_name}

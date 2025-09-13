@@ -208,6 +208,157 @@ def try_fetch_readme_api(owner: str, repo: str, user_token: str = None):
         pass
     return None, None
 
+def analyze_repository_structure(owner: str, repo: str, user_token: str = None) -> dict:
+    """Analyze repository structure and code to extract project insights without README."""
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": "PitchPerfectAI-saas",
+    }
+    if user_token:
+        headers["Authorization"] = f"Bearer {user_token}"
+    
+    analysis = {
+        "project_type": "Unknown",
+        "tech_stack": [],
+        "main_language": "Unknown",
+        "frameworks": [],
+        "features": [],
+        "structure_insights": [],
+        "dependencies": {},
+        "file_count": 0,
+        "directory_structure": []
+    }
+    
+    try:
+        # Get repository contents
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents"
+        response = requests.get(api_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            contents = response.json()
+            analysis["file_count"] = len(contents)
+            
+            # Analyze root directory structure
+            for item in contents:
+                if item["type"] == "dir":
+                    analysis["directory_structure"].append(item["name"])
+                elif item["type"] == "file":
+                    filename = item["name"].lower()
+                    
+                    # Detect project type and tech stack from files
+                    if filename == "package.json":
+                        analysis["project_type"] = "Node.js/JavaScript"
+                        analysis["tech_stack"].append("Node.js")
+                        # Try to get package.json content for dependencies
+                        try:
+                            pkg_response = requests.get(item["download_url"], timeout=5)
+                            if pkg_response.status_code == 200:
+                                pkg_data = pkg_response.json()
+                                if "dependencies" in pkg_data:
+                                    analysis["dependencies"]["runtime"] = list(pkg_data["dependencies"].keys())[:10]
+                                if "devDependencies" in pkg_data:
+                                    analysis["dependencies"]["dev"] = list(pkg_data["devDependencies"].keys())[:10]
+                        except:
+                            pass
+                    
+                    elif filename == "requirements.txt":
+                        analysis["project_type"] = "Python"
+                        analysis["tech_stack"].append("Python")
+                        # Try to get requirements content
+                        try:
+                            req_response = requests.get(item["download_url"], timeout=5)
+                            if req_response.status_code == 200:
+                                deps = [line.split("==")[0].split(">=")[0].split("<=")[0].strip() 
+                                       for line in req_response.text.split("\n") if line.strip()]
+                                analysis["dependencies"]["python"] = deps[:15]
+                        except:
+                            pass
+                    
+                    elif filename == "pom.xml":
+                        analysis["project_type"] = "Java/Maven"
+                        analysis["tech_stack"].extend(["Java", "Maven"])
+                    
+                    elif filename == "build.gradle":
+                        analysis["project_type"] = "Java/Gradle"
+                        analysis["tech_stack"].extend(["Java", "Gradle"])
+                    
+                    elif filename == "cargo.toml":
+                        analysis["project_type"] = "Rust"
+                        analysis["tech_stack"].append("Rust")
+                    
+                    elif filename == "go.mod":
+                        analysis["project_type"] = "Go"
+                        analysis["tech_stack"].append("Go")
+                    
+                    elif filename == "composer.json":
+                        analysis["project_type"] = "PHP"
+                        analysis["tech_stack"].append("PHP")
+                    
+                    elif filename in ["dockerfile", "docker-compose.yml", "docker-compose.yaml"]:
+                        analysis["tech_stack"].append("Docker")
+                    
+                    elif filename in [".github", ".gitlab-ci.yml", "jenkinsfile"]:
+                        analysis["features"].append("CI/CD Pipeline")
+                    
+                    elif filename in ["vercel.json", "netlify.toml"]:
+                        analysis["features"].append("Cloud Deployment")
+        
+        # Get language statistics
+        lang_url = f"https://api.github.com/repos/{owner}/{repo}/languages"
+        lang_response = requests.get(lang_url, headers=headers, timeout=10)
+        if lang_response.status_code == 200:
+            languages = lang_response.json()
+            if languages:
+                analysis["main_language"] = max(languages.keys(), key=lambda k: languages[k])
+                analysis["tech_stack"].extend(list(languages.keys())[:5])
+        
+        # Detect frameworks based on directory structure and dependencies
+        dirs = analysis["directory_structure"]
+        deps = analysis["dependencies"]
+        
+        # Web frameworks detection
+        if "react" in str(deps).lower() or "src" in dirs:
+            analysis["frameworks"].append("React")
+        if "vue" in str(deps).lower():
+            analysis["frameworks"].append("Vue.js")
+        if "angular" in str(deps).lower():
+            analysis["frameworks"].append("Angular")
+        if "express" in str(deps).lower():
+            analysis["frameworks"].append("Express.js")
+        if "flask" in str(deps).lower() or "django" in str(deps).lower():
+            analysis["frameworks"].append("Flask" if "flask" in str(deps).lower() else "Django")
+        if "fastapi" in str(deps).lower():
+            analysis["frameworks"].append("FastAPI")
+        
+        # Database detection
+        if any(db in str(deps).lower() for db in ["mongodb", "mongoose"]):
+            analysis["tech_stack"].append("MongoDB")
+        if any(db in str(deps).lower() for db in ["postgresql", "psycopg", "pg"]):
+            analysis["tech_stack"].append("PostgreSQL")
+        if "mysql" in str(deps).lower():
+            analysis["tech_stack"].append("MySQL")
+        if "redis" in str(deps).lower():
+            analysis["tech_stack"].append("Redis")
+        
+        # Structure insights
+        if "api" in dirs or "backend" in dirs:
+            analysis["structure_insights"].append("Backend API service")
+        if "frontend" in dirs or "client" in dirs or "ui" in dirs:
+            analysis["structure_insights"].append("Frontend application")
+        if "docs" in dirs or "documentation" in dirs:
+            analysis["structure_insights"].append("Well-documented project")
+        if "tests" in dirs or "test" in dirs:
+            analysis["structure_insights"].append("Includes test suite")
+        if "scripts" in dirs or "bin" in dirs:
+            analysis["structure_insights"].append("Automation scripts included")
+        if "config" in dirs or "configs" in dirs:
+            analysis["structure_insights"].append("Configurable application")
+        
+    except Exception as e:
+        print(f"Error analyzing repository structure: {e}")
+    
+    return analysis
+
 def fetch_additional_repo_signals(owner: str, repo: str, user_token: str = None) -> str:
     """Collect extra signals to help infer problem_statement and future_scope when README is sparse."""
     headers = {
@@ -250,6 +401,79 @@ def fetch_additional_repo_signals(owner: str, repo: str, user_token: str = None)
         pass
 
     return "\n\n".join(parts).strip()
+
+def build_gemini_prompt_from_code(repo_analysis: dict, repo_name: str, extra_context: str = None) -> str:
+    """Build AI prompt for pitch deck generation based on code analysis instead of README."""
+    
+    # Extract key information from analysis
+    project_type = repo_analysis.get("project_type", "Unknown")
+    tech_stack = repo_analysis.get("tech_stack", [])
+    main_language = repo_analysis.get("main_language", "Unknown")
+    frameworks = repo_analysis.get("frameworks", [])
+    features = repo_analysis.get("features", [])
+    structure_insights = repo_analysis.get("structure_insights", [])
+    dependencies = repo_analysis.get("dependencies", {})
+    file_count = repo_analysis.get("file_count", 0)
+    directories = repo_analysis.get("directory_structure", [])
+    
+    # Build comprehensive analysis summary
+    analysis_summary = f"""
+PROJECT ANALYSIS SUMMARY:
+Repository Name: {repo_name}
+Project Type: {project_type}
+Main Language: {main_language}
+File Count: {file_count}
+
+TECHNOLOGY STACK:
+{', '.join(tech_stack[:10]) if tech_stack else 'Not detected'}
+
+FRAMEWORKS & LIBRARIES:
+{', '.join(frameworks) if frameworks else 'Standard libraries'}
+
+DIRECTORY STRUCTURE:
+{', '.join(directories[:15]) if directories else 'Simple structure'}
+
+DETECTED FEATURES:
+{', '.join(features) if features else 'Core functionality'}
+
+ARCHITECTURAL INSIGHTS:
+{', '.join(structure_insights) if structure_insights else 'Standard application structure'}
+
+DEPENDENCIES:
+{str(dependencies) if dependencies else 'No dependency information available'}
+"""
+
+    parts = [
+        "You are a specialized AI assistant for analyzing GitHub repositories and generating project proposals. ",
+        "Your task is to analyze the provided code structure and repository information to generate a comprehensive project proposal in JSON format. ",
+        "Since no README is available, you must infer the project's purpose, functionality, and value proposition from the code analysis. ",
+        "Be creative but realistic in your interpretations based on the technical evidence provided.\n\n",
+        
+        "Instructions:\n\n",
+        "1. Format: Your entire response must be a single, valid JSON object. No extra text, no markdown outside the JSON.\n",
+        "2. Structure: The JSON object must have the following keys:\n",
+        "   - project_title: (string) An engaging title for the project based on repo name and analysis.\n",
+        "   - problem_statement: (string) Infer what problem this project likely solves based on its tech stack and structure (3-5 sentences).\n",
+        "   - solution_overview: (string) Describe how the project addresses the problem based on its architecture (4-6 sentences).\n",
+        "   - key_features: (string) List main features inferred from code structure and dependencies (6-10 bullet points).\n",
+        "   - target_audience: (string) Who would likely use this project based on its technical nature (2-4 sentences).\n",
+        "   - technology_stack: (string) Detailed explanation of the detected technologies and their purposes (4-10 elements).\n",
+        "   - future_scope: (string) Potential enhancements and features that could be added based on current foundation (8-12 concrete items).\n\n",
+        
+        "Analysis Guidelines:\n",
+        "- Use the project name and technical stack to infer the domain and purpose\n",
+        "- Consider the architectural patterns evident in the directory structure\n",
+        "- Infer user needs based on the frameworks and libraries used\n",
+        "- Suggest realistic future features that align with the current tech stack\n",
+        "- Make educated assumptions about the project's goals based on technical evidence\n\n",
+        
+        "Repository Analysis Data:\n\n```\n",
+        analysis_summary,
+        "\n```\n\n",
+        ("Additional Repository Context:\n\n```\n" + extra_context.strip() + "\n```\n\n" if extra_context and extra_context.strip() else ""),
+        "Generated JSON Output:",
+    ]
+    return "".join(parts)
 
 def build_gemini_prompt(readme_content: str, extra_context: str = None) -> str:
     parts = [
@@ -402,7 +626,50 @@ def api_generate():
             content, _ = try_fetch_readme_api(owner, repo, user_token)
 
         if not content:
-            return jsonify({"error": "README not found in repository."}), 404
+            # No README found - use code analysis instead
+            print(f"DEBUG: No README found, analyzing repository structure for {owner}/{repo}")
+            user_token = current_user.github_token if current_user.is_authenticated else None
+            repo_analysis = analyze_repository_structure(owner, repo, user_token)
+            
+            if not repo_analysis.get("tech_stack") and repo_analysis.get("main_language") == "Unknown":
+                return jsonify({"error": "Unable to analyze repository structure. Repository may be empty or inaccessible."}), 404
+            
+            # Generate pitch deck from code analysis
+            try:
+                prompt = build_gemini_prompt_from_code(repo_analysis, repo, extra_context=None)
+                resp = model.generate_content(prompt)
+                
+                text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
+                if not text:
+                    return jsonify({"error": "Failed to generate content from AI service"}), 500
+                
+                # Parse JSON response
+                try:
+                    parsed = json.loads(text.strip())
+                except json.JSONDecodeError as e:
+                    return jsonify({"error": f"Invalid response format from AI service: {str(e)}"}), 500
+                
+                # Map the response to expected format (code analysis uses different keys)
+                result = {
+                    "title": parsed.get("project_title", repo),
+                    "introduction": parsed.get("solution_overview", "Project analysis based on code structure."),
+                    "problem_statement": parsed.get("problem_statement", "Problem inferred from code analysis."),
+                    "solution_overview": parsed.get("solution_overview", "Solution based on technical implementation."),
+                    "key_features": parsed.get("key_features", "Features inferred from codebase."),
+                    "target_audience": parsed.get("target_audience", "Target audience based on technical stack."),
+                    "technology_stack": parsed.get("technology_stack", "Technology stack detected from code."),
+                    "future_scope": parsed.get("future_scope", "Future enhancements based on current foundation.")
+                }
+                
+                return jsonify({
+                    "validation_status": True,
+                    "analysis_result": result,
+                    "source": "code_analysis",
+                    "repo_analysis": repo_analysis
+                })
+                
+            except Exception as e:
+                return jsonify({"error": f"Error generating pitch deck from code analysis: {str(e)}"}), 500
             
         title = repo
         repo_owner = owner
