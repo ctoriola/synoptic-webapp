@@ -117,6 +117,7 @@
                     <h4 class="text-lg font-medium text-gray-900 mb-4">Question Breakdown</h4>
                     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {% for question in data.survey.questions %}
+                        {% set question_index = loop.index0 %}
                         <div class="bg-gray-50 p-4 rounded-lg">
                             <h5 class="font-medium text-gray-900 mb-2">{{ question.text }}</h5>
                             <div class="flex items-center space-x-4 text-sm text-gray-600">
@@ -134,7 +135,7 @@
                                 <h6 class="text-sm font-medium text-gray-700 mb-2">Response Distribution:</h6>
                                 {% set question_responses = [] %}
                                 {% for response in data.responses %}
-                                    {% set answer = response.responses.get(question.text) %}
+                                    {% set answer = response.responses.get(question_index|string) %}
                                     {% if answer %}
                                         {% set _ = question_responses.append(answer) %}
                                     {% endif %}
@@ -151,6 +152,77 @@
                                         <div class="bg-blue-600 h-1 rounded-full" style="width: {{ percentage }}%"></div>
                                     </div>
                                 {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Response Distribution for Rating Questions -->
+                            {% if question.type == 'rating' %}
+                            <div class="mt-3">
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Rating Distribution:</h6>
+                                {% set rating_responses = [] %}
+                                {% for response in data.responses %}
+                                    {% set answer = response.responses.get(question_index|string) %}
+                                    {% if answer and answer|string|regex_search('^\d+$') %}
+                                        {% set _ = rating_responses.append(answer|int) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if rating_responses %}
+                                    {% set avg_rating = (rating_responses|sum / rating_responses|length) %}
+                                    <div class="mb-2">
+                                        <span class="text-sm text-gray-600">Average: </span>
+                                        <span class="font-medium text-primary-600">{{ "%.1f"|format(avg_rating) }}/5</span>
+                                        <span class="text-sm text-gray-500">({{ rating_responses|length }} responses)</span>
+                                    </div>
+                                    
+                                    {% for rating in range(1, 6) %}
+                                        {% set count = rating_responses.count(rating) %}
+                                        {% set percentage = (count / rating_responses|length * 100) if rating_responses|length > 0 else 0 %}
+                                        <div class="flex items-center justify-between text-sm mb-1">
+                                            <span class="text-gray-600">{{ rating }} star{{ 's' if rating != 1 else '' }}</span>
+                                            <span class="font-medium">{{ count }} ({{ "%.0f"|format(percentage) }}%)</span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-1 mb-2">
+                                            <div class="bg-yellow-500 h-1 rounded-full" style="width: {{ percentage }}%"></div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="text-sm text-gray-500">No valid rating responses yet.</p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Response Summary for Text Questions -->
+                            {% if question.type == 'text' %}
+                            <div class="mt-3">
+                                <h6 class="text-sm font-medium text-gray-700 mb-2">Response Summary:</h6>
+                                {% set text_responses = [] %}
+                                {% for response in data.responses %}
+                                    {% set answer = response.responses.get(question_index|string) %}
+                                    {% if answer and answer|string|trim %}
+                                        {% set _ = text_responses.append(answer) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if text_responses %}
+                                    <div class="text-sm text-gray-600 mb-2">
+                                        <span class="font-medium">{{ text_responses|length }}</span> text responses received
+                                    </div>
+                                    <div class="space-y-2 max-h-32 overflow-y-auto">
+                                        {% for response in text_responses[:3] %}
+                                        <div class="bg-white p-2 rounded border text-sm">
+                                            "{{ response[:100] }}{{ '...' if response|length > 100 else '' }}"
+                                        </div>
+                                        {% endfor %}
+                                        {% if text_responses|length > 3 %}
+                                        <div class="text-xs text-gray-500 text-center">
+                                            and {{ text_responses|length - 3 }} more responses...
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-sm text-gray-500">No text responses yet.</p>
+                                {% endif %}
                             </div>
                             {% endif %}
                         </div>
