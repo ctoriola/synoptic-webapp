@@ -184,8 +184,89 @@ def generator():
             
             # Generate pitch deck content based on source
             if content_source == "code_analysis":
-                # Already have analysis_result from code analysis
-                pass
+                # Convert analysis_result to slide format
+                prompt = f"""Convert the following project analysis into a comprehensive pitch deck format. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by content in bullet points using simple dashes:
+
+Project Analysis:
+Title: {analysis_result['title']}
+Problem Statement: {analysis_result['problem_statement']}
+Solution Overview: {analysis_result['solution_overview']}
+Key Features: {analysis_result['key_features']}
+Target Audience: {analysis_result['target_audience']}
+Technology Stack: {analysis_result['technology_stack']}
+Future Scope: {analysis_result['future_scope']}
+
+Please format this as a 13-slide pitch deck with the following structure:
+
+Slide 1: Title Slide
+   Project name and compelling tagline
+   Creator/team information
+   Current date
+
+Slide 2: Problem Statement
+   What critical problem does this project solve
+   Current pain points in the market
+   Why this problem needs solving now
+
+Slide 3: Solution Overview
+   How this project uniquely addresses the problem
+   Core features and key functionality
+   What makes this solution different
+
+Slide 4: Market Opportunity
+   Target market size and potential
+   User personas and market segments
+   Market trends supporting this solution
+
+Slide 5: Product Demo
+   Key features walkthrough
+   User experience highlights
+   Technical capabilities showcase
+
+Slide 6: Technology Stack
+   Technical architecture overview
+   Scalability and performance considerations
+   Security and reliability features
+
+Slide 7: Business Model
+   Revenue generation strategy
+   Pricing structure and monetization
+   Customer acquisition approach
+
+Slide 8: Competitive Analysis
+   Current competitive landscape
+   Key competitive advantages
+   Market differentiation strategy
+
+Slide 9: Go-to-Market Strategy
+   Launch strategy and timeline
+   Marketing and distribution channels
+   Partnership opportunities
+
+Slide 10: Team and Expertise
+   Core team members and their roles
+   Relevant experience and background
+   Advisory support and partnerships
+
+Slide 11: Financial Projections
+   Revenue forecasts and growth projections
+   Cost structure and unit economics
+   Funding requirements and timeline
+
+Slide 12: Investment Ask
+   Specific funding amount requested
+   Detailed use of funds breakdown
+   Expected milestones and outcomes
+
+Slide 13: Next Steps and Vision
+   Immediate development milestones
+   Long-term product vision
+   Partnership and growth opportunities
+
+IMPORTANT: Use only plain text formatting. No markdown symbols. Keep content concise and investor-focused. Each slide should have 3-5 key points maximum."""
+
+                response = model.generate_content(prompt)
+                pitch_deck_content = response.text
             else:
                 # Process README content normally
                 user_token = current_user.github_token if current_user.is_authenticated else None
