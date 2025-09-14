@@ -706,6 +706,14 @@ Customer Lifetime Value: {market_research['ltv_estimate']}
 
 Create a detailed, investor-ready 13-slide pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
 
+CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+- NO placeholder text anywhere - no [Company Name], [X%], [Insert Details], [TBD], [Amount], etc.
+- Extract ALL content from the project description and repository analysis provided
+- Use the market intelligence data for specific figures, competitors, and industry insights
+- Apply industry knowledge to create realistic, specific information for any gaps
+- Every slide must be complete and presentation-ready with concrete details
+- Never use generic terms or ask readers to "insert" information
+
 Slide 1: Title Slide
    - Compelling project name with memorable tagline that captures the essence
    - Repository owner and development team information
@@ -835,6 +843,14 @@ Customer Acquisition Cost: {market_research['cac_estimate']}
 Customer Lifetime Value: {market_research['ltv_estimate']}
 
 Create a detailed, investor-ready pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights derived from the README content, repository context, and market research data above. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
+
+CRITICAL ANTI-PLACEHOLDER REQUIREMENTS:
+- NO placeholder text anywhere - no [Company Name], [X%], [Insert Details], [TBD], [Amount], etc.
+- Extract ALL content from the README and repository analysis provided
+- Use the market intelligence data for specific figures, competitors, and industry insights
+- Apply industry knowledge to create realistic, specific information for any gaps
+- Every slide must be complete and presentation-ready with concrete details
+- Never use generic terms or ask readers to "insert" information
 
 Slide 1: Title Slide
    - Compelling project name with memorable tagline that captures the essence

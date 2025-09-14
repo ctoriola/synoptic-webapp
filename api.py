@@ -884,9 +884,27 @@ Please generate a detailed pitch deck with exactly {slide_count} slides as speci
 
 {slide_structure}
 
-IMPORTANT: Use the market intelligence data provided above to create realistic, specific content. Do NOT use placeholder text or generic terms like [Company Name] or [X%]. Incorporate the actual market figures, competitor names, and industry insights into your slides.
+CRITICAL ANTI-PLACEHOLDER RULES:
+1. NO placeholder text anywhere - no [Company Name], [X%], [Insert Details], [TBD], etc.
+2. For PROBLEM STATEMENT: Use specific, real-world problems with concrete examples and statistics
+3. For SOLUTION: Describe actual features and capabilities based on the project content
+4. For MARKET OPPORTUNITY: Use the provided market intelligence data with specific figures
+5. For COMPETITION: Name real competitors with actual pricing and feature comparisons
+6. For BUSINESS MODEL: Propose realistic revenue streams based on similar successful projects
+7. For FINANCIALS: Use industry-standard metrics and realistic projections
+8. For TEAM: If team info not provided, focus on required expertise and roles needed
+9. For ROADMAP: Create realistic development milestones based on project scope
+10. For NEXT STEPS: Specify concrete actions, funding amounts, and timelines
+11. For VISION: Articulate specific long-term goals and market impact
 
-Make each slide concise, compelling, and investor-ready. Focus on storytelling and visual concepts that would work well in a presentation format.
+CONTENT SOURCING REQUIREMENTS:
+- Extract all details from the project content provided
+- Use market intelligence data for competitive and financial information
+- Apply industry knowledge to fill gaps with realistic, specific information
+- Never use generic terms or ask readers to "insert" information
+- Every slide must be complete and presentation-ready
+
+Make each slide investor-ready with specific, actionable content that tells a compelling story.
 """
         
         # Generate pitch deck
