@@ -8,75 +8,123 @@ import json
 
 dashboard_bp = Blueprint('dashboard', __name__, url_prefix='/dashboard')
 
-def conduct_market_research(project_name, technology_stack, target_audience):
-    """Conduct market research for a project using web search"""
+def generate_market_intelligence(project_name, technology_stack, target_audience, project_description=""):
+    """Generate comprehensive market intelligence using AI knowledge base"""
+    
+    # Create a detailed market research prompt for AI
+    market_research_prompt = f"""
+    As an expert market research analyst and venture capitalist, provide comprehensive market intelligence for this project:
+    
+    Project: {project_name}
+    Technology Stack: {technology_stack}
+    Target Audience: {target_audience}
+    Project Description: {project_description}
+    
+    Provide detailed market research in the following format:
+    
+    MARKET_SIZE: [Provide realistic TAM, SAM, SOM figures with specific dollar amounts and growth rates for this sector]
+    
+    COMPETITORS_DIRECT: [List 5-7 actual companies/products that compete directly, with brief description of each]
+    
+    COMPETITORS_INDIRECT: [List 3-5 companies/solutions that address similar needs through different approaches]
+    
+    MARKET_TRENDS: [Describe 4-5 key industry trends driving growth in this sector]
+    
+    TARGET_INSIGHTS: [Detailed analysis of target market segments, demographics, pain points, and willingness to pay]
+    
+    GROWTH_PROJECTIONS: [Industry growth forecasts, adoption rates, and market timing analysis]
+    
+    CAC_ESTIMATE: [Realistic customer acquisition cost estimate with reasoning]
+    
+    LTV_ESTIMATE: [Realistic lifetime value estimate with reasoning]
+    
+    Use your knowledge of similar companies, market dynamics, and industry benchmarks to provide realistic, investor-grade analysis.
+    """
+    
     try:
-        # Define search queries for comprehensive market research
-        search_queries = [
-            f"{project_name} market size industry analysis",
-            f"{technology_stack} market trends 2024 2025",
-            f"{target_audience} market research statistics",
-            f"{project_name} competitors competitive analysis",
-            f"{technology_stack} industry growth projections"
-        ]
+        import google.generativeai as genai
+        import os
         
+        # Configure Gemini
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        response = model.generate_content(market_research_prompt)
+        market_intelligence = response.text
+        
+        # Parse the response into structured data
+        market_data = parse_market_intelligence(market_intelligence)
+        return market_data
+        
+    except Exception as e:
+        print(f"DEBUG: Market intelligence generation failed: {str(e)}")
+        return generate_fallback_market_data(project_name, technology_stack, target_audience)
+
+def parse_market_intelligence(intelligence_text):
+    """Parse AI-generated market intelligence into structured data"""
+    try:
         market_data = {
             "market_size": "",
+            "competitors_direct": "",
+            "competitors_indirect": "",
             "industry_trends": "",
-            "competitive_landscape": "",
             "target_market_insights": "",
-            "growth_projections": ""
+            "growth_projections": "",
+            "cac_estimate": "",
+            "ltv_estimate": ""
         }
         
-        # Use web search to gather market intelligence
-        try:
-            from api import search_web_content  # Import the search function
-        except ImportError:
-            # Fallback if import fails
-            def search_web_content(query, max_results=3):
-                return [{
-                    'title': 'Market Research',
-                    'snippet': f'Market analysis indicates growing opportunities in the {query.split()[0]} sector with favorable conditions for new entrants and innovative solutions.',
-                    'url': ''
-                }]
+        # Extract sections using keywords
+        lines = intelligence_text.split('\n')
+        current_section = None
         
-        for i, query in enumerate(search_queries):
-            try:
-                search_results = search_web_content(query, max_results=3)
-                if search_results:
-                    # Extract key insights from search results
-                    insights = []
-                    for result in search_results[:2]:  # Use top 2 results
-                        if result.get('snippet'):
-                            insights.append(result['snippet'])
-                    
-                    # Map results to market data categories
-                    if i == 0:  # Market size
-                        market_data["market_size"] = " ".join(insights)
-                    elif i == 1:  # Technology trends
-                        market_data["industry_trends"] = " ".join(insights)
-                    elif i == 2:  # Target audience
-                        market_data["target_market_insights"] = " ".join(insights)
-                    elif i == 3:  # Competitors
-                        market_data["competitive_landscape"] = " ".join(insights)
-                    elif i == 4:  # Growth projections
-                        market_data["growth_projections"] = " ".join(insights)
-                        
-            except Exception as e:
-                print(f"DEBUG: Market research query failed: {query} - {str(e)}")
-                continue
+        for line in lines:
+            line = line.strip()
+            if line.startswith('MARKET_SIZE:'):
+                current_section = 'market_size'
+                market_data[current_section] = line.replace('MARKET_SIZE:', '').strip()
+            elif line.startswith('COMPETITORS_DIRECT:'):
+                current_section = 'competitors_direct'
+                market_data[current_section] = line.replace('COMPETITORS_DIRECT:', '').strip()
+            elif line.startswith('COMPETITORS_INDIRECT:'):
+                current_section = 'competitors_indirect'
+                market_data[current_section] = line.replace('COMPETITORS_INDIRECT:', '').strip()
+            elif line.startswith('MARKET_TRENDS:'):
+                current_section = 'industry_trends'
+                market_data[current_section] = line.replace('MARKET_TRENDS:', '').strip()
+            elif line.startswith('TARGET_INSIGHTS:'):
+                current_section = 'target_market_insights'
+                market_data[current_section] = line.replace('TARGET_INSIGHTS:', '').strip()
+            elif line.startswith('GROWTH_PROJECTIONS:'):
+                current_section = 'growth_projections'
+                market_data[current_section] = line.replace('GROWTH_PROJECTIONS:', '').strip()
+            elif line.startswith('CAC_ESTIMATE:'):
+                current_section = 'cac_estimate'
+                market_data[current_section] = line.replace('CAC_ESTIMATE:', '').strip()
+            elif line.startswith('LTV_ESTIMATE:'):
+                current_section = 'ltv_estimate'
+                market_data[current_section] = line.replace('LTV_ESTIMATE:', '').strip()
+            elif current_section and line:
+                market_data[current_section] += " " + line
         
         return market_data
         
     except Exception as e:
-        print(f"DEBUG: Market research failed: {str(e)}")
-        return {
-            "market_size": "Market research data unavailable",
-            "industry_trends": "Industry trend data unavailable", 
-            "competitive_landscape": "Competitive analysis data unavailable",
-            "target_market_insights": "Target market data unavailable",
-            "growth_projections": "Growth projection data unavailable"
-        }
+        print(f"DEBUG: Failed to parse market intelligence: {str(e)}")
+        return generate_fallback_market_data("", "", "")
+
+def generate_fallback_market_data(project_name, technology_stack, target_audience):
+    """Generate fallback market data when AI analysis fails"""
+    return {
+        "market_size": f"Growing market opportunity in {technology_stack} sector with increasing demand from {target_audience}",
+        "competitors_direct": f"Competitive landscape includes established players and emerging startups in the {technology_stack} space",
+        "competitors_indirect": f"Alternative solutions exist but {project_name} offers unique value proposition",
+        "industry_trends": f"Key trends driving growth include digital transformation and increased adoption of {technology_stack}",
+        "target_market_insights": f"{target_audience} represents significant market opportunity with specific pain points to address",
+        "growth_projections": f"Market expected to grow significantly driven by technology adoption and user demand",
+        "cac_estimate": "Customer acquisition cost estimated based on digital marketing channels and target audience characteristics",
+        "ltv_estimate": "Customer lifetime value projected using industry benchmarks and engagement patterns"
+    }
 
 def _has_generation_access(user):
     """Check if user has access to generate pitch decks"""
@@ -249,24 +297,26 @@ def generator():
                 content_source = "code_analysis"
                 print(f"DEBUG: Generated content from code analysis for {repo_owner}/{repo_name}")
                 
-                # Conduct market research for code analysis projects
-                print(f"DEBUG: Conducting market research for {repo_owner}/{repo_name}")
-                market_research = conduct_market_research(
+                # Generate market intelligence for code analysis projects
+                print(f"DEBUG: Generating market intelligence for {repo_owner}/{repo_name}")
+                market_research = generate_market_intelligence(
                     analysis_result.get("title", repo_name),
                     analysis_result.get("technology_stack", ""),
-                    analysis_result.get("target_audience", "")
+                    analysis_result.get("target_audience", ""),
+                    analysis_result.get("solution_overview", "")
                 )
             else:
                 # README found - process normally
                 content_source = "readme"
                 print(f"DEBUG: Found README for {repo_owner}/{repo_name}")
                 
-                # Conduct market research for README projects
-                print(f"DEBUG: Conducting market research for {repo_owner}/{repo_name}")
-                market_research = conduct_market_research(
+                # Generate market intelligence for README projects
+                print(f"DEBUG: Generating market intelligence for {repo_owner}/{repo_name}")
+                market_research = generate_market_intelligence(
                     repo_name,
                     "web application",  # Default tech stack
-                    "developers and businesses"  # Default target audience
+                    "developers and businesses",  # Default target audience
+                    content[:500] if content else ""  # First 500 chars of README as description
                 )
             
             
@@ -284,12 +334,15 @@ Target Audience: {analysis_result['target_audience']}
 Technology Stack: {analysis_result['technology_stack']}
 Future Scope: {analysis_result['future_scope']}
 
-Market Research Data:
-Market Size: {market_research['market_size']}
+Market Intelligence Data:
+Market Size Analysis: {market_research['market_size']}
+Direct Competitors: {market_research['competitors_direct']}
+Indirect Competitors: {market_research['competitors_indirect']}
 Industry Trends: {market_research['industry_trends']}
-Competitive Landscape: {market_research['competitive_landscape']}
 Target Market Insights: {market_research['target_market_insights']}
 Growth Projections: {market_research['growth_projections']}
+Customer Acquisition Cost: {market_research['cac_estimate']}
+Customer Lifetime Value: {market_research['ltv_estimate']}
 
 Create a detailed, investor-ready 13-slide pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
 
@@ -394,7 +447,7 @@ Slide 13: Next Steps and Vision
    - Market expansion strategy and international opportunities
    - Innovation pipeline and future product development
 
-IMPORTANT: You are an expert investor and serial entrepreneur with deep market knowledge. Generate actual, specific, and realistic content for every slide - NO placeholder text or brackets. For competitive analysis, research and name real competitors in the project's space, analyze their actual features and pricing. For market opportunity, calculate realistic TAM/SAM/SOM figures using industry data. For business metrics, provide specific CAC and LTV estimates with reasoning. Use your knowledge of similar companies, market dynamics, and industry benchmarks to create authentic investor-grade analysis. Every number, competitor name, and market insight should be realistic and defensible. Create a compelling investment narrative with concrete data that an experienced investor would expect to see."""
+IMPORTANT: You are an expert investor and serial entrepreneur with deep market knowledge. Use the market intelligence data provided above to generate specific, realistic content for every slide. For competitive analysis, use the direct and indirect competitors listed in the market intelligence. For market opportunity, use the market size analysis and target insights provided. For business metrics, use the CAC and LTV estimates from the market intelligence data. Integrate this research seamlessly into the pitch deck slides - do not just copy-paste but weave the insights naturally into compelling investor narratives. Every slide should reflect the specific market intelligence gathered for this project."""
 
                 response = model.generate_content(prompt)
                 pitch_deck_content = response.text
@@ -411,12 +464,15 @@ Repository: {repo_owner}/{repo_name}
 
 README Content:\n{content}\n\n
 
-Market Research Data:
-Market Size: {market_research['market_size']}
+Market Intelligence Data:
+Market Size Analysis: {market_research['market_size']}
+Direct Competitors: {market_research['competitors_direct']}
+Indirect Competitors: {market_research['competitors_indirect']}
 Industry Trends: {market_research['industry_trends']}
-Competitive Landscape: {market_research['competitive_landscape']}
 Target Market Insights: {market_research['target_market_insights']}
 Growth Projections: {market_research['growth_projections']}
+Customer Acquisition Cost: {market_research['cac_estimate']}
+Customer Lifetime Value: {market_research['ltv_estimate']}
 
 Create a detailed, investor-ready pitch deck. Each slide should be rich with specific details, compelling narratives, and actionable insights derived from the README content, repository context, and market research data above. Use ONLY plain text formatting - NO markdown symbols like ** or ## or - bullets. Format each slide clearly with the slide number and title, followed by detailed content in bullet points using simple dashes:
 
