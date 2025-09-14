@@ -314,13 +314,13 @@ Slide 3: Solution Overview
    - Technical innovation and breakthrough aspects
 
 Slide 4: Market Opportunity
-   - Total addressable market (TAM) with specific dollar figures and growth rates
-   - Serviceable addressable market (SAM) and serviceable obtainable market (SOM)
-   - Detailed user personas with demographics, pain points, and buying behavior
-   - Market segmentation analysis with prioritized target segments
-   - Geographic expansion roadmap with market entry strategies
-   - Revenue potential with conservative, optimistic, and realistic projections
-   - Market timing analysis and adoption curve positioning
+   - Research and calculate total addressable market (TAM) with specific dollar figures and annual growth rates for this project's sector
+   - Determine serviceable addressable market (SAM) and serviceable obtainable market (SOM) based on realistic market penetration
+   - Create detailed user personas with specific demographics, pain points, buying behavior, and willingness to pay
+   - Analyze market segments and prioritize target segments based on size, growth potential, and competitive intensity
+   - Develop geographic expansion roadmap with specific market entry strategies and timing
+   - Project revenue potential with conservative, optimistic, and realistic scenarios based on market data
+   - Analyze market timing, technology adoption curves, and competitive dynamics
 
 Slide 5: Product Demo
    - Comprehensive walkthrough of key features and capabilities
@@ -339,21 +339,21 @@ Slide 6: Technology Stack
 Slide 7: Business Model
    - Primary revenue streams with detailed monetization strategies
    - Pricing model analysis (freemium, subscription, one-time, usage-based)
-   - Customer acquisition cost: [Insert estimated CAC based on marketing strategy]
-   - Lifetime value: [Insert estimated LTV based on average order value and purchase frequency]
+   - Calculate realistic customer acquisition cost based on the marketing channels and target audience
+   - Estimate customer lifetime value using industry benchmarks and project characteristics
    - Unit economics breakdown with contribution margins
    - Strategic partnership revenue opportunities and channel strategies
    - Revenue diversification plan and recurring revenue components
    - Scalability factors and operational leverage points
 
 Slide 8: Competitive Analysis
-   - Direct competitors: [List specific competitors and provide comparison matrix based on features, pricing, and target market]
-   - Indirect competitors: [List related online services that may provide alternative solutions]
-   - Competitive positioning map showing market gaps and opportunities
-   - Detailed SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
-   - Feature comparison matrix with specific functionality differences
-   - Pricing comparison table with competitive advantages highlighted
-   - Market share analysis and competitive response strategies
+   - Research and identify 3-5 direct competitors in the same space, analyze their features, pricing models, and target markets
+   - Research and identify 3-5 indirect competitors or substitute solutions that address similar user needs
+   - Create a detailed feature comparison showing where this project has advantages and gaps
+   - Analyze competitor pricing strategies and position this project's value proposition
+   - Identify market positioning opportunities and white space in the competitive landscape
+   - Provide specific SWOT analysis based on actual competitor research
+   - Outline competitive differentiation strategy and sustainable advantages
 
 Slide 9: Go-to-Market Strategy
    - Phase-by-phase market entry strategy with specific timelines and milestones
@@ -394,7 +394,7 @@ Slide 13: Next Steps and Vision
    - Market expansion strategy and international opportunities
    - Innovation pipeline and future product development
 
-IMPORTANT: Make each slide rich with specific details, compelling narratives, and actionable insights derived from both the project analysis AND the market research data provided above. For competitive analysis, research and list actual competitor names with specific feature/pricing comparisons. For business model metrics, provide realistic CAC and LTV estimates based on the project type and market. Incorporate market size figures, industry trends, competitive insights, and growth projections into relevant slides. Avoid generic statements and placeholder text. Use concrete examples, specific metrics when possible, and create a compelling story that builds investor confidence. Each slide should have 4-6 detailed points that provide substantial value and insight."""
+IMPORTANT: You are an expert investor and serial entrepreneur with deep market knowledge. Generate actual, specific, and realistic content for every slide - NO placeholder text or brackets. For competitive analysis, research and name real competitors in the project's space, analyze their actual features and pricing. For market opportunity, calculate realistic TAM/SAM/SOM figures using industry data. For business metrics, provide specific CAC and LTV estimates with reasoning. Use your knowledge of similar companies, market dynamics, and industry benchmarks to create authentic investor-grade analysis. Every number, competitor name, and market insight should be realistic and defensible. Create a compelling investment narrative with concrete data that an experienced investor would expect to see."""
 
                 response = model.generate_content(prompt)
                 pitch_deck_content = response.text
@@ -441,13 +441,13 @@ Slide 3: Solution Overview
    - Technical innovation and breakthrough aspects
 
 Slide 4: Market Opportunity
-   - Total addressable market (TAM) with specific dollar figures and growth rates
-   - Serviceable addressable market (SAM) and serviceable obtainable market (SOM)
-   - Detailed user personas with demographics, pain points, and buying behavior
-   - Market segmentation analysis with prioritized target segments
-   - Geographic expansion roadmap with market entry strategies
-   - Revenue potential with conservative, optimistic, and realistic projections
-   - Market timing analysis and adoption curve positioning
+   - Research and calculate total addressable market (TAM) with specific dollar figures and annual growth rates for this project's sector
+   - Determine serviceable addressable market (SAM) and serviceable obtainable market (SOM) based on realistic market penetration
+   - Create detailed user personas with specific demographics, pain points, buying behavior, and willingness to pay
+   - Analyze market segments and prioritize target segments based on size, growth potential, and competitive intensity
+   - Develop geographic expansion roadmap with specific market entry strategies and timing
+   - Project revenue potential with conservative, optimistic, and realistic scenarios based on market data
+   - Analyze market timing, technology adoption curves, and competitive dynamics
 
 Slide 5: Product Demonstration
    - Comprehensive walkthrough of key features and capabilities
@@ -471,13 +471,13 @@ Slide 7: Traction and Growth
    - Growth rate projections and scaling strategies
 
 Slide 8: Competitive Analysis
-   - Direct competitors: [List specific competitors and provide comparison matrix based on features, pricing, and target market]
-   - Indirect competitors: [List related online services that may provide alternative solutions]
-   - Competitive positioning map showing market gaps and opportunities
-   - Detailed SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
-   - Feature comparison matrix with specific functionality differences
-   - Pricing comparison table with competitive advantages highlighted
-   - Market share analysis and competitive response strategies
+   - Research and identify 3-5 direct competitors in the same space, analyze their features, pricing models, and target markets
+   - Research and identify 3-5 indirect competitors or substitute solutions that address similar user needs
+   - Create a detailed feature comparison showing where this project has advantages and gaps
+   - Analyze competitor pricing strategies and position this project's value proposition
+   - Identify market positioning opportunities and white space in the competitive landscape
+   - Provide specific SWOT analysis based on actual competitor research
+   - Outline competitive differentiation strategy and sustainable advantages
 
 Slide 9: Technology Stack
    - Detailed technical architecture overview and design decisions
