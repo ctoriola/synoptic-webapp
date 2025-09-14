@@ -831,16 +831,60 @@ def api_generate():
         
         slide_structure = "\n\n".join(slides)
         
-        prompt = f"""Generate a comprehensive pitch deck for the following project:
+        # Extract project details for market research
+        project_name = title
+        technology_stack = "Unknown"
+        target_audience = "General"
+        
+        # Try to extract tech stack and audience from content
+        content_lower = content.lower()
+        if any(tech in content_lower for tech in ["javascript", "js", "node", "react", "vue", "angular"]):
+            technology_stack = "JavaScript/Web Development"
+        elif any(tech in content_lower for tech in ["python", "django", "flask", "fastapi"]):
+            technology_stack = "Python"
+        elif any(tech in content_lower for tech in ["mobile", "ios", "android", "flutter", "react native"]):
+            technology_stack = "Mobile Development"
+        elif any(tech in content_lower for tech in ["ai", "ml", "machine learning", "neural", "gpt"]):
+            technology_stack = "AI/Machine Learning"
+        
+        if any(audience in content_lower for audience in ["business", "enterprise", "company"]):
+            target_audience = "Businesses"
+        elif any(audience in content_lower for audience in ["developer", "programmer", "coder"]):
+            target_audience = "Developers"
+        elif any(audience in content_lower for audience in ["startup", "entrepreneur"]):
+            target_audience = "Startups"
+        
+        # Generate market intelligence for this project
+        from dashboard import generate_market_intelligence
+        market_data = generate_market_intelligence(project_name, technology_stack, target_audience, content)
+        
+        # Build enhanced prompt with market intelligence
+        market_context = f"""
+Market Intelligence:
+- Market Size: {market_data.get('market_size', 'Market analysis pending')}
+- Direct Competitors: {market_data.get('competitors_direct', 'Competitive analysis pending')}
+- Indirect Competitors: {market_data.get('competitors_indirect', 'Alternative solutions analysis pending')}
+- Industry Trends: {market_data.get('industry_trends', 'Trend analysis pending')}
+- Target Market Insights: {market_data.get('target_market_insights', 'Audience analysis pending')}
+- Growth Projections: {market_data.get('growth_projections', 'Growth analysis pending')}
+- Customer Acquisition Cost: {market_data.get('cac_estimate', 'CAC analysis pending')}
+- Customer Lifetime Value: {market_data.get('ltv_estimate', 'LTV analysis pending')}
+"""
+
+        prompt = f"""Generate a comprehensive pitch deck for the following project using the provided market intelligence:
 
 Project: {title}
 {f'Repository: {repo_owner}/{repo_name}' if repo_url else 'Custom Project'}
 
 Project Content:\n{content}\n\n
 
+{market_context}
+
 Please generate a detailed pitch deck with exactly {slide_count} slides as specified below:
 
 {slide_structure}
+
+IMPORTANT: Use the market intelligence data provided above to create realistic, specific content. Do NOT use placeholder text or generic terms like [Company Name] or [X%]. Incorporate the actual market figures, competitor names, and industry insights into your slides.
 
 Make each slide concise, compelling, and investor-ready. Focus on storytelling and visual concepts that would work well in a presentation format.
 """
