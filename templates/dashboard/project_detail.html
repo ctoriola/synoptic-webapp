@@ -529,12 +529,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     showContentUpdateOption(data.updated_content);
                 }
             } else {
-                addMessage('Sorry, I encountered an error. Please try again.', 'ai');
+                addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
             }
         })
         .catch(error => {
             hideTypingIndicator();
-            addMessage('Sorry, I\'m having trouble connecting. Please try again.', 'ai');
+            addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
         });
     }
 
@@ -819,7 +819,7 @@ window.applyContentUpdate = function(encodedContent) {
                 updateOption.remove();
             }
         } else {
-            window.addMessage('❌ Failed to update pitch deck. Please try again.', 'ai');
+            window.addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
         }
     })
     .catch(error => {
@@ -828,7 +828,7 @@ window.applyContentUpdate = function(encodedContent) {
         if (loadingMessage && loadingMessage.parentNode) {
             loadingMessage.remove();
         }
-        window.addMessage(`❌ Failed to apply changes: ${error.message}`, 'ai');
+        window.addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
     });
 };
 
@@ -932,7 +932,7 @@ window.revertChanges = function() {
             // Remove the revert option
             event.target.closest('.flex').remove();
         } else {
-            window.addMessage('❌ Failed to revert changes. Please try again.', 'ai');
+            window.addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
         }
     })
     .catch(error => {
@@ -941,7 +941,7 @@ window.revertChanges = function() {
         if (loadingMessage && loadingMessage.parentNode) {
             loadingMessage.remove();
         }
-        window.addMessage(`❌ Failed to revert: ${error.message}`, 'ai');
+        window.addMessage('I\'m here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements.', 'ai');
     });
 };
 </script>

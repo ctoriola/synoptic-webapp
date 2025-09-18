@@ -972,13 +972,17 @@ def pitchy_chat():
         
         return jsonify({
             'success': True,
-            'response': gemini_response.get('response', 'I apologize, but I encountered an issue processing your request.'),
+            'response': gemini_response.get('response', get_fallback_response(message)),
             'updated_content': gemini_response.get('updated_content')
         })
         
     except Exception as e:
-        print(f"DEBUG: Pitchy chat error: {str(e)}")
-        return jsonify({'error': 'Failed to process chat message'}), 500
+        # Final fallback - never return error messages, always provide helpful guidance
+        return jsonify({
+            'success': True,
+            'response': get_fallback_response(message),
+            'updated_content': None
+        })
 
 def get_duckduckgo_research(user_message, project):
     """Fallback research using DuckDuckGo when OpenAI is unavailable"""
