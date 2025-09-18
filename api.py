@@ -1047,26 +1047,27 @@ def get_openai_research(user_message, current_content, project):
     import time
     
     try:
-        import openai
+        from openai import OpenAI
         
-        openai.api_key = os.getenv('OPENAI_API_KEY')
-        if not openai.api_key:
-            return {'research': 'OpenAI not configured', 'suggestions': []}
+        api_key = os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            # Immediately fall back to DuckDuckGo if no API key
+            raise Exception("OpenAI API key not configured")
+        
+        client = OpenAI(api_key=api_key)
         
         # Analyze the user's request and current content
         research_prompt = f"""
-        You are a market research and pitch deck expert. A user is asking for help with their pitch deck:
+        You are an expert business consultant and researcher. A user is asking for help with their pitch deck.
         
         User Request: "{user_message}"
+        Project: {project.title}
+        Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
         
-        Current Pitch Deck Content:
-        {current_content[:2000]}...
+        Current Pitch Deck Content (first 1000 chars):
+        {current_content[:1000] if current_content else 'No content provided'}
         
-        Project Info:
-        - Title: {project.title}
-        - Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
-        
-        Please provide:
+        Based on this request, provide:
         1. Specific research data, statistics, or information that would help address their request
         2. Concrete suggestions for improvement
         3. Industry benchmarks or competitor information if relevant
@@ -1076,46 +1077,46 @@ def get_openai_research(user_message, current_content, project):
         Use real company names, actual statistics, and concrete data points.
         """
         
-        # Retry logic for OpenAI API calls
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": research_prompt}],
-                    max_tokens=800,
-                    temperature=0.3
-                )
-                
-                research_content = response.choices[0].message.content
-                
-                return {
-                    'research': research_content,
-                    'user_request': user_message,
-                    'project_context': {
-                        'title': project.title,
-                        'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+        # Retry logic with multiple models for better reliability
+        models_to_try = ["gpt-4o-mini", "gpt-4", "gpt-3.5-turbo"]
+        max_retries = 2  # Reduced retries, faster fallback
+        
+        for model in models_to_try:
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[{"role": "user", "content": research_prompt}],
+                        max_tokens=800,
+                        temperature=0.3,
+                        timeout=10  # 10 second timeout
+                    )
+                    
+                    research_content = response.choices[0].message.content
+                    
+                    return {
+                        'research': research_content,
+                        'user_request': user_message,
+                        'project_context': {
+                            'title': project.title,
+                            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+                        }
                     }
-                }
-                
-            except Exception as retry_error:
-                print(f"DEBUG: OpenAI research attempt {attempt + 1} failed: {str(retry_error)}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
-                    continue
-                else:
-                    raise retry_error
+                    
+                except Exception as retry_error:
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Quick retry
+                        continue
+                    else:
+                        # Try next model
+                        break
+        
+        # If all models failed, raise exception to trigger DuckDuckGo fallback
+        raise Exception("All OpenAI models failed")
         
     except Exception as e:
-        print(f"DEBUG: OpenAI research failed after all retries: {str(e)}")
-        return {
-            'research': 'Unable to gather additional research at this time due to connectivity issues.',
-            'user_request': user_message,
-            'project_context': {
-                'title': project.title,
-                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-            }
-        }
+        # Don't return here - let the calling function handle DuckDuckGo fallback
+        raise e
 
 def format_with_gemini(openai_data, user_message, current_content):
     """Use Gemini to format the response and potentially update content"""
@@ -1124,8 +1125,15 @@ def format_with_gemini(openai_data, user_message, current_content):
         import os
         import time
         
-        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            # Immediately fall back if no API key
+            raise Exception("Gemini API key not configured")
+            
+        genai.configure(api_key=api_key)
+        
+        # Try multiple Gemini models for better reliability
+        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
         
         # Determine if this is a content update request or just a question
         is_update_request = any(keyword in user_message.lower() for keyword in [
@@ -1272,39 +1280,51 @@ def format_with_gemini(openai_data, user_message, current_content):
                 UPDATED_CONTENT: [The complete updated pitch deck content]
                 """
             
-            # Retry logic for API calls
-            max_retries = 3
-            for attempt in range(max_retries):
+            # Retry logic with multiple models
+            max_retries = 2
+            for model_name in models_to_try:
                 try:
-                    response = model.generate_content(update_prompt)
-                    response_text = response.text
-                    
-                    # Parse the response
-                    if 'UPDATED_CONTENT:' in response_text:
-                        parts = response_text.split('UPDATED_CONTENT:', 1)
-                        ai_response = parts[0].replace('RESPONSE:', '').strip()
-                        updated_content = parts[1].strip()
-                        
-                        return {
-                            'response': ai_response,
-                            'updated_content': updated_content
-                        }
-                    else:
-                        return {
-                            'response': response_text,
-                            'updated_content': None
-                        }
-                        
-                except Exception as retry_error:
-                    if attempt < max_retries - 1:
-                        time.sleep(2 ** attempt)  # Exponential backoff
-                        continue
-                    else:
-                        # If all retries failed, provide fallback response
-                        return {
-                            'response': get_fallback_response(user_message),
-                            'updated_content': None
-                        }
+                    model = genai.GenerativeModel(model_name)
+                    for attempt in range(max_retries):
+                        try:
+                            response = model.generate_content(
+                                update_prompt,
+                                generation_config=genai.types.GenerationConfig(
+                                    max_output_tokens=2000,
+                                    temperature=0.3,
+                                )
+                            )
+                            response_text = response.text
+                            
+                            # Parse the response
+                            if 'UPDATED_CONTENT:' in response_text:
+                                parts = response_text.split('UPDATED_CONTENT:', 1)
+                                ai_response = parts[0].replace('RESPONSE:', '').strip()
+                                updated_content = parts[1].strip()
+                                
+                                return {
+                                    'response': ai_response,
+                                    'updated_content': updated_content
+                                }
+                            else:
+                                return {
+                                    'response': response_text,
+                                    'updated_content': None
+                                }
+                                
+                        except Exception as retry_error:
+                            if attempt < max_retries - 1:
+                                time.sleep(1)  # Quick retry
+                                continue
+                            else:
+                                # Try next model
+                                break
+                except Exception:
+                    # Try next model
+                    continue
+            
+            # If all models failed, raise exception for final fallback
+            raise Exception("All Gemini models failed")
         else:
             # Just provide advice/information with retry logic
             advice_prompt = f"""
@@ -1322,27 +1342,39 @@ def format_with_gemini(openai_data, user_message, current_content):
             Keep your response concise but informative (2-3 sentences max).
             """
             
-            # Retry logic for advice requests
-            max_retries = 3
-            for attempt in range(max_retries):
+            # Retry logic for advice requests with multiple models
+            max_retries = 2
+            for model_name in models_to_try:
                 try:
-                    response = model.generate_content(advice_prompt)
-                    
-                    return {
-                        'response': response.text,
-                        'updated_content': None
-                    }
-                    
-                except Exception as retry_error:
-                    if attempt < max_retries - 1:
-                        time.sleep(2 ** attempt)  # Exponential backoff
-                        continue
-                    else:
-                        # If all retries failed, provide fallback response
-                        return {
-                            'response': get_fallback_response(user_message),
-                            'updated_content': None
-                        }
+                    model = genai.GenerativeModel(model_name)
+                    for attempt in range(max_retries):
+                        try:
+                            response = model.generate_content(
+                                advice_prompt,
+                                generation_config=genai.types.GenerationConfig(
+                                    max_output_tokens=500,
+                                    temperature=0.3,
+                                )
+                            )
+                            
+                            return {
+                                'response': response.text,
+                                'updated_content': None
+                            }
+                            
+                        except Exception as retry_error:
+                            if attempt < max_retries - 1:
+                                time.sleep(1)  # Quick retry
+                                continue
+                            else:
+                                # Try next model
+                                break
+                except Exception:
+                    # Try next model
+                    continue
+            
+            # If all models failed, raise exception for final fallback
+            raise Exception("All Gemini models failed")
             
     except Exception as e:
         # Gemini unavailable, providing fallback guidance
