@@ -1061,13 +1061,17 @@ def format_with_gemini(openai_data, user_message, current_content):
         
         # Determine if this is a content update request or just a question
         is_update_request = any(keyword in user_message.lower() for keyword in [
-            'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better'
+            'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better', 
+            'create', 'help me', 'realistic', 'projections', 'metrics', 'financial'
         ])
         
-        # Special handling for problem statement requests (known to cause issues)
+        # Special handling for different request types
         is_problem_statement = 'problem statement' in user_message.lower()
-        if is_problem_statement:
-            print("DEBUG: Problem statement request detected, using simplified approach")
+        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
+        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
+        
+        print(f"DEBUG: Request type - Update: {is_update_request}, Problem: {is_problem_statement}, Financial: {is_financial}, Market: {is_market_data}, Competition: {is_competition}")
         
         if is_update_request and current_content:
             # Generate updated content with retry logic
@@ -1091,6 +1095,70 @@ def format_with_gemini(openai_data, user_message, current_content):
                 Format as:
                 RESPONSE: Brief explanation of improvements made
                 UPDATED_CONTENT: [Enhanced problem statement section only]
+                """
+            elif is_financial:
+                # Specific prompt for financial projections
+                update_prompt = f"""
+                You are Pitchy, a financial modeling expert. Add realistic financial projections and business metrics.
+                
+                User Request: "{user_message}"
+                
+                Current Content:
+                {current_content[:2000]}
+                
+                INSTRUCTIONS:
+                1. Add a comprehensive financial projections section
+                2. Include 3-5 year revenue projections with realistic growth rates
+                3. Add key metrics like CAC, LTV, gross margins, burn rate
+                4. Include funding requirements and use of funds
+                5. Use realistic numbers based on industry standards
+                6. Keep existing content and add financial section
+                
+                Format as:
+                RESPONSE: Brief explanation of financial projections added
+                UPDATED_CONTENT: [Complete updated content with financial section]
+                """
+            elif is_market_data:
+                # Specific prompt for market data
+                update_prompt = f"""
+                You are Pitchy, a market research expert. Enhance the content with specific market data and statistics.
+                
+                User Request: "{user_message}"
+                
+                Current Content:
+                {current_content[:2000]}
+                
+                INSTRUCTIONS:
+                1. Add specific market size data (TAM, SAM, SOM)
+                2. Include growth rates and market trends
+                3. Add relevant industry statistics and benchmarks
+                4. Use realistic, specific numbers
+                5. Enhance existing market sections
+                
+                Format as:
+                RESPONSE: Brief explanation of market data added
+                UPDATED_CONTENT: [Complete updated content with market data]
+                """
+            elif is_competition:
+                # Specific prompt for competitive analysis
+                update_prompt = f"""
+                You are Pitchy, a competitive analysis expert. Enhance the competitive analysis section.
+                
+                User Request: "{user_message}"
+                
+                Current Content:
+                {current_content[:2000]}
+                
+                INSTRUCTIONS:
+                1. Add detailed competitor analysis with specific company names
+                2. Include competitive advantages and differentiators
+                3. Add market positioning and competitive landscape
+                4. Use realistic competitor examples
+                5. Enhance existing competition sections
+                
+                Format as:
+                RESPONSE: Brief explanation of competitive analysis added
+                UPDATED_CONTENT: [Complete updated content with competitive analysis]
                 """
             else:
                 # Full prompt for other improvements

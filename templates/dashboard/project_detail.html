@@ -654,6 +654,9 @@ window.previewChanges = function(encodedContent) {
     const updatedContent = atob(encodedContent);
     const currentContent = document.getElementById('pitch-deck-content')?.textContent || '';
     
+    // Find the changed sections
+    const changedSections = findChangedSections(currentContent, updatedContent);
+    
     // Create preview modal
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
@@ -667,19 +670,26 @@ window.previewChanges = function(encodedContent) {
                     </button>
                 </div>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Current Version</h4>
-                        <div class="bg-gray-50 p-3 rounded-lg text-xs text-gray-600 max-h-64 overflow-y-auto">
-                            ${escapeHtml(currentContent.substring(0, 1000))}${currentContent.length > 1000 ? '...' : ''}
+                <div class="space-y-4 mb-4">
+                    ${changedSections.map(section => `
+                        <div class="border rounded-lg p-3">
+                            <h4 class="text-sm font-medium text-gray-700 mb-2">${section.title}</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div>
+                                    <span class="text-xs text-gray-500">Before:</span>
+                                    <div class="bg-red-50 p-2 rounded text-xs text-gray-600 max-h-32 overflow-y-auto">
+                                        ${window.escapeHtml(section.before)}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="text-xs text-gray-500">After:</span>
+                                    <div class="bg-green-50 p-2 rounded text-xs text-gray-600 max-h-32 overflow-y-auto">
+                                        ${window.escapeHtml(section.after)}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-medium text-gray-700 mb-2">Updated Version</h4>
-                        <div class="bg-blue-50 p-3 rounded-lg text-xs text-gray-600 max-h-64 overflow-y-auto">
-                            ${escapeHtml(updatedContent.substring(0, 1000))}${updatedContent.length > 1000 ? '...' : ''}
-                        </div>
-                    </div>
+                    `).join('')}
                 </div>
                 
                 <div class="flex justify-end space-x-3">
@@ -697,13 +707,72 @@ window.previewChanges = function(encodedContent) {
     document.body.appendChild(modal);
 };
 
+// Find changed sections between old and new content
+function findChangedSections(oldContent, newContent) {
+    const oldSections = extractSections(oldContent);
+    const newSections = extractSections(newContent);
+    const changes = [];
+    
+    // Compare sections
+    for (let i = 0; i < Math.max(oldSections.length, newSections.length); i++) {
+        const oldSection = oldSections[i] || { title: 'New Section', content: '' };
+        const newSection = newSections[i] || { title: 'Removed Section', content: '' };
+        
+        if (oldSection.content !== newSection.content) {
+            changes.push({
+                title: newSection.title || oldSection.title,
+                before: oldSection.content.substring(0, 300) + (oldSection.content.length > 300 ? '...' : ''),
+                after: newSection.content.substring(0, 300) + (newSection.content.length > 300 ? '...' : '')
+            });
+        }
+    }
+    
+    // If no specific sections found, show general before/after
+    if (changes.length === 0) {
+        changes.push({
+            title: 'Content Changes',
+            before: oldContent.substring(0, 500) + (oldContent.length > 500 ? '...' : ''),
+            after: newContent.substring(0, 500) + (newContent.length > 500 ? '...' : '')
+        });
+    }
+    
+    return changes;
+}
+
+// Extract sections from content (simple heuristic)
+function extractSections(content) {
+    const sections = [];
+    const lines = content.split('\n');
+    let currentSection = { title: 'Introduction', content: '' };
+    
+    for (const line of lines) {
+        const trimmed = line.trim();
+        
+        // Check if this looks like a section header
+        if (trimmed.match(/^(##?\s|Slide \d+|Problem|Solution|Market|Competition|Business Model|Financial|Team)/i)) {
+            if (currentSection.content.trim()) {
+                sections.push(currentSection);
+            }
+            currentSection = { title: trimmed, content: '' };
+        } else {
+            currentSection.content += line + '\n';
+        }
+    }
+    
+    if (currentSection.content.trim()) {
+        sections.push(currentSection);
+    }
+    
+    return sections;
+}
+
 // Apply content update function with enhanced feedback
 window.applyContentUpdate = function(encodedContent) {
     const updatedContent = atob(encodedContent);
     const currentContent = document.getElementById('pitch-deck-content')?.textContent || '';
     
     // Show loading state
-    const loadingMessage = addMessage('Applying changes...', 'ai');
+    const loadingMessage = window.addMessage('Applying changes...', 'ai');
     
     // Update the pitch deck content
     fetch(`/dashboard/projects/{{ project.id }}/update-content`, {
@@ -716,7 +785,12 @@ window.applyContentUpdate = function(encodedContent) {
             previous_content: currentContent 
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
     .then(data => {
         // Remove loading message
         if (loadingMessage && loadingMessage.parentNode) {
@@ -734,7 +808,7 @@ window.applyContentUpdate = function(encodedContent) {
             const changesSummary = generateChangesSummary(currentContent, updatedContent);
             
             // Add success message with changes summary
-            addMessage(`✅ Changes applied successfully! Here's what I updated:\n\n${changesSummary}`, 'ai');
+            window.addMessage(`✅ Changes applied successfully! Here's what I updated:\n\n${changesSummary}`, 'ai');
             
             // Remove the update option
             const updateOption = event.target.closest('.flex');
@@ -742,15 +816,16 @@ window.applyContentUpdate = function(encodedContent) {
                 updateOption.remove();
             }
         } else {
-            addMessage('❌ Failed to update pitch deck. Please try again.', 'ai');
+            window.addMessage('❌ Failed to update pitch deck. Please try again.', 'ai');
         }
     })
     .catch(error => {
+        console.error('Apply content error:', error);
         // Remove loading message
         if (loadingMessage && loadingMessage.parentNode) {
             loadingMessage.remove();
         }
-        addMessage('❌ An error occurred while updating the pitch deck.', 'ai');
+        window.addMessage(`❌ Failed to apply changes: ${error.message}`, 'ai');
     });
 };
 
