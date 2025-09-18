@@ -1008,26 +1008,72 @@ def get_duckduckgo_research(user_message, project):
         is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
         is_problem_statement = 'problem statement' in user_message.lower()
         
-        # Create targeted search query
-        project_context = f"{project.name} {project.repo_name}" if project.repo_name else project.name
+        # Create targeted search queries based on project type
+        project_type = ""
+        if project.repo_name:
+            # Try to infer project type from repo name
+            repo_lower = project.repo_name.lower()
+            if any(word in repo_lower for word in ['web', 'app', 'site', 'frontend', 'backend']):
+                project_type = "web application"
+            elif any(word in repo_lower for word in ['ai', 'ml', 'data', 'analytics']):
+                project_type = "AI/ML platform"
+            elif any(word in repo_lower for word in ['mobile', 'ios', 'android']):
+                project_type = "mobile app"
+            elif any(word in repo_lower for word in ['api', 'service', 'microservice']):
+                project_type = "API service"
+            else:
+                project_type = "software platform"
         
+        # Create more specific search queries
+        search_queries = []
         if is_financial:
-            search_query = f"startup financial projections revenue model SaaS metrics CAC LTV"
+            search_queries = [
+                f"{project_type} revenue model examples",
+                f"{project_type} startup financial projections",
+                "SaaS business metrics CAC LTV",
+                f"{project_type} pricing strategy"
+            ]
         elif is_market_data:
-            search_query = f"market size industry statistics TAM SAM technology trends 2024"
+            search_queries = [
+                f"{project_type} market size 2024",
+                f"{project_type} industry statistics",
+                f"{project_type} market growth trends",
+                "TAM SAM SOM calculation examples"
+            ]
         elif is_competition:
-            search_query = f"competitive analysis market landscape {project_context} competitors"
+            search_queries = [
+                f"{project_type} competitors analysis",
+                f"{project_type} competitive landscape",
+                f"{project_type} market leaders",
+                f"top {project_type} companies"
+            ]
         elif is_problem_statement:
-            search_query = f"business problem statement statistics market pain points"
+            search_queries = [
+                f"{project_type} common problems",
+                f"{project_type} user pain points",
+                f"{project_type} market challenges",
+                f"{project_type} industry issues"
+            ]
         else:
-            search_query = f"startup business strategy pitch deck {user_message[:30]}"
+            search_queries = [
+                f"{project_type} business analysis",
+                f"{project_type} industry insights",
+                f"{project_type} market trends"
+            ]
         
-        # Search with DuckDuckGo
+        # Perform searches and collect results
         ddgs = DDGS()
-        results = ddgs.text(search_query, max_results=5)
+        search_results = []
+        for query in search_queries[:3]:  # Limit to 3 queries
+            try:
+                results = ddgs.text(query, max_results=4)
+                search_results.extend(results[:2])  # Take top 2 from each query
+            except Exception as e:
+                print(f"DuckDuckGo search failed for '{query}': {e}")
+                continue
         
         research_text = ""
-        for result in results:
+        for result in search_results:
             title = result.get('title', '')
             body = result.get('body', '')
             if title and body:
@@ -1043,7 +1089,7 @@ def get_duckduckgo_research(user_message, project):
         }
         
     except Exception as e:
-        # DuckDuckGo search unavailable, using general knowledge
+        print(f"DuckDuckGo search failed: {e}")
         # Final fallback - return basic structure with general knowledge
         return {
             'research': 'Using general business knowledge and industry best practices for improvements.',
@@ -1053,6 +1099,143 @@ def get_duckduckgo_research(user_message, project):
                 'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
             }
         }
+
+def get_free_ai_research(user_message, current_content, project):
+    """Use free AI alternatives for research when OpenAI is unavailable"""
+    import os
+    
+    # Try Hugging Face Inference API (free tier)
+    try:
+        print("DEBUG: Attempting Hugging Face free inference...")
+        return get_huggingface_research(user_message, current_content, project)
+    except Exception as e:
+        print(f"DEBUG: Hugging Face failed: {str(e)}")
+        
+    # Try local/offline analysis
+    try:
+        print("DEBUG: Using local analysis...")
+        return get_local_analysis(user_message, current_content, project)
+    except Exception as e:
+        print(f"DEBUG: Local analysis failed: {str(e)}")
+        
+    # Final fallback
+    raise Exception("All free AI methods failed")
+
+def get_huggingface_research(user_message, current_content, project):
+    """Use Hugging Face free inference API"""
+    import requests
+    import json
+    
+    # Hugging Face Inference API (free tier - no API key required for some models)
+    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    
+    prompt = f"""Analyze this request for a pitch deck improvement:
+    
+    Project: {project.title}
+    User Request: {user_message}
+    
+    Provide specific business insights, market data, or suggestions that would help improve their pitch deck.
+    Focus on actionable advice and real industry knowledge.
+    """
+    
+    try:
+        response = requests.post(
+            API_URL,
+            headers={"Content-Type": "application/json"},
+            json={"inputs": prompt[:500]},  # Limit input length
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            if isinstance(result, list) and len(result) > 0:
+                research_content = result[0].get('generated_text', '')
+                print(f"DEBUG: Hugging Face success! Response length: {len(research_content)}")
+                
+                return {
+                    'research': research_content,
+                    'user_request': user_message,
+                    'project_context': {
+                        'title': project.title,
+                        'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+                    }
+                }
+        
+        raise Exception(f"Hugging Face API error: {response.status_code}")
+        
+    except Exception as e:
+        raise Exception(f"Hugging Face request failed: {str(e)}")
+
+def get_local_analysis(user_message, current_content, project):
+    """Generate insights using local analysis (no AI required)"""
+    
+    # Analyze request type
+    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
+    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
+    is_problem_statement = 'problem statement' in user_message.lower()
+    
+    # Generate context-aware insights
+    insights = []
+    
+    if is_financial:
+        insights.extend([
+            "Consider including 3-5 year revenue projections with realistic growth rates",
+            "Add key SaaS metrics: Customer Acquisition Cost (CAC), Lifetime Value (LTV), Monthly Recurring Revenue (MRR)",
+            "Include funding requirements with specific use of funds breakdown",
+            "Show unit economics and path to profitability",
+            "Add competitive pricing analysis and revenue model validation"
+        ])
+    
+    if is_market_data:
+        insights.extend([
+            "Include Total Addressable Market (TAM), Serviceable Available Market (SAM), and Serviceable Obtainable Market (SOM)",
+            "Add market growth rate statistics from reputable sources",
+            "Include customer segment analysis with market sizing",
+            "Show market trends and drivers supporting growth",
+            "Add geographic market breakdown if applicable"
+        ])
+    
+    if is_competition:
+        insights.extend([
+            "Identify 3-5 direct competitors with specific company names",
+            "Create competitive feature comparison matrix",
+            "Highlight unique value propositions and differentiators",
+            "Include competitive pricing analysis",
+            "Show market positioning and competitive advantages"
+        ])
+    
+    if is_problem_statement:
+        insights.extend([
+            "Quantify the problem with specific statistics and data points",
+            "Include customer pain points with supporting evidence",
+            "Show the cost of not solving this problem",
+            "Add market validation and customer discovery insights",
+            "Include urgency factors driving need for solution"
+        ])
+    
+    # Add project-specific insights based on repo name
+    if project.repo_name:
+        repo_lower = project.repo_name.lower()
+        if 'web' in repo_lower or 'app' in repo_lower:
+            insights.append("Consider web application market trends and user acquisition strategies")
+        elif 'ai' in repo_lower or 'ml' in repo_lower:
+            insights.append("Include AI/ML market growth statistics and competitive landscape")
+        elif 'mobile' in repo_lower:
+            insights.append("Add mobile app market data and user engagement metrics")
+    
+    research_content = "\n".join([f"• {insight}" for insight in insights[:8]])  # Limit to top 8 insights
+    
+    print(f"DEBUG: Local analysis success! Generated {len(insights)} insights")
+    
+    return {
+        'research': research_content,
+        'user_request': user_message,
+        'project_context': {
+            'title': project.title,
+            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+        }
+    }
 
 def get_openai_research(user_message, current_content, project):
     """Use OpenAI to research and gather information for the user's request"""
@@ -1065,9 +1248,9 @@ def get_openai_research(user_message, current_content, project):
         api_key = os.getenv('OPENAI_API_KEY')
         print(f"DEBUG: OpenAI API key configured: {bool(api_key)}")
         if not api_key:
-            # Immediately fall back to DuckDuckGo if no API key
-            print("DEBUG: No OpenAI API key found")
-            raise Exception("OpenAI API key not configured")
+            # Immediately fall back to free alternatives
+            print("DEBUG: No OpenAI API key found, trying free alternatives...")
+            return get_free_ai_research(user_message, current_content, project)
         
         print("DEBUG: Creating OpenAI client...")
         client = OpenAI(api_key=api_key)
