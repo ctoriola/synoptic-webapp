@@ -959,16 +959,29 @@ def pitchy_chat():
         
         # Use OpenAI to understand the request and gather information with fallback
         try:
+            print(f"DEBUG: Attempting OpenAI research for message: {message[:50]}...")
             openai_response = get_openai_research(message, current_content, project)
             if not openai_response or not openai_response.get('research'):
+                print("DEBUG: OpenAI returned empty research data")
                 raise Exception("No research data from OpenAI")
+            print(f"DEBUG: OpenAI success - research length: {len(openai_response.get('research', ''))}")
         except Exception as e:
-            # OpenAI unavailable, using DuckDuckGo fallback
+            print(f"DEBUG: OpenAI failed: {str(e)}")
             # Fallback to DuckDuckGo search
+            print("DEBUG: Attempting DuckDuckGo fallback...")
             openai_response = get_duckduckgo_research(message, project)
+            print(f"DEBUG: DuckDuckGo research length: {len(openai_response.get('research', ''))}")
         
         # Use Gemini to format and present the response
+        print(f"DEBUG: Attempting Gemini processing...")
+        print(f"DEBUG: Current content length: {len(current_content) if current_content else 0}")
+        print(f"DEBUG: Research data available: {bool(openai_response.get('research'))}")
         gemini_response = format_with_gemini(openai_response, message, current_content)
+        print(f"DEBUG: Gemini response type: {type(gemini_response)}")
+        print(f"DEBUG: Gemini response keys: {list(gemini_response.keys()) if isinstance(gemini_response, dict) else 'Not a dict'}")
+        if isinstance(gemini_response, dict):
+            print(f"DEBUG: Has updated_content: {bool(gemini_response.get('updated_content'))}")
+            print(f"DEBUG: Response length: {len(gemini_response.get('response', ''))}")
         
         return jsonify({
             'success': True,
@@ -1050,11 +1063,15 @@ def get_openai_research(user_message, current_content, project):
         from openai import OpenAI
         
         api_key = os.getenv('OPENAI_API_KEY')
+        print(f"DEBUG: OpenAI API key configured: {bool(api_key)}")
         if not api_key:
             # Immediately fall back to DuckDuckGo if no API key
+            print("DEBUG: No OpenAI API key found")
             raise Exception("OpenAI API key not configured")
         
+        print("DEBUG: Creating OpenAI client...")
         client = OpenAI(api_key=api_key)
+        print("DEBUG: OpenAI client created successfully")
         
         # Analyze the user's request and current content
         research_prompt = f"""
@@ -1082,8 +1099,10 @@ def get_openai_research(user_message, current_content, project):
         max_retries = 2  # Reduced retries, faster fallback
         
         for model in models_to_try:
+            print(f"DEBUG: Trying OpenAI model: {model}")
             for attempt in range(max_retries):
                 try:
+                    print(f"DEBUG: Attempt {attempt + 1} with {model}")
                     response = client.chat.completions.create(
                         model=model,
                         messages=[{"role": "user", "content": research_prompt}],
@@ -1093,6 +1112,7 @@ def get_openai_research(user_message, current_content, project):
                     )
                     
                     research_content = response.choices[0].message.content
+                    print(f"DEBUG: OpenAI {model} success! Response length: {len(research_content)}")
                     
                     return {
                         'research': research_content,
@@ -1104,6 +1124,7 @@ def get_openai_research(user_message, current_content, project):
                     }
                     
                 except Exception as retry_error:
+                    print(f"DEBUG: OpenAI {model} attempt {attempt + 1} failed: {str(retry_error)}")
                     if attempt < max_retries - 1:
                         time.sleep(1)  # Quick retry
                         continue
@@ -1126,14 +1147,18 @@ def format_with_gemini(openai_data, user_message, current_content):
         import time
         
         api_key = os.getenv('GEMINI_API_KEY')
+        print(f"DEBUG: Gemini API key configured: {bool(api_key)}")
         if not api_key:
             # Immediately fall back if no API key
+            print("DEBUG: No Gemini API key found")
             raise Exception("Gemini API key not configured")
             
+        print("DEBUG: Configuring Gemini...")
         genai.configure(api_key=api_key)
         
         # Try multiple Gemini models for better reliability
         models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
         # Determine if this is a content update request or just a question
         is_update_request = any(keyword in user_message.lower() for keyword in [
@@ -1148,6 +1173,13 @@ def format_with_gemini(openai_data, user_message, current_content):
         is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
         
         # Request type detection for specialized handling
+        print(f"DEBUG: Request analysis:")
+        print(f"DEBUG: - is_update_request: {is_update_request}")
+        print(f"DEBUG: - is_financial: {is_financial}")
+        print(f"DEBUG: - is_market_data: {is_market_data}")
+        print(f"DEBUG: - is_competition: {is_competition}")
+        print(f"DEBUG: - is_problem_statement: {is_problem_statement}")
+        print(f"DEBUG: - has_current_content: {bool(current_content)}")
         
         if is_update_request and current_content:
             # Generate updated content with retry logic
@@ -1282,11 +1314,14 @@ def format_with_gemini(openai_data, user_message, current_content):
             
             # Retry logic with multiple models
             max_retries = 2
+            print(f"DEBUG: Starting Gemini content update with {len(models_to_try)} models")
             for model_name in models_to_try:
                 try:
+                    print(f"DEBUG: Trying Gemini model: {model_name}")
                     model = genai.GenerativeModel(model_name)
                     for attempt in range(max_retries):
                         try:
+                            print(f"DEBUG: Gemini {model_name} attempt {attempt + 1}")
                             response = model.generate_content(
                                 update_prompt,
                                 generation_config=genai.types.GenerationConfig(
@@ -1295,35 +1330,42 @@ def format_with_gemini(openai_data, user_message, current_content):
                                 )
                             )
                             response_text = response.text
+                            print(f"DEBUG: Gemini {model_name} response length: {len(response_text)}")
                             
                             # Parse the response
                             if 'UPDATED_CONTENT:' in response_text:
                                 parts = response_text.split('UPDATED_CONTENT:', 1)
                                 ai_response = parts[0].replace('RESPONSE:', '').strip()
                                 updated_content = parts[1].strip()
+                                print(f"DEBUG: Gemini {model_name} SUCCESS - found UPDATED_CONTENT")
+                                print(f"DEBUG: Updated content length: {len(updated_content)}")
                                 
                                 return {
                                     'response': ai_response,
                                     'updated_content': updated_content
                                 }
                             else:
+                                print(f"DEBUG: Gemini {model_name} - no UPDATED_CONTENT found, returning advice only")
                                 return {
                                     'response': response_text,
                                     'updated_content': None
                                 }
                                 
                         except Exception as retry_error:
+                            print(f"DEBUG: Gemini {model_name} attempt {attempt + 1} failed: {str(retry_error)}")
                             if attempt < max_retries - 1:
                                 time.sleep(1)  # Quick retry
                                 continue
                             else:
                                 # Try next model
                                 break
-                except Exception:
+                except Exception as model_error:
+                    print(f"DEBUG: Gemini model {model_name} failed completely: {str(model_error)}")
                     # Try next model
                     continue
             
             # If all models failed, raise exception for final fallback
+            print("DEBUG: All Gemini models failed for content update")
             raise Exception("All Gemini models failed")
         else:
             # Just provide advice/information with retry logic
