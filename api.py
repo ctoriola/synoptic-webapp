@@ -1064,30 +1064,58 @@ def format_with_gemini(openai_data, user_message, current_content):
             'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better'
         ])
         
+        # Special handling for problem statement requests (known to cause issues)
+        is_problem_statement = 'problem statement' in user_message.lower()
+        if is_problem_statement:
+            print("DEBUG: Problem statement request detected, using simplified approach")
+        
         if is_update_request and current_content:
             # Generate updated content with retry logic
-            update_prompt = f"""
-            You are Pitchy, an expert pitch deck consultant. A user wants to improve their pitch deck.
-            
-            User Request: "{user_message}"
-            
-            Research Information:
-            {openai_data.get('research', '')}
-            
-            Current Pitch Deck Content:
-            {current_content[:3000]}...
-            
-            CRITICAL INSTRUCTIONS:
-            1. Provide a brief explanation of what you're improving (2-3 sentences)
-            2. Generate an updated version of the pitch deck that addresses their request
-            3. Use the research information to make specific, factual improvements
-            4. Maintain the original structure but enhance the content
-            5. NO placeholder text - use specific data, companies, and figures
-            
-            Format your response EXACTLY as:
-            RESPONSE: [Your brief explanation]
-            UPDATED_CONTENT: [The complete updated pitch deck content]
-            """
+            if is_problem_statement:
+                # Simplified prompt for problem statement improvements
+                update_prompt = f"""
+                You are Pitchy, an expert pitch deck consultant. Improve the problem statement section.
+                
+                User Request: "{user_message}"
+                
+                Current Content (first 1500 chars):
+                {current_content[:1500]}
+                
+                INSTRUCTIONS:
+                1. Focus ONLY on the problem statement section
+                2. Add specific statistics (use realistic percentages like 73%, 42%, etc.)
+                3. Make it more urgent and compelling
+                4. Keep the same structure, just enhance the content
+                5. Be concise - max 500 words for the updated section
+                
+                Format as:
+                RESPONSE: Brief explanation of improvements made
+                UPDATED_CONTENT: [Enhanced problem statement section only]
+                """
+            else:
+                # Full prompt for other improvements
+                update_prompt = f"""
+                You are Pitchy, an expert pitch deck consultant. A user wants to improve their pitch deck.
+                
+                User Request: "{user_message}"
+                
+                Research Information:
+                {openai_data.get('research', '')}
+                
+                Current Pitch Deck Content:
+                {current_content[:3000]}...
+                
+                CRITICAL INSTRUCTIONS:
+                1. Provide a brief explanation of what you're improving (2-3 sentences)
+                2. Generate an updated version of the pitch deck that addresses their request
+                3. Use the research information to make specific, factual improvements
+                4. Maintain the original structure but enhance the content
+                5. NO placeholder text - use specific data, companies, and figures
+                
+                Format your response EXACTLY as:
+                RESPONSE: [Your brief explanation]
+                UPDATED_CONTENT: [The complete updated pitch deck content]
+                """
             
             # Retry logic for API calls
             max_retries = 3

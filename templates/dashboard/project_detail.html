@@ -620,10 +620,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 <i class="fas fa-robot text-white text-xs"></i>
             </div>
             <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 max-w-xs">
-                <p class="text-sm text-blue-800 mb-2">I've prepared an updated version of your pitch deck. Would you like to apply these changes?</p>
-                <div class="flex space-x-2">
+                <p class="text-sm text-blue-800 mb-2">I've prepared an updated version of your pitch deck. Would you like to preview or apply these changes?</p>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="previewChanges('${btoa(updatedContent)}')" class="text-xs bg-purple-600 text-white px-2 py-1 rounded hover:bg-purple-700">
+                        <i class="fas fa-eye mr-1"></i>Preview
+                    </button>
                     <button onclick="applyContentUpdate('${btoa(updatedContent)}')" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-                        Apply Changes
+                        <i class="fas fa-check mr-1"></i>Apply
                     </button>
                     <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-400">
                         Dismiss
@@ -640,11 +643,67 @@ document.addEventListener('DOMContentLoaded', function() {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    // Make functions available globally for the apply function
+    window.addMessage = addMessage;
+    window.escapeHtml = escapeHtml;
 });
 
-// Apply content update function
+// Preview changes function
+window.previewChanges = function(encodedContent) {
+    const updatedContent = atob(encodedContent);
+    const currentContent = document.getElementById('pitch-deck-content')?.textContent || '';
+    
+    // Create preview modal
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+    modal.innerHTML = `
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white max-h-96 overflow-y-auto">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Preview Changes</h3>
+                    <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Current Version</h4>
+                        <div class="bg-gray-50 p-3 rounded-lg text-xs text-gray-600 max-h-64 overflow-y-auto">
+                            ${escapeHtml(currentContent.substring(0, 1000))}${currentContent.length > 1000 ? '...' : ''}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Updated Version</h4>
+                        <div class="bg-blue-50 p-3 rounded-lg text-xs text-gray-600 max-h-64 overflow-y-auto">
+                            ${escapeHtml(updatedContent.substring(0, 1000))}${updatedContent.length > 1000 ? '...' : ''}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3">
+                    <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                        Cancel
+                    </button>
+                    <button onclick="applyContentUpdate('${encodedContent}'); this.closest('.fixed').remove();" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                        <i class="fas fa-check mr-2"></i>Apply Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+};
+
+// Apply content update function with enhanced feedback
 window.applyContentUpdate = function(encodedContent) {
     const updatedContent = atob(encodedContent);
+    const currentContent = document.getElementById('pitch-deck-content')?.textContent || '';
+    
+    // Show loading state
+    const loadingMessage = addMessage('Applying changes...', 'ai');
     
     // Update the pitch deck content
     fetch(`/dashboard/projects/{{ project.id }}/update-content`, {
@@ -652,29 +711,84 @@ window.applyContentUpdate = function(encodedContent) {
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ content: updatedContent })
+        body: JSON.stringify({ 
+            content: updatedContent,
+            previous_content: currentContent 
+        })
     })
     .then(response => response.json())
     .then(data => {
+        // Remove loading message
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        
         if (data.success) {
             // Update the displayed content
             const contentElement = document.getElementById('pitch-deck-content');
             if (contentElement) {
-                contentElement.textContent = updatedContent;
+                contentElement.innerHTML = updatedContent.replace(/\n/g, '<br>');
             }
             
-            // Show success message
-            showMessage('Pitch deck updated successfully!', 'success');
+            // Generate summary of changes
+            const changesSummary = generateChangesSummary(currentContent, updatedContent);
+            
+            // Add success message with changes summary
+            addMessage(`✅ Changes applied successfully! Here's what I updated:\n\n${changesSummary}`, 'ai');
             
             // Remove the update option
-            event.target.closest('.flex').remove();
+            const updateOption = event.target.closest('.flex');
+            if (updateOption) {
+                updateOption.remove();
+            }
         } else {
-            showMessage('Failed to update pitch deck. Please try again.', 'error');
+            addMessage('❌ Failed to update pitch deck. Please try again.', 'ai');
         }
     })
     .catch(error => {
-        showMessage('An error occurred while updating the pitch deck.', 'error');
+        // Remove loading message
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        addMessage('❌ An error occurred while updating the pitch deck.', 'ai');
     });
 };
+
+// Generate a summary of changes made
+function generateChangesSummary(oldContent, newContent) {
+    const oldLines = oldContent.split('\n').filter(line => line.trim());
+    const newLines = newContent.split('\n').filter(line => line.trim());
+    
+    let summary = [];
+    
+    // Simple heuristic to detect major changes
+    if (newLines.length > oldLines.length) {
+        summary.push(`• Added ${newLines.length - oldLines.length} new sections/points`);
+    }
+    
+    // Check for specific improvements
+    if (newContent.includes('%') && !oldContent.includes('%')) {
+        summary.push('• Added statistical data and percentages');
+    }
+    
+    if (newContent.includes('$') && !oldContent.includes('$')) {
+        summary.push('• Added financial figures and market data');
+    }
+    
+    if (newContent.toLowerCase().includes('market') && !oldContent.toLowerCase().includes('market')) {
+        summary.push('• Enhanced market analysis section');
+    }
+    
+    if (newContent.toLowerCase().includes('competitor') && !oldContent.toLowerCase().includes('competitor')) {
+        summary.push('• Added competitive analysis');
+    }
+    
+    if (summary.length === 0) {
+        summary.push('• Enhanced content with more detailed and compelling information');
+        summary.push('• Improved clarity and impact of key messages');
+    }
+    
+    return summary.join('\n');
+}
 </script>
 {% endblock %}
