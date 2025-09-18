@@ -978,6 +978,48 @@ IMPORTANT: Make each slide rich with specific details, compelling narratives, an
     # Regular generator page for manual URL entry
     return render_template('dashboard/generator.html', from_github=from_github)
 
+@dashboard_bp.route('/projects/<project_id>/update-content', methods=['POST'])
+@login_required
+def update_project_content(project_id):
+    """Update project pitch deck content via Pitchy AI"""
+    try:
+        data = request.get_json()
+        new_content = data.get('content', '').strip()
+        
+        if not new_content:
+            return jsonify({'error': 'Content is required'}), 400
+        
+        # Get the project
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Update the pitch deck content
+        if project.pitch_deck:
+            project.pitch_deck['content'] = new_content
+            project.pitch_deck['updated_at'] = datetime.utcnow().isoformat()
+            project.pitch_deck['updated_by'] = 'pitchy_ai'
+        else:
+            project.pitch_deck = {
+                'content': new_content,
+                'generated_at': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow().isoformat(),
+                'updated_by': 'pitchy_ai',
+                'version': '1.1'
+            }
+        
+        # Save the project
+        project.save()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Pitch deck updated successfully'
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Update content error: {str(e)}")
+        return jsonify({'error': 'Failed to update content'}), 500
+
 @dashboard_bp.route('/documentation/<project_id>')
 @login_required
 def documentation(project_id):

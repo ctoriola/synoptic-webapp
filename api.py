@@ -937,7 +937,190 @@ Make each slide investor-ready with specific, actionable content that tells a co
         })
     
     except Exception as e:
-        return jsonify({"error": f"Pitch deck generation failed: {str(e)}"}), 500
+        return jsonify({'error': f'Failed to generate pitch deck: {str(e)}'}), 500
+
+@api_bp.route('/pitchy-chat', methods=['POST'])
+@login_required
+def pitchy_chat():
+    """Handle Pitchy AI chat messages for pitch deck improvement"""
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        project_id = data.get('project_id')
+        current_content = data.get('current_content', '')
+        
+        if not message or not project_id:
+            return jsonify({'error': 'Message and project ID are required'}), 400
+        
+        # Get the project
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Use OpenAI to understand the request and gather information
+        openai_response = get_openai_research(message, current_content, project)
+        
+        # Use Gemini to format and present the response
+        gemini_response = format_with_gemini(openai_response, message, current_content)
+        
+        return jsonify({
+            'success': True,
+            'response': gemini_response.get('response', 'I apologize, but I encountered an issue processing your request.'),
+            'updated_content': gemini_response.get('updated_content')
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Pitchy chat error: {str(e)}")
+        return jsonify({'error': 'Failed to process chat message'}), 500
+
+def get_openai_research(user_message, current_content, project):
+    """Use OpenAI to research and gather information for the user's request"""
+    import os
+    
+    try:
+        import openai
+        
+        openai.api_key = os.getenv('OPENAI_API_KEY')
+        if not openai.api_key:
+            return {'research': 'OpenAI not configured', 'suggestions': []}
+        
+        # Analyze the user's request and current content
+        research_prompt = f"""
+        You are a market research and pitch deck expert. A user is asking for help with their pitch deck:
+        
+        User Request: "{user_message}"
+        
+        Current Pitch Deck Content:
+        {current_content[:2000]}...
+        
+        Project Info:
+        - Title: {project.title}
+        - Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
+        
+        Please provide:
+        1. Specific research data, statistics, or information that would help address their request
+        2. Concrete suggestions for improvement
+        3. Industry benchmarks or competitor information if relevant
+        4. Market data or financial metrics if applicable
+        
+        Focus on providing factual, specific information rather than generic advice.
+        """
+        
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": research_prompt}],
+            max_tokens=800,
+            temperature=0.3
+        )
+        
+        research_content = response.choices[0].message.content
+        
+        return {
+            'research': research_content,
+            'user_request': user_message,
+            'project_context': {
+                'title': project.title,
+                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+            }
+        }
+        
+    except Exception as e:
+        print(f"DEBUG: OpenAI research failed: {str(e)}")
+        return {
+            'research': 'Unable to gather additional research at this time.',
+            'user_request': user_message,
+            'project_context': {
+                'title': project.title,
+                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+            }
+        }
+
+def format_with_gemini(openai_data, user_message, current_content):
+    """Use Gemini to format the response and potentially update content"""
+    try:
+        import google.generativeai as genai
+        import os
+        
+        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Determine if this is a content update request or just a question
+        is_update_request = any(keyword in user_message.lower() for keyword in [
+            'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better'
+        ])
+        
+        if is_update_request and current_content:
+            # Generate updated content
+            update_prompt = f"""
+            You are Pitchy, an expert pitch deck consultant. A user wants to improve their pitch deck.
+            
+            User Request: "{user_message}"
+            
+            Research Information:
+            {openai_data.get('research', '')}
+            
+            Current Pitch Deck Content:
+            {current_content}
+            
+            Please:
+            1. Provide a helpful response explaining what you'll improve
+            2. Generate an updated version of the pitch deck that addresses their request
+            3. Use the research information to make specific, factual improvements
+            4. Maintain the original structure but enhance the content
+            
+            Format your response as:
+            RESPONSE: [Your explanation of what you're improving]
+            UPDATED_CONTENT: [The complete updated pitch deck content]
+            """
+            
+            response = model.generate_content(update_prompt)
+            response_text = response.text
+            
+            # Parse the response
+            if 'UPDATED_CONTENT:' in response_text:
+                parts = response_text.split('UPDATED_CONTENT:', 1)
+                ai_response = parts[0].replace('RESPONSE:', '').strip()
+                updated_content = parts[1].strip()
+                
+                return {
+                    'response': ai_response,
+                    'updated_content': updated_content
+                }
+            else:
+                return {
+                    'response': response_text,
+                    'updated_content': None
+                }
+        else:
+            # Just provide advice/information
+            advice_prompt = f"""
+            You are Pitchy, a friendly and expert pitch deck consultant. A user is asking for help.
+            
+            User Question: "{user_message}"
+            
+            Research Information:
+            {openai_data.get('research', '')}
+            
+            Current Pitch Deck Context:
+            {current_content[:500]}...
+            
+            Provide helpful, specific advice based on the research information. Be conversational and supportive.
+            Keep your response concise but informative (2-3 sentences max).
+            """
+            
+            response = model.generate_content(advice_prompt)
+            
+            return {
+                'response': response.text,
+                'updated_content': None
+            }
+            
+    except Exception as e:
+        print(f"DEBUG: Gemini formatting failed: {str(e)}")
+        return {
+            'response': 'I apologize, but I encountered an issue processing your request. Please try again.',
+            'updated_content': None
+        }
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
