@@ -1146,19 +1146,19 @@ def format_with_gemini(openai_data, user_message, current_content):
                 
                 User Request: "{user_message}"
                 
-                Current Content (first 1500 chars):
-                {current_content[:1500]}
+                Current Complete Content:
+                {current_content}
                 
                 INSTRUCTIONS:
-                1. Focus ONLY on the problem statement section
-                2. Add specific statistics (use realistic percentages like 73%, 42%, etc.)
-                3. Make it more urgent and compelling
-                4. Keep the same structure, just enhance the content
-                5. Be concise - max 500 words for the updated section
+                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
+                2. Focus on enhancing the problem statement section within the full content
+                3. Add specific statistics (use realistic percentages like 73%, 42%, etc.)
+                4. Make it more urgent and compelling while keeping all other sections intact
+                5. Return the COMPLETE updated pitch deck with enhanced problem statement
                 
                 Format as:
                 RESPONSE: Brief explanation of improvements made
-                UPDATED_CONTENT: [Enhanced problem statement section only]
+                UPDATED_CONTENT: [Complete pitch deck with enhanced problem statement]
                 """
             elif is_financial:
                 # Specific prompt for financial projections
@@ -1167,21 +1167,25 @@ def format_with_gemini(openai_data, user_message, current_content):
                 
                 User Request: "{user_message}"
                 
-                Current Content:
-                {current_content[:2000]}
+                Current Complete Content:
+                {current_content}
+                
+                Research Information:
+                {openai_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Add a comprehensive financial projections section to the existing content
-                3. Include 3-5 year revenue projections with realistic growth rates
-                4. Add key metrics like CAC, LTV, gross margins, burn rate
-                5. Include funding requirements and use of funds
-                6. Use realistic numbers based on industry standards
-                7. APPEND the financial section, don't replace anything
+                2. Find the financial/business model section and enhance it with comprehensive projections
+                3. If no financial section exists, add one after the business model or solution section
+                4. Include 3-5 year revenue projections with realistic growth rates
+                5. Add key metrics like CAC, LTV, gross margins, burn rate
+                6. Include funding requirements and use of funds
+                7. Use realistic numbers based on industry standards and research data
+                8. Return the COMPLETE pitch deck with enhanced financial section
                 
                 Format as:
                 RESPONSE: Brief explanation of financial projections added
-                UPDATED_CONTENT: [Complete updated content with financial section]
+                UPDATED_CONTENT: [Complete updated pitch deck with financial section]
                 """
             elif is_market_data:
                 # Specific prompt for market data
@@ -1190,20 +1194,25 @@ def format_with_gemini(openai_data, user_message, current_content):
                 
                 User Request: "{user_message}"
                 
-                Current Content:
-                {current_content[:2000]}
+                Current Complete Content:
+                {current_content}
+                
+                Research Information:
+                {openai_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Add specific market size data (TAM, SAM, SOM) to existing market sections
-                3. Include growth rates and market trends
-                4. Add relevant industry statistics and benchmarks
-                5. Use realistic, specific numbers
-                6. ENHANCE existing market sections, don't replace them
+                2. Find the market opportunity/market size section and enhance it with specific data
+                3. If no market section exists, add one after the problem/solution section
+                4. Add specific market size data (TAM, SAM, SOM) with realistic numbers
+                5. Include growth rates and market trends from research
+                6. Add relevant industry statistics and benchmarks
+                7. Use research data to make improvements factual and specific
+                8. Return the COMPLETE pitch deck with enhanced market section
                 
                 Format as:
                 RESPONSE: Brief explanation of market data added
-                UPDATED_CONTENT: [Complete updated content with market data]
+                UPDATED_CONTENT: [Complete updated pitch deck with market data]
                 """
             elif is_competition:
                 # Specific prompt for competitive analysis
@@ -1212,20 +1221,25 @@ def format_with_gemini(openai_data, user_message, current_content):
                 
                 User Request: "{user_message}"
                 
-                Current Content:
-                {current_content[:2000]}
+                Current Complete Content:
+                {current_content}
+                
+                Research Information:
+                {openai_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Add detailed competitor analysis with specific company names to existing sections
-                3. Include competitive advantages and differentiators
-                4. Add market positioning and competitive landscape
-                5. Use realistic competitor examples
-                6. ENHANCE existing competition sections, don't replace them
+                2. Find the competitive analysis/competition section and enhance it with detailed analysis
+                3. If no competition section exists, add one after the market opportunity section
+                4. Add detailed competitor analysis with specific company names from research
+                5. Include competitive advantages and differentiators
+                6. Add market positioning and competitive landscape insights
+                7. Use research data to identify realistic competitor examples
+                8. Return the COMPLETE pitch deck with enhanced competitive analysis
                 
                 Format as:
                 RESPONSE: Brief explanation of competitive analysis added
-                UPDATED_CONTENT: [Complete updated content with competitive analysis]
+                UPDATED_CONTENT: [Complete updated pitch deck with competitive analysis]
                 """
             else:
                 # Full prompt for other improvements
