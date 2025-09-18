@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="min-h-screen bg-gray-50 py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto px-4 sm:px-6 lg:px-8">
         <!-- Project Header -->
         <div class="bg-white shadow rounded-lg mb-6">
             <div class="px-4 sm:px-6 py-4 border-b border-gray-200">
@@ -87,59 +87,8 @@
 
         <!-- Main Content Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Pitch Deck Content -->
-            <div class="lg:col-span-2">
-                <div class="bg-white shadow rounded-lg">
-                    <div class="px-6 py-4 border-b border-gray-200">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-medium text-gray-900">Investor Pitch Deck</h2>
-                            {% if project.pitch_deck %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <i class="fas fa-check-circle mr-1"></i>
-                                Generated
-                            </span>
-                            {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                <i class="fas fa-clock mr-1"></i>
-                                Not Generated
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-            
-                    <div class="px-6 py-6">
-                        {% if project.pitch_deck and project.pitch_deck.get('content') %}
-                            <!-- Pitch Deck Content -->
-                            <div class="mb-8">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <i class="fas fa-presentation text-primary-600 mr-2"></i>
-                                    Pitch Deck
-                                </h3>
-                                <div class="prose max-w-none">
-                                    <div id="pitch-deck-content" class="text-gray-700 leading-relaxed whitespace-pre-wrap select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">{{ project.pitch_deck.content | format_markdown | safe }}</div>
-                                </div>
-                            </div>
-                        {% else %}
-                            <!-- No Pitch Deck -->
-                            <div class="text-center py-12">
-                                <div class="mx-auto h-12 w-12 text-gray-400 mb-4">
-                                    <i class="fas fa-exclamation-triangle text-4xl"></i>
-                                </div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Pitch Deck Data</h3>
-                                <p class="text-gray-500 mb-6">This project doesn't have any pitch deck data available.</p>
-                                <a href="{{ url_for('dashboard.generator') }}" 
-                                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                                    <i class="fas fa-sync mr-2"></i>
-                                    Generate Pitch Deck
-                                </a>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Pitchy AI Chat Assistant -->
-            <div class="lg:col-span-1">
+            <!-- Pitchy AI Chat Assistant - Mobile First -->
+            <div class="lg:col-span-1 lg:order-2">
                 <div class="bg-white shadow rounded-lg h-full flex flex-col">
                     <!-- Chat Header -->
                     <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
@@ -159,7 +108,7 @@
                     </div>
 
                     <!-- Chat Messages -->
-                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 max-h-96">
+                    <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 max-h-96" style="max-height:30rem">
                         <!-- Welcome Message -->
                         <div class="flex items-start">
                             <div class="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
@@ -212,6 +161,57 @@
                                 Financial Projections
                             </button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pitch Deck Content - Desktop Second, Mobile Second -->
+            <div class="lg:col-span-2 lg:order-1">
+                <div class="bg-white shadow rounded-lg">
+                    <div class="px-6 py-4 border-b border-gray-200">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-medium text-gray-900">Investor Pitch Deck</h2>
+                            {% if project.pitch_deck %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                <i class="fas fa-check-circle mr-1"></i>
+                                Generated
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                <i class="fas fa-clock mr-1"></i>
+                                Not Generated
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+            
+                    <div class="px-6 py-6">
+                        {% if project.pitch_deck and project.pitch_deck.get('content') %}
+                            <!-- Pitch Deck Content -->
+                            <div class="mb-8">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                                    <i class="fas fa-presentation text-primary-600 mr-2"></i>
+                                    Pitch Deck
+                                </h3>
+                                <div class="prose max-w-none">
+                                    <div id="pitch-deck-content" class="text-gray-700 leading-relaxed whitespace-pre-wrap select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">{{ project.pitch_deck.content | format_markdown | safe }}</div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- No Pitch Deck -->
+                            <div class="text-center py-12">
+                                <div class="mx-auto h-12 w-12 text-gray-400 mb-4">
+                                    <i class="fas fa-exclamation-triangle text-4xl"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">No Pitch Deck Data</h3>
+                                <p class="text-gray-500 mb-6">This project doesn't have any pitch deck data available.</p>
+                                <a href="{{ url_for('dashboard.generator') }}" 
+                                        class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <i class="fas fa-sync mr-2"></i>
+                                    Generate Pitch Deck
+                                </a>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

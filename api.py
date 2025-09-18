@@ -976,6 +976,7 @@ def pitchy_chat():
 def get_openai_research(user_message, current_content, project):
     """Use OpenAI to research and gather information for the user's request"""
     import os
+    import time
     
     try:
         import openai
@@ -1004,30 +1005,43 @@ def get_openai_research(user_message, current_content, project):
         4. Market data or financial metrics if applicable
         
         Focus on providing factual, specific information rather than generic advice.
+        Use real company names, actual statistics, and concrete data points.
         """
         
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": research_prompt}],
-            max_tokens=800,
-            temperature=0.3
-        )
-        
-        research_content = response.choices[0].message.content
-        
-        return {
-            'research': research_content,
-            'user_request': user_message,
-            'project_context': {
-                'title': project.title,
-                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-            }
-        }
+        # Retry logic for OpenAI API calls
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": research_prompt}],
+                    max_tokens=800,
+                    temperature=0.3
+                )
+                
+                research_content = response.choices[0].message.content
+                
+                return {
+                    'research': research_content,
+                    'user_request': user_message,
+                    'project_context': {
+                        'title': project.title,
+                        'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+                    }
+                }
+                
+            except Exception as retry_error:
+                print(f"DEBUG: OpenAI research attempt {attempt + 1} failed: {str(retry_error)}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # Exponential backoff: 2s, 4s, 8s
+                    continue
+                else:
+                    raise retry_error
         
     except Exception as e:
-        print(f"DEBUG: OpenAI research failed: {str(e)}")
+        print(f"DEBUG: OpenAI research failed after all retries: {str(e)}")
         return {
-            'research': 'Unable to gather additional research at this time.',
+            'research': 'Unable to gather additional research at this time due to connectivity issues.',
             'user_request': user_message,
             'project_context': {
                 'title': project.title,
@@ -1040,6 +1054,7 @@ def format_with_gemini(openai_data, user_message, current_content):
     try:
         import google.generativeai as genai
         import os
+        import time
         
         genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -1050,7 +1065,7 @@ def format_with_gemini(openai_data, user_message, current_content):
         ])
         
         if is_update_request and current_content:
-            # Generate updated content
+            # Generate updated content with retry logic
             update_prompt = f"""
             You are Pitchy, an expert pitch deck consultant. A user wants to improve their pitch deck.
             
@@ -1060,39 +1075,52 @@ def format_with_gemini(openai_data, user_message, current_content):
             {openai_data.get('research', '')}
             
             Current Pitch Deck Content:
-            {current_content}
+            {current_content[:3000]}...
             
-            Please:
-            1. Provide a helpful response explaining what you'll improve
+            CRITICAL INSTRUCTIONS:
+            1. Provide a brief explanation of what you're improving (2-3 sentences)
             2. Generate an updated version of the pitch deck that addresses their request
             3. Use the research information to make specific, factual improvements
             4. Maintain the original structure but enhance the content
+            5. NO placeholder text - use specific data, companies, and figures
             
-            Format your response as:
-            RESPONSE: [Your explanation of what you're improving]
+            Format your response EXACTLY as:
+            RESPONSE: [Your brief explanation]
             UPDATED_CONTENT: [The complete updated pitch deck content]
             """
             
-            response = model.generate_content(update_prompt)
-            response_text = response.text
-            
-            # Parse the response
-            if 'UPDATED_CONTENT:' in response_text:
-                parts = response_text.split('UPDATED_CONTENT:', 1)
-                ai_response = parts[0].replace('RESPONSE:', '').strip()
-                updated_content = parts[1].strip()
-                
-                return {
-                    'response': ai_response,
-                    'updated_content': updated_content
-                }
-            else:
-                return {
-                    'response': response_text,
-                    'updated_content': None
-                }
+            # Retry logic for API calls
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(update_prompt)
+                    response_text = response.text
+                    
+                    # Parse the response
+                    if 'UPDATED_CONTENT:' in response_text:
+                        parts = response_text.split('UPDATED_CONTENT:', 1)
+                        ai_response = parts[0].replace('RESPONSE:', '').strip()
+                        updated_content = parts[1].strip()
+                        
+                        return {
+                            'response': ai_response,
+                            'updated_content': updated_content
+                        }
+                    else:
+                        return {
+                            'response': response_text,
+                            'updated_content': None
+                        }
+                        
+                except Exception as retry_error:
+                    print(f"DEBUG: Gemini attempt {attempt + 1} failed: {str(retry_error)}")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                    else:
+                        raise retry_error
         else:
-            # Just provide advice/information
+            # Just provide advice/information with retry logic
             advice_prompt = f"""
             You are Pitchy, a friendly and expert pitch deck consultant. A user is asking for help.
             
@@ -1108,17 +1136,29 @@ def format_with_gemini(openai_data, user_message, current_content):
             Keep your response concise but informative (2-3 sentences max).
             """
             
-            response = model.generate_content(advice_prompt)
-            
-            return {
-                'response': response.text,
-                'updated_content': None
-            }
+            # Retry logic for advice requests
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    response = model.generate_content(advice_prompt)
+                    
+                    return {
+                        'response': response.text,
+                        'updated_content': None
+                    }
+                    
+                except Exception as retry_error:
+                    print(f"DEBUG: Gemini advice attempt {attempt + 1} failed: {str(retry_error)}")
+                    if attempt < max_retries - 1:
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                        continue
+                    else:
+                        raise retry_error
             
     except Exception as e:
-        print(f"DEBUG: Gemini formatting failed: {str(e)}")
+        print(f"DEBUG: Gemini formatting failed after all retries: {str(e)}")
         return {
-            'response': 'I apologize, but I encountered an issue processing your request. Please try again.',
+            'response': 'I apologize, but I encountered a connection issue. Please try your request again in a moment.',
             'updated_content': None
         }
 
