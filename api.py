@@ -1107,12 +1107,13 @@ def format_with_gemini(openai_data, user_message, current_content):
                 {current_content[:2000]}
                 
                 INSTRUCTIONS:
-                1. Add a comprehensive financial projections section
-                2. Include 3-5 year revenue projections with realistic growth rates
-                3. Add key metrics like CAC, LTV, gross margins, burn rate
-                4. Include funding requirements and use of funds
-                5. Use realistic numbers based on industry standards
-                6. Keep existing content and add financial section
+                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
+                2. Add a comprehensive financial projections section to the existing content
+                3. Include 3-5 year revenue projections with realistic growth rates
+                4. Add key metrics like CAC, LTV, gross margins, burn rate
+                5. Include funding requirements and use of funds
+                6. Use realistic numbers based on industry standards
+                7. APPEND the financial section, don't replace anything
                 
                 Format as:
                 RESPONSE: Brief explanation of financial projections added
@@ -1129,11 +1130,12 @@ def format_with_gemini(openai_data, user_message, current_content):
                 {current_content[:2000]}
                 
                 INSTRUCTIONS:
-                1. Add specific market size data (TAM, SAM, SOM)
-                2. Include growth rates and market trends
-                3. Add relevant industry statistics and benchmarks
-                4. Use realistic, specific numbers
-                5. Enhance existing market sections
+                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
+                2. Add specific market size data (TAM, SAM, SOM) to existing market sections
+                3. Include growth rates and market trends
+                4. Add relevant industry statistics and benchmarks
+                5. Use realistic, specific numbers
+                6. ENHANCE existing market sections, don't replace them
                 
                 Format as:
                 RESPONSE: Brief explanation of market data added
@@ -1150,11 +1152,12 @@ def format_with_gemini(openai_data, user_message, current_content):
                 {current_content[:2000]}
                 
                 INSTRUCTIONS:
-                1. Add detailed competitor analysis with specific company names
-                2. Include competitive advantages and differentiators
-                3. Add market positioning and competitive landscape
-                4. Use realistic competitor examples
-                5. Enhance existing competition sections
+                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
+                2. Add detailed competitor analysis with specific company names to existing sections
+                3. Include competitive advantages and differentiators
+                4. Add market positioning and competitive landscape
+                5. Use realistic competitor examples
+                6. ENHANCE existing competition sections, don't replace them
                 
                 Format as:
                 RESPONSE: Brief explanation of competitive analysis added
@@ -1174,11 +1177,13 @@ def format_with_gemini(openai_data, user_message, current_content):
                 {current_content[:3000]}...
                 
                 CRITICAL INSTRUCTIONS:
-                1. Provide a brief explanation of what you're improving (2-3 sentences)
-                2. Generate an updated version of the pitch deck that addresses their request
-                3. Use the research information to make specific, factual improvements
-                4. Maintain the original structure but enhance the content
-                5. NO placeholder text - use specific data, companies, and figures
+                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
+                2. Provide a brief explanation of what you're improving (2-3 sentences)
+                3. Generate an updated version that ADDS to the existing pitch deck
+                4. Use the research information to make specific, factual improvements
+                5. Maintain the original structure and ENHANCE the content
+                6. NO placeholder text - use specific data, companies, and figures
+                7. NEVER remove or replace existing slides - only add or enhance
                 
                 Format your response EXACTLY as:
                 RESPONSE: [Your brief explanation]

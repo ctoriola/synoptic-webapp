@@ -994,8 +994,26 @@ def update_project_content(project_id):
         if not project or project.user_id != current_user.id:
             return jsonify({'error': 'Project not found or access denied'}), 404
         
+        # Store previous version for revert functionality
+        previous_content = data.get('previous_content', '')
+        
         # Update the pitch deck content
         if project.pitch_deck:
+            # Store previous version in history
+            if 'history' not in project.pitch_deck:
+                project.pitch_deck['history'] = []
+            
+            # Add current version to history before updating
+            project.pitch_deck['history'].append({
+                'content': project.pitch_deck.get('content', ''),
+                'timestamp': project.pitch_deck.get('updated_at', datetime.utcnow().isoformat()),
+                'updated_by': project.pitch_deck.get('updated_by', 'user')
+            })
+            
+            # Keep only last 5 versions
+            if len(project.pitch_deck['history']) > 5:
+                project.pitch_deck['history'] = project.pitch_deck['history'][-5:]
+            
             project.pitch_deck['content'] = new_content
             project.pitch_deck['updated_at'] = datetime.utcnow().isoformat()
             project.pitch_deck['updated_by'] = 'pitchy_ai'
@@ -1005,7 +1023,8 @@ def update_project_content(project_id):
                 'generated_at': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow().isoformat(),
                 'updated_by': 'pitchy_ai',
-                'version': '1.1'
+                'version': '1.1',
+                'history': []
             }
         
         # Save the project
@@ -1019,6 +1038,49 @@ def update_project_content(project_id):
     except Exception as e:
         print(f"DEBUG: Update content error: {str(e)}")
         return jsonify({'error': 'Failed to update content'}), 500
+
+@dashboard_bp.route('/projects/<project_id>/revert-content', methods=['POST'])
+@login_required
+def revert_project_content(project_id):
+    """Revert project pitch deck content to previous version"""
+    try:
+        # Get the project
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+        
+        # Check if there's history to revert to
+        if not project.pitch_deck or 'history' not in project.pitch_deck or not project.pitch_deck['history']:
+            return jsonify({'error': 'No previous version available to revert to'}), 400
+        
+        # Get the most recent version from history
+        previous_version = project.pitch_deck['history'].pop()  # Remove and get last item
+        current_content = project.pitch_deck.get('content', '')
+        
+        # Store current version in history before reverting
+        project.pitch_deck['history'].append({
+            'content': current_content,
+            'timestamp': project.pitch_deck.get('updated_at', datetime.utcnow().isoformat()),
+            'updated_by': project.pitch_deck.get('updated_by', 'pitchy_ai')
+        })
+        
+        # Revert to previous version
+        project.pitch_deck['content'] = previous_version['content']
+        project.pitch_deck['updated_at'] = datetime.utcnow().isoformat()
+        project.pitch_deck['updated_by'] = 'user_revert'
+        
+        # Save the project
+        project.save()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Successfully reverted to previous version',
+            'content': previous_version['content']
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Revert content error: {str(e)}")
+        return jsonify({'error': 'Failed to revert content'}), 500
 
 @dashboard_bp.route('/documentation/<project_id>')
 @login_required

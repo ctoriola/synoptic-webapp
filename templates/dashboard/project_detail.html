@@ -807,8 +807,11 @@ window.applyContentUpdate = function(encodedContent) {
             // Generate summary of changes
             const changesSummary = generateChangesSummary(currentContent, updatedContent);
             
-            // Add success message with changes summary
+            // Add success message with changes summary and revert option
             window.addMessage(`✅ Changes applied successfully! Here's what I updated:\n\n${changesSummary}`, 'ai');
+            
+            // Add revert option
+            addRevertOption();
             
             // Remove the update option
             const updateOption = event.target.closest('.flex');
@@ -865,5 +868,81 @@ function generateChangesSummary(oldContent, newContent) {
     
     return summary.join('\n');
 }
+
+// Add revert option to chat
+function addRevertOption() {
+    const revertDiv = document.createElement('div');
+    revertDiv.className = 'flex items-start mt-2';
+    revertDiv.innerHTML = `
+        <div class="w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+            <i class="fas fa-robot text-white text-xs"></i>
+        </div>
+        <div class="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 max-w-xs">
+            <p class="text-sm text-orange-800 mb-2">Don't like the changes? You can revert to the previous version.</p>
+            <div class="flex space-x-2">
+                <button onclick="revertChanges()" class="text-xs bg-orange-600 text-white px-2 py-1 rounded hover:bg-orange-700">
+                    <i class="fas fa-undo mr-1"></i>Revert Changes
+                </button>
+                <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-xs bg-gray-300 text-gray-700 px-2 py-1 rounded hover:bg-gray-400">
+                    Keep Changes
+                </button>
+            </div>
+        </div>
+    `;
+    
+    const chatMessages = document.getElementById('chat-messages');
+    if (chatMessages) {
+        chatMessages.appendChild(revertDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+}
+
+// Revert changes function
+window.revertChanges = function() {
+    const loadingMessage = window.addMessage('Reverting to previous version...', 'ai');
+    
+    fetch(`/dashboard/projects/{{ project.id }}/revert-content`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        // Remove loading message
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        
+        if (data.success) {
+            // Update the displayed content
+            const contentElement = document.getElementById('pitch-deck-content');
+            if (contentElement) {
+                contentElement.innerHTML = data.content.replace(/\n/g, '<br>');
+            }
+            
+            // Add success message
+            window.addMessage('✅ Successfully reverted to previous version!', 'ai');
+            
+            // Remove the revert option
+            event.target.closest('.flex').remove();
+        } else {
+            window.addMessage('❌ Failed to revert changes. Please try again.', 'ai');
+        }
+    })
+    .catch(error => {
+        console.error('Revert error:', error);
+        // Remove loading message
+        if (loadingMessage && loadingMessage.parentNode) {
+            loadingMessage.remove();
+        }
+        window.addMessage(`❌ Failed to revert: ${error.message}`, 'ai');
+    });
+};
 </script>
 {% endblock %}
