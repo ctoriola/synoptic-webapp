@@ -957,8 +957,15 @@ def pitchy_chat():
         if not project or project.user_id != current_user.id:
             return jsonify({'error': 'Project not found or access denied'}), 404
         
-        # Use OpenAI to understand the request and gather information
-        openai_response = get_openai_research(message, current_content, project)
+        # Use OpenAI to understand the request and gather information with fallback
+        try:
+            openai_response = get_openai_research(message, current_content, project)
+            if not openai_response or not openai_response.get('research'):
+                raise Exception("No research data from OpenAI")
+        except Exception as e:
+            # OpenAI unavailable, using DuckDuckGo fallback
+            # Fallback to DuckDuckGo search
+            openai_response = get_duckduckgo_research(message, project)
         
         # Use Gemini to format and present the response
         gemini_response = format_with_gemini(openai_response, message, current_content)
@@ -972,6 +979,63 @@ def pitchy_chat():
     except Exception as e:
         print(f"DEBUG: Pitchy chat error: {str(e)}")
         return jsonify({'error': 'Failed to process chat message'}), 500
+
+def get_duckduckgo_research(user_message, project):
+    """Fallback research using DuckDuckGo when OpenAI is unavailable"""
+    try:
+        from duckduckgo_search import DDGS
+        
+        # Determine request type for better search queries
+        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market', 'tam', 'sam'])
+        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
+        is_problem_statement = 'problem statement' in user_message.lower()
+        
+        # Create targeted search query
+        project_context = f"{project.name} {project.repo_name}" if project.repo_name else project.name
+        
+        if is_financial:
+            search_query = f"startup financial projections revenue model SaaS metrics CAC LTV"
+        elif is_market_data:
+            search_query = f"market size industry statistics TAM SAM technology trends 2024"
+        elif is_competition:
+            search_query = f"competitive analysis market landscape {project_context} competitors"
+        elif is_problem_statement:
+            search_query = f"business problem statement statistics market pain points"
+        else:
+            search_query = f"startup business strategy pitch deck {user_message[:30]}"
+        
+        # Search with DuckDuckGo
+        ddgs = DDGS()
+        results = ddgs.text(search_query, max_results=5)
+        
+        research_text = ""
+        for result in results:
+            title = result.get('title', '')
+            body = result.get('body', '')
+            if title and body:
+                research_text += f"Source: {title}\n{body[:200]}...\n\n"
+        
+        return {
+            'research': research_text if research_text else 'Using general business knowledge and industry best practices.',
+            'user_request': user_message,
+            'project_context': {
+                'title': project.title,
+                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+            }
+        }
+        
+    except Exception as e:
+        # DuckDuckGo search unavailable, using general knowledge
+        # Final fallback - return basic structure with general knowledge
+        return {
+            'research': 'Using general business knowledge and industry best practices for improvements.',
+            'user_request': user_message,
+            'project_context': {
+                'title': project.title,
+                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+            }
+        }
 
 def get_openai_research(user_message, current_content, project):
     """Use OpenAI to research and gather information for the user's request"""
@@ -1071,7 +1135,7 @@ def format_with_gemini(openai_data, user_message, current_content):
         is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
         is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
         
-        print(f"DEBUG: Request type - Update: {is_update_request}, Problem: {is_problem_statement}, Financial: {is_financial}, Market: {is_market_data}, Competition: {is_competition}")
+        # Request type detection for specialized handling
         
         if is_update_request and current_content:
             # Generate updated content with retry logic
@@ -1257,9 +1321,29 @@ def format_with_gemini(openai_data, user_message, current_content):
                         raise retry_error
             
     except Exception as e:
-        print(f"DEBUG: Gemini formatting failed after all retries: {str(e)}")
+        # Gemini unavailable, providing fallback guidance
+        # Provide a helpful response based on the request type even when Gemini fails
+        
+        # Determine request type for fallback response
+        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
+        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
+        is_problem_statement = 'problem statement' in user_message.lower()
+        
+        # Provide specific guidance based on request type
+        if is_financial:
+            fallback_response = "I'd be happy to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions based on your market size."
+        elif is_market_data:
+            fallback_response = "For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape statistics."
+        elif is_competition:
+            fallback_response = "To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies."
+        elif is_problem_statement:
+            fallback_response = "For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem."
+        else:
+            fallback_response = "I'm here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements."
+        
         return {
-            'response': 'I apologize, but I encountered a connection issue. Please try your request again in a moment.',
+            'response': fallback_response,
             'updated_content': None
         }
 
