@@ -1292,12 +1292,15 @@ def format_with_gemini(openai_data, user_message, current_content):
                         }
                         
                 except Exception as retry_error:
-                    print(f"DEBUG: Gemini attempt {attempt + 1} failed: {str(retry_error)}")
                     if attempt < max_retries - 1:
                         time.sleep(2 ** attempt)  # Exponential backoff
                         continue
                     else:
-                        raise retry_error
+                        # If all retries failed, provide fallback response
+                        return {
+                            'response': get_fallback_response(user_message),
+                            'updated_content': None
+                        }
         else:
             # Just provide advice/information with retry logic
             advice_prompt = f"""
@@ -1327,12 +1330,15 @@ def format_with_gemini(openai_data, user_message, current_content):
                     }
                     
                 except Exception as retry_error:
-                    print(f"DEBUG: Gemini advice attempt {attempt + 1} failed: {str(retry_error)}")
                     if attempt < max_retries - 1:
                         time.sleep(2 ** attempt)  # Exponential backoff
                         continue
                     else:
-                        raise retry_error
+                        # If all retries failed, provide fallback response
+                        return {
+                            'response': get_fallback_response(user_message),
+                            'updated_content': None
+                        }
             
     except Exception as e:
         # Gemini unavailable, providing fallback guidance
@@ -1360,6 +1366,26 @@ def format_with_gemini(openai_data, user_message, current_content):
             'response': fallback_response,
             'updated_content': None
         }
+
+def get_fallback_response(user_message):
+    """Generate a helpful fallback response when all AI services fail"""
+    # Determine request type for fallback response
+    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
+    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
+    is_problem_statement = 'problem statement' in user_message.lower()
+    
+    # Provide specific guidance based on request type
+    if is_financial:
+        return "I'd be happy to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions based on your market size."
+    elif is_market_data:
+        return "For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape statistics."
+    elif is_competition:
+        return "To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies."
+    elif is_problem_statement:
+        return "For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem."
+    else:
+        return "I'm here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements."
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
