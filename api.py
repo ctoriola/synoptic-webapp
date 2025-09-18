@@ -1146,12 +1146,12 @@ def format_with_gemini(openai_data, user_message, current_content):
         import os
         import time
         
-        api_key = os.getenv('GEMINI_API_KEY')
-        print(f"DEBUG: Gemini API key configured: {bool(api_key)}")
+        api_key = os.getenv('GOOGLE_API_KEY')
+        print(f"DEBUG: Google API key configured: {bool(api_key)}")
         if not api_key:
             # Immediately fall back if no API key
-            print("DEBUG: No Gemini API key found")
-            raise Exception("Gemini API key not configured")
+            print("DEBUG: No Google API key found")
+            raise Exception("Google API key not configured")
             
         print("DEBUG: Configuring Gemini...")
         genai.configure(api_key=api_key)
