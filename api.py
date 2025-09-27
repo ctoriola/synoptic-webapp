@@ -957,26 +957,45 @@ def pitchy_chat():
         if not project or project.user_id != current_user.id:
             return jsonify({'error': 'Project not found or access denied'}), 404
         
-        # Use OpenAI to understand the request and gather information with fallback
+        # Use free AI methods to understand the request and gather information
         try:
-            print(f"DEBUG: Attempting OpenAI research for message: {message[:50]}...")
-            openai_response = get_openai_research(message, current_content, project)
-            if not openai_response or not openai_response.get('research'):
-                print("DEBUG: OpenAI returned empty research data")
-                raise Exception("No research data from OpenAI")
-            print(f"DEBUG: OpenAI success - research length: {len(openai_response.get('research', ''))}")
+            print(f"DEBUG: Attempting Hugging Face research for message: {message[:50]}...")
+            research_response = get_huggingface_research(message, current_content, project)
+            if not research_response or not research_response.get('research'):
+                print("DEBUG: Hugging Face returned empty research data")
+                raise Exception("No research data from Hugging Face")
+            print(f"DEBUG: Hugging Face success - research length: {len(research_response.get('research', ''))}")
         except Exception as e:
-            print(f"DEBUG: OpenAI failed: {str(e)}")
-            # Fallback to DuckDuckGo search
-            print("DEBUG: Attempting DuckDuckGo fallback...")
-            openai_response = get_duckduckgo_research(message, project)
-            print(f"DEBUG: DuckDuckGo research length: {len(openai_response.get('research', ''))}")
+            print(f"DEBUG: Hugging Face failed: {str(e)}")
+            # Fallback to local analysis
+            try:
+                print("DEBUG: Attempting local analysis fallback...")
+                research_response = get_local_analysis(message, current_content, project)
+                print(f"DEBUG: Local analysis research length: {len(research_response.get('research', ''))}")
+            except Exception as e2:
+                print(f"DEBUG: Local analysis failed: {str(e2)}")
+                # Final fallback to DuckDuckGo search
+                print("DEBUG: Attempting DuckDuckGo fallback...")
+                research_response = get_duckduckgo_research(message, project)
+                print(f"DEBUG: DuckDuckGo research length: {len(research_response.get('research', ''))}")
+        
+        # Comment out OpenAI for now
+        # try:
+        #     print(f"DEBUG: Attempting OpenAI research for message: {message[:50]}...")
+        #     openai_response = get_openai_research(message, current_content, project)
+        #     if not openai_response or not openai_response.get('research'):
+        #         print("DEBUG: OpenAI returned empty research data")
+        #         raise Exception("No research data from OpenAI")
+        #     print(f"DEBUG: OpenAI success - research length: {len(openai_response.get('research', ''))}")
+        # except Exception as e:
+        #     print(f"DEBUG: OpenAI failed: {str(e)}")
+        #     # Fallback to other methods...
         
         # Use Gemini to format and present the response
         print(f"DEBUG: Attempting Gemini processing...")
         print(f"DEBUG: Current content length: {len(current_content) if current_content else 0}")
-        print(f"DEBUG: Research data available: {bool(openai_response.get('research'))}")
-        gemini_response = format_with_gemini(openai_response, message, current_content)
+        print(f"DEBUG: Research data available: {bool(research_response.get('research'))}")
+        gemini_response = format_with_gemini(research_response, message, current_content)
         print(f"DEBUG: Gemini response type: {type(gemini_response)}")
         print(f"DEBUG: Gemini response keys: {list(gemini_response.keys()) if isinstance(gemini_response, dict) else 'Not a dict'}")
         if isinstance(gemini_response, dict):
@@ -1126,45 +1145,73 @@ def get_huggingface_research(user_message, current_content, project):
     import requests
     import json
     
-    # Hugging Face Inference API (free tier - no API key required for some models)
-    API_URL = "https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium"
+    # Try multiple Hugging Face models for better results
+    models_to_try = [
+        "microsoft/DialoGPT-large",
+        "facebook/blenderbot-400M-distill", 
+        "microsoft/DialoGPT-medium"
+    ]
     
-    prompt = f"""Analyze this request for a pitch deck improvement:
+    # Analyze request type for better prompting
+    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
+    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
+    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
     
-    Project: {project.title}
-    User Request: {user_message}
+    # Create focused prompt based on request type
+    if is_financial:
+        prompt = f"Business financial analysis for {project.title}: {user_message}. Provide specific revenue models, key metrics (CAC, LTV, MRR), funding requirements, and realistic financial projections for this type of business."
+    elif is_market_data:
+        prompt = f"Market research for {project.title}: {user_message}. Provide market size data (TAM, SAM, SOM), growth rates, industry statistics, and market trends relevant to this business."
+    elif is_competition:
+        prompt = f"Competitive analysis for {project.title}: {user_message}. Identify key competitors, market positioning, competitive advantages, and industry landscape analysis."
+    else:
+        prompt = f"Business strategy analysis for {project.title}: {user_message}. Provide actionable business insights, industry best practices, and strategic recommendations."
     
-    Provide specific business insights, market data, or suggestions that would help improve their pitch deck.
-    Focus on actionable advice and real industry knowledge.
-    """
-    
-    try:
-        response = requests.post(
-            API_URL,
-            headers={"Content-Type": "application/json"},
-            json={"inputs": prompt[:500]},  # Limit input length
-            timeout=10
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if isinstance(result, list) and len(result) > 0:
-                research_content = result[0].get('generated_text', '')
-                print(f"DEBUG: Hugging Face success! Response length: {len(research_content)}")
+    for model_url in models_to_try:
+        try:
+            API_URL = f"https://api-inference.huggingface.co/models/{model_url}"
+            print(f"DEBUG: Trying Hugging Face model: {model_url}")
+            
+            response = requests.post(
+                API_URL,
+                headers={"Content-Type": "application/json"},
+                json={"inputs": prompt[:400]},  # Limit input length
+                timeout=15
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                research_content = ""
                 
-                return {
-                    'research': research_content,
-                    'user_request': user_message,
-                    'project_context': {
-                        'title': project.title,
-                        'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+                # Handle different response formats
+                if isinstance(result, list) and len(result) > 0:
+                    if 'generated_text' in result[0]:
+                        research_content = result[0]['generated_text']
+                    elif 'text' in result[0]:
+                        research_content = result[0]['text']
+                elif isinstance(result, dict):
+                    research_content = result.get('generated_text', result.get('text', ''))
+                
+                if research_content and len(research_content) > 50:
+                    print(f"DEBUG: Hugging Face {model_url} success! Response length: {len(research_content)}")
+                    
+                    return {
+                        'research': research_content,
+                        'user_request': user_message,
+                        'project_context': {
+                            'title': project.title,
+                            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+                        }
                     }
-                }
-        
-        raise Exception(f"Hugging Face API error: {response.status_code}")
-        
-    except Exception as e:
-        raise Exception(f"Hugging Face request failed: {str(e)}")
+            
+            print(f"DEBUG: Hugging Face {model_url} failed with status: {response.status_code}")
+            
+        except Exception as e:
+            print(f"DEBUG: Hugging Face {model_url} error: {str(e)}")
+            continue
+    
+    # If all models failed
+    raise Exception("All Hugging Face models failed")
 
 def get_local_analysis(user_message, current_content, project):
     """Generate insights using local analysis (no AI required)"""
@@ -1322,7 +1369,7 @@ def get_openai_research(user_message, current_content, project):
         # Don't return here - let the calling function handle DuckDuckGo fallback
         raise e
 
-def format_with_gemini(openai_data, user_message, current_content):
+def format_with_gemini(research_data, user_message, current_content):
     """Use Gemini to format the response and potentially update content"""
     try:
         import google.generativeai as genai
@@ -1344,9 +1391,14 @@ def format_with_gemini(openai_data, user_message, current_content):
         print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
         # Determine if this is a content update request or just a question
+        # Include informal language patterns
         is_update_request = any(keyword in user_message.lower() for keyword in [
             'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better', 
-            'create', 'help me', 'realistic', 'projections', 'metrics', 'financial'
+            'create', 'help me', 'realistic', 'projections', 'metrics', 'financial',
+            # Informal language
+            'sucks', 'fix', 'make it', 'do something', 'help', 'bro', 'dude', 'man',
+            'terrible', 'awful', 'bad', 'boring', 'lame', 'weak', 'needs work',
+            'spice up', 'jazz up', 'make cooler', 'make better', 'upgrade'
         ])
         
         # Special handling for different request types
@@ -1367,11 +1419,13 @@ def format_with_gemini(openai_data, user_message, current_content):
         if is_update_request and current_content:
             # Generate updated content with retry logic
             if is_problem_statement:
-                # Simplified prompt for problem statement improvements
+                # Fun, conversational prompt for problem statement improvements
                 update_prompt = f"""
-                You are Pitchy, an expert pitch deck consultant. Improve the problem statement section.
+                Hey there! 🚀 I'm Pitchy, your friendly pitch deck guru, and I'm here to make your problem statement absolutely shine!
                 
-                User Request: "{user_message}"
+                User Request: "{user_message}" 
+                
+                I totally get it - problem statements can be tricky! Let me help you craft something that really grabs attention and makes investors go "wow, this is a real problem that needs solving!" 💡
                 
                 Current Complete Content:
                 {current_content}
@@ -1388,17 +1442,19 @@ def format_with_gemini(openai_data, user_message, current_content):
                 UPDATED_CONTENT: [Complete pitch deck with enhanced problem statement]
                 """
             elif is_financial:
-                # Specific prompt for financial projections
+                # Fun, conversational prompt for financial projections
                 update_prompt = f"""
-                You are Pitchy, a financial modeling expert. Add realistic financial projections and business metrics.
+                Yo! 💰 Pitchy here, and I'm about to turn your financial section into something that'll make investors reach for their checkbooks!
                 
                 User Request: "{user_message}"
+                
+                I know, I know - numbers can be scary, but trust me, we're gonna make this financial section absolutely irresistible! Time to show them the money! 🤑
                 
                 Current Complete Content:
                 {current_content}
                 
                 Research Information:
-                {openai_data.get('research', '')}
+                {research_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
@@ -1415,17 +1471,19 @@ def format_with_gemini(openai_data, user_message, current_content):
                 UPDATED_CONTENT: [Complete updated pitch deck with financial section]
                 """
             elif is_market_data:
-                # Specific prompt for market data
+                # Fun, conversational prompt for market data
                 update_prompt = f"""
-                You are Pitchy, a market research expert. Enhance the content with specific market data and statistics.
+                Hey hey! 📊 Pitchy here, ready to dive deep into some juicy market data that'll blow investors' minds!
                 
                 User Request: "{user_message}"
+                
+                Market research time! Let's paint a picture of this massive opportunity with some killer stats and trends. We're talking TAM, SAM, SOM - the whole shebang! 🎯
                 
                 Current Complete Content:
                 {current_content}
                 
                 Research Information:
-                {openai_data.get('research', '')}
+                {research_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
@@ -1442,17 +1500,19 @@ def format_with_gemini(openai_data, user_message, current_content):
                 UPDATED_CONTENT: [Complete updated pitch deck with market data]
                 """
             elif is_competition:
-                # Specific prompt for competitive analysis
+                # Fun, conversational prompt for competitive analysis
                 update_prompt = f"""
-                You are Pitchy, a competitive analysis expert. Enhance the competitive analysis section.
+                What's up! 🥊 Pitchy here, and we're about to show why you're gonna absolutely crush the competition!
                 
                 User Request: "{user_message}"
+                
+                Competition analysis time! Let's break down who you're up against and why you're gonna win this thing. Time to show your competitive edge! 💪
                 
                 Current Complete Content:
                 {current_content}
                 
                 Research Information:
-                {openai_data.get('research', '')}
+                {research_data.get('research', '')}
                 
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
@@ -1469,14 +1529,16 @@ def format_with_gemini(openai_data, user_message, current_content):
                 UPDATED_CONTENT: [Complete updated pitch deck with competitive analysis]
                 """
             else:
-                # Full prompt for other improvements
+                # Fun, conversational prompt for general improvements
                 update_prompt = f"""
-                You are Pitchy, an expert pitch deck consultant. A user wants to improve their pitch deck.
+                Hey there! 🎉 Pitchy here, your pitch deck bestie, and I'm SO excited to help make your deck absolutely amazing!
                 
                 User Request: "{user_message}"
                 
+                Alright, let's turn this pitch deck into something that'll have investors saying "TAKE MY MONEY!" 💸 I'm here to make it shine! ✨
+                
                 Research Information:
-                {openai_data.get('research', '')}
+                {research_data.get('research', '')}
                 
                 Current Pitch Deck Content:
                 {current_content[:3000]}...
@@ -1551,20 +1613,21 @@ def format_with_gemini(openai_data, user_message, current_content):
             print("DEBUG: All Gemini models failed for content update")
             raise Exception("All Gemini models failed")
         else:
-            # Just provide advice/information with retry logic
+            # Fun, conversational advice-only prompt
             advice_prompt = f"""
-            You are Pitchy, a friendly and expert pitch deck consultant. A user is asking for help.
+            Hey! 👋 Pitchy here, your friendly pitch deck guru! I'm here to help you out with whatever you need!
             
             User Question: "{user_message}"
             
             Research Information:
-            {openai_data.get('research', '')}
+            {research_data.get('research', '')}
             
             Current Pitch Deck Context:
             {current_content[:500]}...
             
-            Provide helpful, specific advice based on the research information. Be conversational and supportive.
-            Keep your response concise but informative (2-3 sentences max).
+            Let me give you some awesome advice! I'll keep it fun, helpful, and straight to the point. Think of me as your pitch deck buddy who's got your back! 😊
+            
+            Be conversational, enthusiastic, and supportive. Use emojis and casual language. Keep it concise but super helpful (2-3 sentences max).
             """
             
             # Retry logic for advice requests with multiple models
@@ -1629,24 +1692,42 @@ def format_with_gemini(openai_data, user_message, current_content):
         }
 
 def get_fallback_response(user_message):
-    """Generate a helpful fallback response when all AI services fail"""
-    # Determine request type for fallback response
-    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-    is_problem_statement = 'problem statement' in user_message.lower()
+    """Generate a fun, helpful fallback response when all AI services fail"""
+    # Determine request type for fallback response (including informal language)
+    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model', 'money', 'cash', 'funding'])
+    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market', 'tam', 'sam'])
+    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive', 'rivals'])
+    is_problem_statement = any(word in user_message.lower() for word in ['problem statement', 'problem', 'pain point'])
     
-    # Provide specific guidance based on request type
+    # Check for informal language patterns
+    is_informal = any(word in user_message.lower() for word in ['bro', 'dude', 'man', 'sucks', 'terrible', 'awful', 'fix', 'help me out'])
+    
+    # Provide fun, specific guidance based on request type
     if is_financial:
-        return "I'd be happy to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions based on your market size."
+        if is_informal:
+            return "Yo! 💰 I totally get it - let's make those numbers shine! Try adding some killer 3-5 year revenue forecasts, key metrics like CAC and LTV, and show investors exactly how you'll use their money. Make it rain! 🌧️💸"
+        else:
+            return "Hey there! 💰 I'd love to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions. Let's show them the money! 🚀"
     elif is_market_data:
-        return "For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape statistics."
+        if is_informal:
+            return "Dude! 📊 Market data time! Let's blow their minds with some solid TAM, SAM, SOM numbers, growth rates, and industry trends. Show them this market is HUGE! 🎯"
+        else:
+            return "Hey! 📊 For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape stats. Let's paint that big picture! 🎨"
     elif is_competition:
-        return "To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies."
+        if is_informal:
+            return "Yo! 🥊 Competition analysis time! Let's show why you're gonna crush it - add your main competitors, what makes you different, and why you're the clear winner. Time to flex! 💪"
+        else:
+            return "Hey there! 🥊 To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies. Show them why you win! 🏆"
     elif is_problem_statement:
-        return "For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem."
+        if is_informal:
+            return "Bro! 🎯 Problem statement got you down? Let's fix that! Add some killer stats, real pain points people face, and show why this problem is costing everyone big time. Make it urgent! ⚡"
+        else:
+            return "Hey! 🎯 For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem. Let's make it compelling! ✨"
     else:
-        return "I'm here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements."
+        if is_informal:
+            return "Hey hey! 👋 Pitchy here, and I'm totally here for you! Hit me up about financial projections, market data, competition, or problem statements - let's make this deck absolutely fire! 🔥"
+        else:
+            return "Hey there! 👋 I'm Pitchy, your pitch deck buddy! I'm here to help improve your deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements. Let's make it amazing! ✨"
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
