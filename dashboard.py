@@ -1974,6 +1974,9 @@ def out_of_tokens():
         return render_template('dashboard/out_of_tokens.html', 
                              user_projects_count=user_projects_count,
                              interrupted_project=interrupted_project)
+    except Exception as e:
+        flash(f'Error loading page: {str(e)}', 'error')
+        return redirect(url_for('dashboard.index'))
 @dashboard_bp.route('/projects/<project_id>/update-content', methods=['POST'])
 @login_required
 def update_project_content(project_id):
