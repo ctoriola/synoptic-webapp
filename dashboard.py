@@ -1974,6 +1974,60 @@ def out_of_tokens():
         return render_template('dashboard/out_of_tokens.html', 
                              user_projects_count=user_projects_count,
                              interrupted_project=interrupted_project)
+@dashboard_bp.route('/projects/<project_id>/update-content', methods=['POST'])
+@login_required
+def update_project_content(project_id):
+    """Update the pitch deck content for a project"""
+    try:
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+
+        data = request.get_json()
+        if not data or 'content' not in data:
+            return jsonify({'error': 'Content is required'}), 400
+
+        updated_content = data['content']
+
+        # Update the project's pitch deck content
+        if not project.pitch_deck:
+            project.pitch_deck = {}
+
+        project.pitch_deck['content'] = updated_content
+        project.pitch_deck['updated_at'] = datetime.utcnow().isoformat()
+        project.pitch_deck['version'] = str(float(project.pitch_deck.get('version', '1.0')) + 0.1)
+
+        # Save the project
+        project.save()
+
+        return jsonify({
+            'success': True,
+            'message': 'Content updated successfully',
+            'version': project.pitch_deck.get('version')
+        })
+
     except Exception as e:
-        flash(f'Error loading page: {str(e)}', 'error')
-        return redirect(url_for('dashboard.index'))
+        print(f"DEBUG: Error updating project content: {str(e)}")
+        return jsonify({'error': 'Failed to update content'}), 500
+
+
+@dashboard_bp.route('/projects/<project_id>/revert-content', methods=['POST'])
+@login_required
+def revert_project_content(project_id):
+    """Revert to previous version of pitch deck content"""
+    try:
+        project = Project.get(project_id)
+        if not project or project.user_id != current_user.id:
+            return jsonify({'error': 'Project not found or access denied'}), 404
+
+        # For now, we'll just return the current content as there's no version history
+        # In a full implementation, you'd store version history
+
+        return jsonify({
+            'success': True,
+            'content': project.pitch_deck.get('content', '') if project.pitch_deck else ''
+        })
+
+    except Exception as e:
+        print(f"DEBUG: Error reverting project content: {str(e)}")
+        return jsonify({'error': 'Failed to revert content'}), 500
