@@ -1417,132 +1417,143 @@ def format_with_gemini(research_data, user_message, current_content):
         print(f"DEBUG: - has_current_content: {bool(current_content)}")
         
         if is_update_request and current_content:
-            # Generate updated content - this should ALWAYS generate actual content updates, not advice
+            # Generate updated content with retry logic
             if is_problem_statement:
-                # Specific prompt for problem statement improvements - generates actual content
+                # Fun, conversational prompt for problem statement improvements
                 update_prompt = f"""
-                You are Pitchy, an expert pitch deck consultant who generates actual content updates.
-
-                User Request: "{user_message}"
-
-                Current Complete Pitch Deck Content:
+                Hey there! 🚀 I'm Pitchy, your friendly pitch deck guru, and I'm here to make your problem statement absolutely shine!
+                
+                User Request: "{user_message}" 
+                
+                I totally get it - problem statements can be tricky! Let me help you craft something that really grabs attention and makes investors go "wow, this is a real problem that needs solving!" 💡
+                
+                Current Complete Content:
                 {current_content}
-
+                
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Find the problem statement section and enhance it with specific, compelling content
-                3. If no problem statement exists, add one after the introduction or company overview
-                4. Add specific statistics (73% of businesses face this issue, $2.3B market opportunity, etc.)
-                5. Make it more urgent and compelling with real data points
-                6. Return the COMPLETE updated pitch deck with enhanced problem statement
-
-                Format EXACTLY as:
-                RESPONSE: Brief explanation of what was enhanced
-                UPDATED_CONTENT: [Complete updated pitch deck with enhanced problem statement]
+                2. Focus on enhancing the problem statement section within the full content
+                3. Add specific statistics (use realistic percentages like 73%, 42%, etc.)
+                4. Make it more urgent and compelling while keeping all other sections intact
+                5. Return the COMPLETE updated pitch deck with enhanced problem statement
+                
+                Format as:
+                RESPONSE: Brief explanation of improvements made
+                UPDATED_CONTENT: [Complete pitch deck with enhanced problem statement]
                 """
             elif is_financial:
-                # Specific prompt for financial projections - generates actual content
+                # Fun, conversational prompt for financial projections
                 update_prompt = f"""
-                You are Pitchy, a financial expert who generates actual financial projections.
-
+                Yo! 💰 Pitchy here, and I'm about to turn your financial section into something that'll make investors reach for their checkbooks!
+                
                 User Request: "{user_message}"
-
-                Current Complete Pitch Deck Content:
+                
+                I know, I know - numbers can be scary, but trust me, we're gonna make this financial section absolutely irresistible! Time to show them the money! 🤑
+                
+                Current Complete Content:
                 {current_content}
-
+                
                 Research Information:
                 {research_data.get('research', '')}
-
+                
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
                 2. Find the financial/business model section and enhance it with comprehensive projections
                 3. If no financial section exists, add one after the business model or solution section
-                4. Include 3-5 year revenue projections: Year 1: $2.1M, Year 2: $5.8M, Year 3: $12.4M
-                5. Add key metrics: CAC $45, LTV $320, gross margins 78%, burn rate $180K/month
-                6. Include funding requirements: $3M Series A, use of funds breakdown
-                7. Use realistic numbers based on industry standards
+                4. Include 3-5 year revenue projections with realistic growth rates
+                5. Add key metrics like CAC, LTV, gross margins, burn rate
+                6. Include funding requirements and use of funds
+                7. Use realistic numbers based on industry standards and research data
                 8. Return the COMPLETE pitch deck with enhanced financial section
-
-                Format EXACTLY as:
+                
+                Format as:
                 RESPONSE: Brief explanation of financial projections added
                 UPDATED_CONTENT: [Complete updated pitch deck with financial section]
                 """
             elif is_market_data:
-                # Specific prompt for market data - generates actual content
+                # Fun, conversational prompt for market data
                 update_prompt = f"""
-                You are Pitchy, a market research expert who generates actual market data.
-
+                Hey hey! 📊 Pitchy here, ready to dive deep into some juicy market data that'll blow investors' minds!
+                
                 User Request: "{user_message}"
-
-                Current Complete Pitch Deck Content:
+                
+                Market research time! Let's paint a picture of this massive opportunity with some killer stats and trends. We're talking TAM, SAM, SOM - the whole shebang! 🎯
+                
+                Current Complete Content:
                 {current_content}
-
+                
                 Research Information:
                 {research_data.get('research', '')}
-
+                
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
                 2. Find the market opportunity/market size section and enhance it with specific data
                 3. If no market section exists, add one after the problem/solution section
-                4. Add specific market size data: TAM $127B, SAM $23B, SOM $4.2B
-                5. Include growth rates: 15.3% CAGR, 32% year-over-year growth
-                6. Add relevant industry statistics and benchmarks from research
-                7. Return the COMPLETE pitch deck with enhanced market section
-
-                Format EXACTLY as:
+                4. Add specific market size data (TAM, SAM, SOM) with realistic numbers
+                5. Include growth rates and market trends from research
+                6. Add relevant industry statistics and benchmarks
+                7. Use research data to make improvements factual and specific
+                8. Return the COMPLETE pitch deck with enhanced market section
+                
+                Format as:
                 RESPONSE: Brief explanation of market data added
                 UPDATED_CONTENT: [Complete updated pitch deck with market data]
                 """
             elif is_competition:
-                # Specific prompt for competitive analysis - generates actual content
+                # Fun, conversational prompt for competitive analysis
                 update_prompt = f"""
-                You are Pitchy, a competitive analysis expert who generates actual competitor information.
-
+                What's up! 🥊 Pitchy here, and we're about to show why you're gonna absolutely crush the competition!
+                
                 User Request: "{user_message}"
-
-                Current Complete Pitch Deck Content:
+                
+                Competition analysis time! Let's break down who you're up against and why you're gonna win this thing. Time to show your competitive edge! 💪
+                
+                Current Complete Content:
                 {current_content}
-
+                
                 Research Information:
                 {research_data.get('research', '')}
-
+                
                 INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
                 2. Find the competitive analysis/competition section and enhance it with detailed analysis
                 3. If no competition section exists, add one after the market opportunity section
-                4. Add detailed competitor analysis with specific company names: Competitor A, Competitor B
+                4. Add detailed competitor analysis with specific company names from research
                 5. Include competitive advantages and differentiators
                 6. Add market positioning and competitive landscape insights
                 7. Use research data to identify realistic competitor examples
                 8. Return the COMPLETE pitch deck with enhanced competitive analysis
-
-                Format EXACTLY as:
+                
+                Format as:
                 RESPONSE: Brief explanation of competitive analysis added
                 UPDATED_CONTENT: [Complete updated pitch deck with competitive analysis]
                 """
             else:
-                # General prompt for other improvements - generates actual content
+                # Fun, conversational prompt for general improvements
                 update_prompt = f"""
-                You are Pitchy, an expert pitch deck consultant who generates actual content updates.
-
+                Hey there! 🎉 Pitchy here, your pitch deck bestie, and I'm SO excited to help make your deck absolutely amazing!
+                
                 User Request: "{user_message}"
-
-                Current Pitch Deck Content:
-                {current_content[:3000]}...
-
+                
+                Alright, let's turn this pitch deck into something that'll have investors saying "TAKE MY MONEY!" 💸 I'm here to make it shine! ✨
+                
                 Research Information:
                 {research_data.get('research', '')}
-
+                
+                Current Pitch Deck Content:
+                {current_content[:3000]}...
+                
                 CRITICAL INSTRUCTIONS:
                 1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Generate an updated version that ADDS to the existing pitch deck
-                3. Use the research information to make specific, factual improvements
-                4. Maintain the original structure and ENHANCE the content
-                5. NO placeholder text - use specific data, companies, and figures
-                6. Return the COMPLETE updated pitch deck
-
+                2. Provide a brief explanation of what you're improving (2-3 sentences)
+                3. Generate an updated version that ADDS to the existing pitch deck
+                4. Use the research information to make specific, factual improvements
+                5. Maintain the original structure and ENHANCE the content
+                6. NO placeholder text - use specific data, companies, and figures
+                7. NEVER remove or replace existing slides - only add or enhance
+                
                 Format your response EXACTLY as:
-                RESPONSE: [Brief explanation of what was enhanced]
+                RESPONSE: [Your brief explanation]
                 UPDATED_CONTENT: [The complete updated pitch deck content]
                 """
             
@@ -1604,16 +1615,19 @@ def format_with_gemini(research_data, user_message, current_content):
         else:
             # Fun, conversational advice-only prompt
             advice_prompt = f"""
-            Hey! 👋 Pitchy here, your friendly pitch deck guru! I see you don't have existing content to update, but I'm here to help you create an amazing pitch deck!
-
+            Hey! 👋 Pitchy here, your friendly pitch deck guru! I'm here to help you out with whatever you need!
+            
             User Question: "{user_message}"
-
+            
             Research Information:
             {research_data.get('research', '')}
-
-            Let me help you create some killer content! I'll provide specific examples and concrete suggestions you can use to build your pitch deck. Think of me as your pitch deck building buddy! 😊
-
-            Provide actionable, specific examples and concrete data points that the user can copy and use directly in their pitch deck. Be enthusiastic and supportive. Keep it concise but super helpful (2-3 sentences max).
+            
+            Current Pitch Deck Context:
+            {current_content[:500]}...
+            
+            Let me give you some awesome advice! I'll keep it fun, helpful, and straight to the point. Think of me as your pitch deck buddy who's got your back! 😊
+            
+            Be conversational, enthusiastic, and supportive. Use emojis and casual language. Keep it concise but super helpful (2-3 sentences max).
             """
             
             # Retry logic for advice requests with multiple models
@@ -1660,23 +1674,17 @@ def format_with_gemini(research_data, user_message, current_content):
         is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
         is_problem_statement = 'problem statement' in user_message.lower()
         
-        # Determine request type for fallback response
-        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-        is_problem_statement = 'problem statement' in user_message.lower()
-        
-        # Generate actual content updates even in fallback scenarios
+        # Provide specific guidance based on request type
         if is_financial:
-            fallback_response = "Perfect! I've added comprehensive financial projections including 3-5 year revenue forecasts, key metrics like CAC $45 and LTV $320, and funding requirements to your pitch deck."
+            fallback_response = "I'd be happy to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions based on your market size."
         elif is_market_data:
-            fallback_response = "Awesome! I've enhanced your market section with specific data including TAM $127B, SAM $23B, 15.3% CAGR growth rates, and industry benchmarks."
+            fallback_response = "For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape statistics."
         elif is_competition:
-            fallback_response = "Great choice! I've added detailed competitive analysis with specific competitors, market positioning, and your competitive advantages to show why you'll win."
+            fallback_response = "To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies."
         elif is_problem_statement:
-            fallback_response = "Excellent! I've strengthened your problem statement with compelling statistics, real pain points, and data showing why this problem costs everyone significantly."
+            fallback_response = "For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem."
         else:
-            fallback_response = "Got it! I've enhanced your pitch deck with specific improvements based on your request, adding concrete data and examples to make it more compelling."
+            fallback_response = "I'm here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements."
         
         return {
             'response': fallback_response,
@@ -1697,29 +1705,29 @@ def get_fallback_response(user_message):
     # Provide fun, specific guidance based on request type
     if is_financial:
         if is_informal:
-            return "Yo! 💰 Perfect! I've added killer financial projections with 3-5 year forecasts, CAC $45, LTV $320, and funding needs to make investors drool!"
+            return "Yo! 💰 I totally get it - let's make those numbers shine! Try adding some killer 3-5 year revenue forecasts, key metrics like CAC and LTV, and show investors exactly how you'll use their money. Make it rain! 🌧️💸"
         else:
-            return "Excellent! 💰 I've enhanced your financial section with comprehensive 3-5 year revenue projections, key metrics like CAC $45 and LTV $320, plus funding requirements."
+            return "Hey there! 💰 I'd love to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions. Let's show them the money! 🚀"
     elif is_market_data:
         if is_informal:
-            return "Dude! 📊 Awesome! I've loaded up your market section with massive TAM $127B, SAM $23B, 15.3% growth rates, and killer industry stats!"
+            return "Dude! 📊 Market data time! Let's blow their minds with some solid TAM, SAM, SOM numbers, growth rates, and industry trends. Show them this market is HUGE! 🎯"
         else:
-            return "Perfect! 📊 I've enhanced your market section with specific data: TAM $127B, SAM $23B, 15.3% CAGR growth rates, and relevant industry benchmarks."
+            return "Hey! 📊 For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape stats. Let's paint that big picture! 🎨"
     elif is_competition:
         if is_informal:
-            return "Yo! 🥊 Sweet! I've added detailed competitor analysis showing why you're gonna crush Competitor A and Competitor B with your unique advantages!"
+            return "Yo! 🥊 Competition analysis time! Let's show why you're gonna crush it - add your main competitors, what makes you different, and why you're the clear winner. Time to flex! 💪"
         else:
-            return "Great! 🥊 I've enhanced your competitive analysis with specific competitors, market positioning, and your clear competitive advantages."
+            return "Hey there! 🥊 To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies. Show them why you win! 🏆"
     elif is_problem_statement:
         if is_informal:
-            return "Bro! 🎯 Perfect! I've supercharged your problem statement with stats showing 73% face this issue, costing $2.3B annually - investors will feel the pain!"
+            return "Bro! 🎯 Problem statement got you down? Let's fix that! Add some killer stats, real pain points people face, and show why this problem is costing everyone big time. Make it urgent! ⚡"
         else:
-            return "Excellent! 🎯 I've strengthened your problem statement with compelling statistics, real pain points, and data showing the significant cost of this problem."
+            return "Hey! 🎯 For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem. Let's make it compelling! ✨"
     else:
         if is_informal:
-            return "Hey hey! 👋 Got it! I've enhanced your pitch deck with specific improvements, concrete data, and examples to make it absolutely fire! 🔥"
+            return "Hey hey! 👋 Pitchy here, and I'm totally here for you! Hit me up about financial projections, market data, competition, or problem statements - let's make this deck absolutely fire! 🔥"
         else:
-            return "Perfect! ✨ I've enhanced your pitch deck with specific improvements, concrete data, and examples based on your request."
+            return "Hey there! 👋 I'm Pitchy, your pitch deck buddy! I'm here to help improve your deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements. Let's make it amazing! ✨"
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
