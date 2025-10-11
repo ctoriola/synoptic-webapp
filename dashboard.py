@@ -578,8 +578,9 @@ def generator():
                 flash('AI service not configured', 'error')
                 return redirect(url_for('dashboard.index'))
             
+            # Use gemini-pro - FREE TIER: 15 RPM, 1M tokens/min, 1500 requests/day
             genai.configure(api_key=GOOGLE_API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-pro')
             
             # Try to get README content
             user_token = current_user.github_token if current_user.is_authenticated else None
@@ -1575,7 +1576,7 @@ def admin_new_survey():
                 
                 # Configure Gemini AI
                 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-                model = genai.GenerativeModel('gemini-1.5-flash')
+                model = genai.GenerativeModel('gemini-pro')
             
                 # Generate survey questions using Gemini
                 prompt = """

@@ -578,8 +578,10 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
 
     genai.configure(api_key=GOOGLE_API_KEY)
 
+    # Use gemini-pro which is in the free tier
+    # Free tier: 15 RPM (requests per minute), 1 million tokens per minute
     model = genai.GenerativeModel(
-        model_name="gemini-1.5-flash",
+        model_name="gemini-pro",
         generation_config={
             "max_output_tokens": 4096,
         },
@@ -772,7 +774,7 @@ def api_generate():
             return jsonify({"error": "AI service not configured"}), 500
         
         genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         
         # For custom projects, we don't fetch additional repo signals
         if 'multipart/form-data' in request.content_type:
@@ -1387,7 +1389,7 @@ def format_with_gemini(research_data, user_message, current_content):
         genai.configure(api_key=api_key)
         
         # Try multiple Gemini models for better reliability
-        models_to_try = ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']
+        models_to_try = ['gemini-pro', 'gemini-1.5-pro']
         print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
         # Determine if this is a content update request or just a question
@@ -2085,7 +2087,7 @@ def generate_documentation(project_id):
             return jsonify({'error': 'AI service not configured'}), 500
         
         genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         
         # Get repository content for context
         repo_content = ""
@@ -2183,7 +2185,7 @@ def generate_user_guide(project_id):
             return jsonify({'error': 'AI service not configured'}), 500
         
         genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-pro')
         
         # Get repository content for context
         repo_content = ""
