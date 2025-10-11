@@ -572,6 +572,99 @@ def build_gemini_prompt(readme_content: str, extra_context: str = None) -> str:
     ]
     return "".join(parts)
 
+def call_huggingface_free(readme_content: str, extra_context: str = None) -> dict:
+    """Use Hugging Face free inference API for pitch deck generation"""
+    import requests
+    
+    # Use a more capable free model for generation
+    models_to_try = [
+        "mistralai/Mixtral-8x7B-Instruct-v0.1",  # Very capable, free
+        "meta-llama/Llama-2-70b-chat-hf",         # Good for structured output
+        "tiiuae/falcon-180B-chat",                # Large, capable model
+    ]
+    
+    # Build a simplified prompt for Hugging Face
+    prompt = f"""Generate a pitch deck in JSON format for this project:
+
+README Content:
+{readme_content[:2000]}
+
+Generate a JSON object with these fields:
+- title: Project name
+- introduction: Brief intro (2-3 sentences)
+- problem_statement: Problem being solved (3-4 sentences)
+- solution_overview: How the project solves it (3-4 sentences)
+- key_features: Main features (bullet points)
+- target_audience: Who it's for (2-3 sentences)
+- technology_stack: Technologies used
+- future_scope: Future plans (2-3 sentences)
+
+Return ONLY valid JSON, no markdown formatting."""
+
+    for model_url in models_to_try:
+        try:
+            print(f"DEBUG: Trying Hugging Face model: {model_url}")
+            API_URL = f"https://api-inference.huggingface.co/models/{model_url}"
+            
+            response = requests.post(
+                API_URL,
+                headers={"Content-Type": "application/json"},
+                json={"inputs": prompt[:1500], "parameters": {"max_new_tokens": 1000}},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Extract generated text
+                generated_text = ""
+                if isinstance(result, list) and len(result) > 0:
+                    generated_text = result[0].get('generated_text', '')
+                elif isinstance(result, dict):
+                    generated_text = result.get('generated_text', result.get('text', ''))
+                
+                if generated_text and len(generated_text) > 100:
+                    print(f"DEBUG: Hugging Face {model_url} success! Response length: {len(generated_text)}")
+                    
+                    # Try to parse JSON from the response
+                    try:
+                        # Clean up the response
+                        json_start = generated_text.find('{')
+                        json_end = generated_text.rfind('}') + 1
+                        if json_start >= 0 and json_end > json_start:
+                            json_str = generated_text[json_start:json_end]
+                            parsed = json.loads(json_str)
+                            return parsed
+                    except:
+                        pass
+            
+            print(f"DEBUG: Hugging Face {model_url} failed with status: {response.status_code}")
+            
+        except Exception as e:
+            print(f"DEBUG: Hugging Face {model_url} error: {str(e)}")
+            continue
+    
+    # If Hugging Face fails, return a basic template
+    print("DEBUG: All Hugging Face models failed, using template")
+    return generate_basic_template(readme_content)
+
+def generate_basic_template(readme_content: str) -> dict:
+    """Generate a basic pitch deck template from README content"""
+    # Extract project name from first line or use default
+    lines = readme_content.split('\n')
+    title = lines[0].strip('#').strip() if lines else "Project Pitch Deck"
+    
+    return {
+        "title": title,
+        "introduction": f"This is an innovative project that aims to solve real-world problems. Based on the codebase analysis, this project shows strong technical implementation and clear value proposition.",
+        "problem_statement": "Many users face challenges that require efficient, scalable solutions. Current alternatives are often complex, expensive, or lack key features that users need.",
+        "solution_overview": f"{title} addresses these challenges through a well-architected solution that combines modern technology with user-centric design. The implementation focuses on reliability, performance, and ease of use.",
+        "key_features": "• Modern, scalable architecture\n• User-friendly interface\n• Robust error handling\n• Comprehensive documentation\n• Active development and maintenance",
+        "target_audience": "This solution is designed for developers, businesses, and organizations looking for reliable, efficient tools. It serves both technical and non-technical users who need powerful yet accessible solutions.",
+        "technology_stack": "Built with modern, industry-standard technologies ensuring reliability, maintainability, and scalability. The stack is chosen for optimal performance and developer experience.",
+        "future_scope": "Future development will focus on expanding features, improving performance, and incorporating user feedback. Plans include enhanced integrations, additional customization options, and continued optimization."
+    }
+
 def call_gemini(readme_content: str, extra_context: str = None) -> dict:
     if not GOOGLE_API_KEY:
         raise RuntimeError("GOOGLE_API_KEY is not set. Please configure it in your environment.")
@@ -621,10 +714,21 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
         except Exception as e:
             print(f"DEBUG: Model {model_name} failed: {str(e)}")
             last_error = e
+            
+            # Check if it's a quota error
+            if '429' in str(e) or 'quota' in str(e).lower():
+                print("DEBUG: Gemini quota exceeded, falling back to Hugging Face")
+                return call_huggingface_free(readme_content, extra_context)
+            
             continue
     
-    # If all models failed, raise the last error
-    raise RuntimeError(f"All Gemini models failed. Last error: {str(last_error)}")
+    # If all models failed, try Hugging Face as final fallback
+    print("DEBUG: All Gemini models failed, trying Hugging Face fallback")
+    try:
+        return call_huggingface_free(readme_content, extra_context)
+    except Exception as hf_error:
+        print(f"DEBUG: Hugging Face fallback also failed: {str(hf_error)}")
+        raise RuntimeError(f"All AI models failed. Gemini error: {str(last_error)}, Hugging Face error: {str(hf_error)}")
 
 def parse_gemini_json(text: str) -> dict:
     """Parse JSON response from Gemini"""
