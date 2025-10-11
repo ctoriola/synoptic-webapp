@@ -578,22 +578,45 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
 
     genai.configure(api_key=GOOGLE_API_KEY)
 
-    # Use gemini-pro which is in the free tier
-    # Free tier: 15 RPM (requests per minute), 1 million tokens per minute
-    model = genai.GenerativeModel(
-        model_name="gemini-pro",
-        generation_config={
-            "max_output_tokens": 4096,
-        },
-    )
+    # Try different model names - Google's API has changed model naming
+    # Free tier models to try in order
+    models_to_try = [
+        "models/gemini-pro",  # Try with models/ prefix
+        "gemini-1.0-pro",     # Alternative naming
+        "gemini-pro",         # Original naming
+    ]
+    
+    last_error = None
+    for model_name in models_to_try:
+        try:
+            print(f"DEBUG: Trying Gemini model: {model_name}")
+            model = genai.GenerativeModel(
+                model_name=model_name,
+                generation_config={
+                    "max_output_tokens": 4096,
+                },
+            )
+            # Test if model works by attempting to use it
+            prompt = build_gemini_prompt(readme_content, extra_context=extra_context)
+            resp = model.generate_content(prompt)
+            
+            # If we get here, the model worked
+            print(f"DEBUG: Successfully using model: {model_name}")
+            text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
+            if not text:
+                raise RuntimeError("Gemini returned empty response")
+            return parse_gemini_json(text)
+            
+        except Exception as e:
+            print(f"DEBUG: Model {model_name} failed: {str(e)}")
+            last_error = e
+            continue
+    
+    # If all models failed, raise the last error
+    raise RuntimeError(f"All Gemini models failed. Last error: {str(last_error)}")
 
-    prompt = build_gemini_prompt(readme_content, extra_context=extra_context)
-    resp = model.generate_content(prompt)
-
-    text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
-    if not text:
-        raise RuntimeError("Gemini API returned an empty response.")
-
+def parse_gemini_json(text: str) -> dict:
+    """Parse JSON response from Gemini"""
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
@@ -1389,7 +1412,8 @@ def format_with_gemini(research_data, user_message, current_content):
         genai.configure(api_key=api_key)
         
         # Try multiple Gemini models for better reliability
-        models_to_try = ['gemini-pro', 'gemini-1.5-pro']
+        # Try different naming conventions as Google's API has changed
+        models_to_try = ['models/gemini-pro', 'gemini-1.0-pro', 'gemini-pro', 'gemini-1.5-pro']
         print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
         # Determine if this is a content update request or just a question
