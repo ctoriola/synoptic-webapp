@@ -682,12 +682,24 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
         
         if not available_models:
             print("DEBUG: No models found with generateContent support")
-            # Fallback to common model names
-            available_models = ["gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro"]
+            # Fallback to Flash models first (faster and more quota)
+            available_models = [
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-flash", 
+                "gemini-1.5-flash-001",
+                "gemini-flash",
+                "gemini-pro"
+            ]
     except Exception as e:
         print(f"DEBUG: Could not list models: {str(e)}")
-        # Fallback to common model names
-        available_models = ["gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro", "gemini-1.5-flash-latest"]
+        # Fallback to Flash models first (faster and more quota)
+        available_models = [
+            "gemini-1.5-flash-latest",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-001", 
+            "gemini-flash",
+            "gemini-pro"
+        ]
     
     # Try each available model
     last_error = None
@@ -923,11 +935,23 @@ def api_generate():
                     print(f"DEBUG: Available model: {m.name}")
             
             if not available_models:
-                print("DEBUG: No models found, using fallback list")
-                available_models = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro']
+                print("DEBUG: No models found, using fallback list with Flash priority")
+                available_models = [
+                    'gemini-1.5-flash-latest',
+                    'gemini-1.5-flash',
+                    'gemini-1.5-flash-001',
+                    'gemini-flash',
+                    'gemini-pro'
+                ]
         except Exception as e:
             print(f"DEBUG: Could not list models: {str(e)}")
-            available_models = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro']
+            available_models = [
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-001',
+                'gemini-flash',
+                'gemini-pro'
+            ]
         
         # Try each model until one works
         model = None
@@ -1559,7 +1583,7 @@ def format_with_gemini(research_data, user_message, current_content):
         genai.configure(api_key=api_key)
         
         # Try multiple Gemini models for better reliability
-        # First try to get available models dynamically
+        # First try to get available models dynamically, prioritize Flash
         try:
             print("DEBUG: Listing available Gemini models for Pitchy...")
             models_to_try = []
@@ -1568,11 +1592,23 @@ def format_with_gemini(research_data, user_message, current_content):
                     models_to_try.append(m.name)
             
             if not models_to_try:
-                # Fallback to common model names
-                models_to_try = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro', 'gemini-1.5-flash-latest']
+                # Fallback to Flash models first (faster, more quota)
+                models_to_try = [
+                    'gemini-1.5-flash-latest',
+                    'gemini-1.5-flash',
+                    'gemini-1.5-flash-001',
+                    'gemini-flash',
+                    'gemini-pro'
+                ]
         except Exception as e:
             print(f"DEBUG: Could not list models: {str(e)}")
-            models_to_try = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro', 'gemini-1.5-flash-latest']
+            models_to_try = [
+                'gemini-1.5-flash-latest',
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-001',
+                'gemini-flash',
+                'gemini-pro'
+            ]
         
         print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
