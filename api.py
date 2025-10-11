@@ -808,7 +808,39 @@ def api_generate():
             return jsonify({"error": "AI service not configured"}), 500
         
         genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        
+        # Dynamically discover available models
+        print("DEBUG: Listing available Gemini models for generation...")
+        try:
+            available_models = []
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    available_models.append(m.name)
+                    print(f"DEBUG: Available model: {m.name}")
+            
+            if not available_models:
+                print("DEBUG: No models found, using fallback list")
+                available_models = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro']
+        except Exception as e:
+            print(f"DEBUG: Could not list models: {str(e)}")
+            available_models = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro']
+        
+        # Try each model until one works
+        model = None
+        last_model_error = None
+        for model_name in available_models:
+            try:
+                print(f"DEBUG: Trying to create model: {model_name}")
+                model = genai.GenerativeModel(model_name)
+                print(f"DEBUG: Successfully created model: {model_name}")
+                break
+            except Exception as e:
+                print(f"DEBUG: Model {model_name} failed: {str(e)}")
+                last_model_error = e
+                continue
+        
+        if not model:
+            return jsonify({"error": f"No working Gemini model found. Last error: {str(last_model_error)}"}), 500
         
         # For custom projects, we don't fetch additional repo signals
         if 'multipart/form-data' in request.content_type:
