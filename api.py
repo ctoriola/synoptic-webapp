@@ -578,16 +578,27 @@ def call_gemini(readme_content: str, extra_context: str = None) -> dict:
 
     genai.configure(api_key=GOOGLE_API_KEY)
 
-    # Try different model names - Google's API has changed model naming
-    # Free tier models to try in order
-    models_to_try = [
-        "models/gemini-pro",  # Try with models/ prefix
-        "gemini-1.0-pro",     # Alternative naming
-        "gemini-pro",         # Original naming
-    ]
+    # First, try to list available models to see what's actually available
+    try:
+        print("DEBUG: Listing available Gemini models...")
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
+                print(f"DEBUG: Available model: {m.name}")
+        
+        if not available_models:
+            print("DEBUG: No models found with generateContent support")
+            # Fallback to common model names
+            available_models = ["gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro"]
+    except Exception as e:
+        print(f"DEBUG: Could not list models: {str(e)}")
+        # Fallback to common model names
+        available_models = ["gemini-pro", "gemini-1.0-pro-latest", "gemini-1.0-pro", "gemini-1.5-flash-latest"]
     
+    # Try each available model
     last_error = None
-    for model_name in models_to_try:
+    for model_name in available_models:
         try:
             print(f"DEBUG: Trying Gemini model: {model_name}")
             model = genai.GenerativeModel(
@@ -1412,8 +1423,21 @@ def format_with_gemini(research_data, user_message, current_content):
         genai.configure(api_key=api_key)
         
         # Try multiple Gemini models for better reliability
-        # Try different naming conventions as Google's API has changed
-        models_to_try = ['models/gemini-pro', 'gemini-1.0-pro', 'gemini-pro', 'gemini-1.5-pro']
+        # First try to get available models dynamically
+        try:
+            print("DEBUG: Listing available Gemini models for Pitchy...")
+            models_to_try = []
+            for m in genai.list_models():
+                if 'generateContent' in m.supported_generation_methods:
+                    models_to_try.append(m.name)
+            
+            if not models_to_try:
+                # Fallback to common model names
+                models_to_try = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro', 'gemini-1.5-flash-latest']
+        except Exception as e:
+            print(f"DEBUG: Could not list models: {str(e)}")
+            models_to_try = ['gemini-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro', 'gemini-1.5-flash-latest']
+        
         print(f"DEBUG: Will try Gemini models: {models_to_try}")
         
         # Determine if this is a content update request or just a question
