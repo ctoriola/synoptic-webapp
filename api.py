@@ -2080,12 +2080,8 @@ def generate_documentation(project_id):
         return jsonify({'error': 'Project not found or access denied'}), 404
     
     try:
-        # Configure Gemini AI
-        if not GOOGLE_API_KEY:
-            return jsonify({'error': 'AI service not configured'}), 500
-        
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        # REPLACED: Now using Hugging Face for documentation generation
+        print("DEBUG: Using Hugging Face for documentation generation")
         
         # Get repository content for context
         repo_content = ""
@@ -2098,51 +2094,44 @@ def generate_documentation(project_id):
                 repo_content = f"README Content:\n{readme_content}\n\n"
         
         # Create documentation generation prompt
-        prompt = f"""Generate comprehensive technical documentation for the following project:
+        prompt = f"""Generate technical documentation for this project:
 
 Project: {project.title}
 Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
 
-{repo_content}
+{repo_content[:1000]}
 
-Please generate detailed technical documentation that includes:
-
-1. **Architecture Overview**
-   - System architecture and design patterns
-   - Technology stack and dependencies
-   - Database schema (if applicable)
-
-2. **API Documentation**
-   - Endpoints and their purposes
-   - Request/response formats
-   - Authentication requirements
-
-3. **Installation & Setup**
-   - Prerequisites and requirements
-   - Step-by-step installation guide
-   - Configuration instructions
-
-4. **Development Guide**
-   - Project structure explanation
-   - Coding standards and conventions
-   - Testing procedures
-
-5. **Deployment**
-   - Deployment requirements
-   - Environment configuration
-   - Production considerations
-
-6. **Troubleshooting**
-   - Common issues and solutions
-   - Debug procedures
-   - Performance optimization
-
-Format the response as structured markdown with clear headings and code examples where appropriate.
+Include: Architecture, API docs, Installation, Development guide, Deployment, Troubleshooting.
+Format as markdown.
 """
         
-        # Generate documentation
-        response = model.generate_content(prompt)
-        documentation_content = response.text
+        # Generate documentation using Hugging Face
+        documentation_content = refine_pitch_content("", prompt)
+        
+        if not documentation_content:
+            documentation_content = f"""# {project.title} Documentation
+
+## Overview
+Technical documentation for {project.title}.
+
+## Installation
+```bash
+# Clone the repository
+git clone {project.repo_url if project.repo_url else 'repository-url'}
+
+# Install dependencies
+npm install  # or pip install -r requirements.txt
+```
+
+## Usage
+Please refer to the README for detailed usage instructions.
+
+## Development
+Contributions are welcome! Please follow the project's coding standards.
+
+## License
+See LICENSE file for details.
+"""
         
         # Save documentation to project
         project.documentation = {
@@ -2178,12 +2167,8 @@ def generate_user_guide(project_id):
         return jsonify({'error': 'Project not found or access denied'}), 404
     
     try:
-        # Configure Gemini AI
-        if not GOOGLE_API_KEY:
-            return jsonify({'error': 'AI service not configured'}), 500
-        
-        genai.configure(api_key=GOOGLE_API_KEY)
-        model = genai.GenerativeModel('gemini-pro')
+        # REPLACED: Now using Hugging Face for user guide generation
+        print("DEBUG: Using Hugging Face for user guide generation")
         
         # Get repository content for context
         repo_content = ""
@@ -2196,33 +2181,15 @@ def generate_user_guide(project_id):
                 repo_content = f"README Content:\n{readme_content}\n\n"
         
         # Create user guide generation prompt
-        prompt = f"""Generate a comprehensive user guide for the following project:
+        prompt = f"""Generate a user guide for this project:
 
 Project: {project.title}
 Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
 
-{repo_content}
+{repo_content[:1000]}
 
-Please generate a user-friendly guide that includes:
-
-1. **Getting Started**
-   - What this application does
-   - Who should use it
-   - System requirements
-
-2. **Installation Guide**
-   - Simple installation steps
-   - Initial setup and configuration
-   - First-time user setup
-
-3. **User Interface Guide**
-   - Navigation overview
-   - Main features and functions
-   - Screenshots or descriptions of key screens
-
-4. **Step-by-Step Tutorials**
-   - Common use cases with detailed steps
-   - Example workflows
+Include: Getting Started, Installation, User Interface, Tutorials, FAQ, Troubleshooting.
+Format as markdown.
    - Tips and best practices
 
 5. **Features Reference**
@@ -2243,9 +2210,35 @@ Please generate a user-friendly guide that includes:
 Write in a friendly, accessible tone suitable for end users. Use clear headings, bullet points, and step-by-step instructions.
 """
         
-        # Generate user guide
-        response = model.generate_content(prompt)
-        user_guide_content = response.text
+        # Generate user guide using Hugging Face
+        user_guide_content = refine_pitch_content("", prompt)
+        
+        if not user_guide_content:
+            user_guide_content = f"""# {project.title} User Guide
+
+## Getting Started
+Welcome to {project.title}! This guide will help you get up and running quickly.
+
+## Installation
+```bash
+# Clone the repository
+git clone {project.repo_url if project.repo_url else 'repository-url'}
+
+# Install dependencies
+npm install  # or pip install -r requirements.txt
+
+# Run the application
+npm start  # or python app.py
+```
+
+## Features
+- Easy to use interface
+- Comprehensive functionality
+- Regular updates and improvements
+
+## Support
+For questions or issues, please refer to the project repository or contact the maintainers.
+"""
         
         # Save user guide to project
         project.user_guide = {

@@ -1528,48 +1528,11 @@ def admin_new_survey():
                     return render_template('dashboard/admin_new_survey.html')
                     
             else:
-                # AI generation
-                import google.generativeai as genai
-                import os
-                
-                # Configure Gemini AI
-                genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-                model = genai.GenerativeModel('gemini-pro')
-            
-                # Generate survey questions using Gemini
-                prompt = """
-                Generate 8-10 survey questions for users of a pitch deck generation AI tool. 
-                The questions should help us understand:
-                1. User's business background and experience
-                2. What they're looking for in a pitch deck tool
-                3. Their pain points with current solutions
-                4. Feature preferences and priorities
-                5. Feedback on AI-generated content quality
-                
-                Return the questions as a JSON array of objects with this format:
-                [
-                    {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Other"]},
-                    {"question": "How would you rate the quality of AI-generated content?", "type": "rating", "scale": 5},
-                    {"question": "What features are most important to you?", "type": "text"}
-                ]
-                
-                Question types can be: "text", "multiple_choice", "rating", "yes_no"
-                """
-                
-                response = model.generate_content(prompt)
-                
-                # Parse the JSON response
+                # Use predefined survey questions (AI generation removed)
                 import json
-                import re
                 
-                # Extract JSON from response
-                json_match = re.search(r'\[.*\]', response.text, re.DOTALL)
-                if json_match:
-                    questions_json = json_match.group()
-                    questions = json.loads(questions_json)
-                else:
-                    # Fallback questions if Gemini fails
-                    questions = [
+                # Predefined high-quality survey questions
+                questions = [
                         {"question": "What is your primary role?", "type": "multiple_choice", "options": ["Entrepreneur", "Startup Founder", "Business Analyst", "Investor", "Other"]},
                         {"question": "How many pitch decks have you created before?", "type": "multiple_choice", "options": ["0", "1-3", "4-10", "10+"]},
                         {"question": "What's your biggest challenge in creating pitch decks?", "type": "text"},
