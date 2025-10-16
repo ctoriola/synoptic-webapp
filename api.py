@@ -8,7 +8,8 @@ from io import BytesIO
 import requests
 from flask import Blueprint, request, jsonify, send_file, redirect, url_for, session
 from flask_login import login_required, current_user
-import google.generativeai as genai
+# Replaced Gemini with Hugging Face for free inference
+from huggingface_client import generate_pitch_json, refine_pitch_content, generate_basic_template
 # PDF generation temporarily disabled for Vercel compatibility
 # from reportlab.lib.pagesizes import letter, A4
 # from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -212,8 +213,9 @@ def add_slide_styling(slide, slide_title):
         pass
 
 # Configuration
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# Removed GOOGLE_API_KEY - now using Hugging Face
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 
 # Constants from original app
 essential_readme_paths = [
@@ -666,81 +668,12 @@ def generate_basic_template(readme_content: str) -> dict:
     }
 
 def call_gemini(readme_content: str, extra_context: str = None) -> dict:
-    if not GOOGLE_API_KEY:
-        raise RuntimeError("GOOGLE_API_KEY is not set. Please configure it in your environment.")
-
-    genai.configure(api_key=GOOGLE_API_KEY)
-
-    # First, try to list available models to see what's actually available
-    try:
-        print("DEBUG: Listing available Gemini models...")
-        available_models = []
-        for m in genai.list_models():
-            if 'generateContent' in m.supported_generation_methods:
-                available_models.append(m.name)
-                print(f"DEBUG: Available model: {m.name}")
-        
-        if not available_models:
-            print("DEBUG: No models found with generateContent support")
-            # Fallback to Flash models first (faster and more quota)
-            available_models = [
-                "gemini-1.5-flash-latest",
-                "gemini-1.5-flash", 
-                "gemini-1.5-flash-001",
-                "gemini-flash",
-                "gemini-pro"
-            ]
-    except Exception as e:
-        print(f"DEBUG: Could not list models: {str(e)}")
-        # Fallback to Flash models first (faster and more quota)
-        available_models = [
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-001", 
-            "gemini-flash",
-            "gemini-pro"
-        ]
-    
-    # Try each available model
-    last_error = None
-    for model_name in available_models:
-        try:
-            print(f"DEBUG: Trying Gemini model: {model_name}")
-            model = genai.GenerativeModel(
-                model_name=model_name,
-                generation_config={
-                    "max_output_tokens": 4096,
-                },
-            )
-            # Test if model works by attempting to use it
-            prompt = build_gemini_prompt(readme_content, extra_context=extra_context)
-            resp = model.generate_content(prompt)
-            
-            # If we get here, the model worked
-            print(f"DEBUG: Successfully using model: {model_name}")
-            text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
-            if not text:
-                raise RuntimeError("Gemini returned empty response")
-            return parse_gemini_json(text)
-            
-        except Exception as e:
-            print(f"DEBUG: Model {model_name} failed: {str(e)}")
-            last_error = e
-            
-            # Check if it's a quota error
-            if '429' in str(e) or 'quota' in str(e).lower():
-                print("DEBUG: Gemini quota exceeded, falling back to Hugging Face")
-                return call_huggingface_free(readme_content, extra_context)
-            
-            continue
-    
-    # If all models failed, try Hugging Face as final fallback
-    print("DEBUG: All Gemini models failed, trying Hugging Face fallback")
-    try:
-        return call_huggingface_free(readme_content, extra_context)
-    except Exception as hf_error:
-        print(f"DEBUG: Hugging Face fallback also failed: {str(hf_error)}")
-        raise RuntimeError(f"All AI models failed. Gemini error: {str(last_error)}, Hugging Face error: {str(hf_error)}")
+    """
+    REPLACED: Now uses Hugging Face instead of Gemini
+    Kept function name for backward compatibility
+    """
+    print("DEBUG: Using Hugging Face for pitch generation (Gemini replaced)")
+    return generate_pitch_json(readme_content, extra_context)
 
 def parse_gemini_json(text: str) -> dict:
     """Parse JSON response from Gemini"""
@@ -860,49 +793,20 @@ def api_generate():
             if not repo_analysis.get("tech_stack") and repo_analysis.get("main_language") == "Unknown":
                 return jsonify({"error": "Unable to analyze repository structure. Repository may be empty or inaccessible."}), 404
             
-            # Generate pitch deck from code analysis
+            # Generate pitch deck from code analysis using Hugging Face
             try:
-                prompt = build_gemini_prompt_from_code(repo_analysis, repo, extra_context=None)
-                print(f"DEBUG: API code analysis prompt length: {len(prompt)} chars")
-                resp = model.generate_content(prompt)
+                print(f"DEBUG: Using Hugging Face for code analysis pitch generation")
+                # Create a summary from repo analysis
+                code_summary = f"""
+Project: {repo}
+Main Language: {repo_analysis.get('main_language', 'Unknown')}
+Tech Stack: {', '.join(repo_analysis.get('tech_stack', []))}
+File Count: {repo_analysis.get('file_count', 0)}
+Directory Structure: {', '.join(repo_analysis.get('directory_structure', [])[:10])}
+"""
                 
-                text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
-                if not text:
-                    print(f"DEBUG: Empty AI response for code analysis: {owner}/{repo}")
-                    return jsonify({"error": "Failed to generate content from AI service"}), 500
-                
-                print(f"DEBUG: Code analysis AI response length: {len(text)} chars")
-                print(f"DEBUG: Code analysis AI response preview: {text[:200]}...")
-                
-                # Parse JSON response - strip markdown code blocks if present
-                try:
-                    # Remove markdown code blocks if present
-                    clean_text = text.strip()
-                    if clean_text.startswith('```json'):
-                        clean_text = clean_text[7:]  # Remove ```json
-                    if clean_text.startswith('```'):
-                        clean_text = clean_text[3:]   # Remove ```
-                    if clean_text.endswith('```'):
-                        clean_text = clean_text[:-3]  # Remove trailing ```
-                    clean_text = clean_text.strip()
-                    
-                    parsed = json.loads(clean_text)
-                except json.JSONDecodeError as e:
-                    print(f"DEBUG: Code analysis JSON parsing failed. Raw response: {text}")
-                    print(f"DEBUG: Cleaned text: {clean_text}")
-                    return jsonify({"error": f"Invalid response format from AI service: {str(e)}"}), 500
-                
-                # Map the response to expected format (code analysis uses different keys)
-                result = {
-                    "title": parsed.get("project_title", repo),
-                    "introduction": parsed.get("solution_overview", "Project analysis based on code structure."),
-                    "problem_statement": parsed.get("problem_statement", "Problem inferred from code analysis."),
-                    "solution_overview": parsed.get("solution_overview", "Solution based on technical implementation."),
-                    "key_features": parsed.get("key_features", "Features inferred from codebase."),
-                    "target_audience": parsed.get("target_audience", "Target audience based on technical stack."),
-                    "technology_stack": parsed.get("technology_stack", "Technology stack detected from code."),
-                    "future_scope": parsed.get("future_scope", "Future enhancements based on current foundation.")
-                }
+                # Use Hugging Face to generate pitch from code analysis
+                result = generate_pitch_json(code_summary, None)
                 
                 return jsonify({
                     "validation_status": True,
@@ -919,56 +823,8 @@ def api_generate():
         repo_name = repo
 
     try:
-        # Configure Gemini AI
-        if not GOOGLE_API_KEY:
-            return jsonify({"error": "AI service not configured"}), 500
-        
-        genai.configure(api_key=GOOGLE_API_KEY)
-        
-        # Dynamically discover available models
-        print("DEBUG: Listing available Gemini models for generation...")
-        try:
-            available_models = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    available_models.append(m.name)
-                    print(f"DEBUG: Available model: {m.name}")
-            
-            if not available_models:
-                print("DEBUG: No models found, using fallback list with Flash priority")
-                available_models = [
-                    'gemini-1.5-flash-latest',
-                    'gemini-1.5-flash',
-                    'gemini-1.5-flash-001',
-                    'gemini-flash',
-                    'gemini-pro'
-                ]
-        except Exception as e:
-            print(f"DEBUG: Could not list models: {str(e)}")
-            available_models = [
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-flash',
-                'gemini-1.5-flash-001',
-                'gemini-flash',
-                'gemini-pro'
-            ]
-        
-        # Try each model until one works
-        model = None
-        last_model_error = None
-        for model_name in available_models:
-            try:
-                print(f"DEBUG: Trying to create model: {model_name}")
-                model = genai.GenerativeModel(model_name)
-                print(f"DEBUG: Successfully created model: {model_name}")
-                break
-            except Exception as e:
-                print(f"DEBUG: Model {model_name} failed: {str(e)}")
-                last_model_error = e
-                continue
-        
-        if not model:
-            return jsonify({"error": f"No working Gemini model found. Last error: {str(last_model_error)}"}), 500
+        # REPLACED: Now using Hugging Face instead of Gemini
+        print("DEBUG: Using Hugging Face for pitch generation")
         
         # For custom projects, we don't fetch additional repo signals
         if 'multipart/form-data' in request.content_type:
@@ -1103,9 +959,34 @@ CONTENT SOURCING REQUIREMENTS:
 Make each slide investor-ready with specific, actionable content that tells a compelling story.
 """
         
-        # Generate pitch deck
-        response = model.generate_content(prompt)
-        pitch_deck_content = response.text
+        # Generate pitch deck using Hugging Face
+        print("DEBUG: Calling Hugging Face for pitch generation...")
+        result = generate_pitch_json(content, market_context)
+        
+        # Format the result as pitch deck content
+        pitch_deck_content = f"""# {result.get('title', title)}
+
+## Introduction
+{result.get('introduction', '')}
+
+## Problem Statement
+{result.get('problem_statement', '')}
+
+## Solution Overview
+{result.get('solution_overview', '')}
+
+## Key Features
+{result.get('key_features', '')}
+
+## Target Audience
+{result.get('target_audience', '')}
+
+## Technology Stack
+{result.get('technology_stack', '')}
+
+## Future Scope
+{result.get('future_scope', '')}
+"""
         
         # Save pitch deck to project
         project = Project(
@@ -1566,51 +1447,12 @@ def get_openai_research(user_message, current_content, project):
         raise e
 
 def format_with_gemini(research_data, user_message, current_content):
-    """Use Gemini to format the response and potentially update content"""
+    """
+    REPLACED: Now uses Hugging Face instead of Gemini
+    Kept function name for backward compatibility
+    """
     try:
-        import google.generativeai as genai
-        import os
-        import time
-        
-        api_key = os.getenv('GOOGLE_API_KEY')
-        print(f"DEBUG: Google API key configured: {bool(api_key)}")
-        if not api_key:
-            # Immediately fall back if no API key
-            print("DEBUG: No Google API key found")
-            raise Exception("Google API key not configured")
-            
-        print("DEBUG: Configuring Gemini...")
-        genai.configure(api_key=api_key)
-        
-        # Try multiple Gemini models for better reliability
-        # First try to get available models dynamically, prioritize Flash
-        try:
-            print("DEBUG: Listing available Gemini models for Pitchy...")
-            models_to_try = []
-            for m in genai.list_models():
-                if 'generateContent' in m.supported_generation_methods:
-                    models_to_try.append(m.name)
-            
-            if not models_to_try:
-                # Fallback to Flash models first (faster, more quota)
-                models_to_try = [
-                    'gemini-1.5-flash-latest',
-                    'gemini-1.5-flash',
-                    'gemini-1.5-flash-001',
-                    'gemini-flash',
-                    'gemini-pro'
-                ]
-        except Exception as e:
-            print(f"DEBUG: Could not list models: {str(e)}")
-            models_to_try = [
-                'gemini-1.5-flash-latest',
-                'gemini-1.5-flash',
-                'gemini-1.5-flash-001',
-                'gemini-flash',
-                'gemini-pro'
-            ]
-        
-        print(f"DEBUG: Will try Gemini models: {models_to_try}")
+        print("DEBUG: Using Hugging Face for Pitchy chat (Gemini replaced)")
         
         # Determine if this is a content update request or just a question
         # Include informal language patterns
@@ -1779,61 +1621,18 @@ def format_with_gemini(research_data, user_message, current_content):
                 UPDATED_CONTENT: [The complete updated pitch deck content]
                 """
             
-            # Retry logic with multiple models
-            max_retries = 2
-            print(f"DEBUG: Starting Gemini content update with {len(models_to_try)} models")
-            for model_name in models_to_try:
-                try:
-                    print(f"DEBUG: Trying Gemini model: {model_name}")
-                    model = genai.GenerativeModel(model_name)
-                    for attempt in range(max_retries):
-                        try:
-                            print(f"DEBUG: Gemini {model_name} attempt {attempt + 1}")
-                            response = model.generate_content(
-                                update_prompt,
-                                generation_config=genai.types.GenerationConfig(
-                                    max_output_tokens=2000,
-                                    temperature=0.3,
-                                )
-                            )
-                            response_text = response.text
-                            print(f"DEBUG: Gemini {model_name} response length: {len(response_text)}")
-                            
-                            # Parse the response
-                            if 'UPDATED_CONTENT:' in response_text:
-                                parts = response_text.split('UPDATED_CONTENT:', 1)
-                                ai_response = parts[0].replace('RESPONSE:', '').strip()
-                                updated_content = parts[1].strip()
-                                print(f"DEBUG: Gemini {model_name} SUCCESS - found UPDATED_CONTENT")
-                                print(f"DEBUG: Updated content length: {len(updated_content)}")
-                                
-                                return {
-                                    'response': ai_response,
-                                    'updated_content': updated_content
-                                }
-                            else:
-                                print(f"DEBUG: Gemini {model_name} - no UPDATED_CONTENT found, returning advice only")
-                                return {
-                                    'response': response_text,
-                                    'updated_content': None
-                                }
-                                
-                        except Exception as retry_error:
-                            print(f"DEBUG: Gemini {model_name} attempt {attempt + 1} failed: {str(retry_error)}")
-                            if attempt < max_retries - 1:
-                                time.sleep(1)  # Quick retry
-                                continue
-                            else:
-                                # Try next model
-                                break
-                except Exception as model_error:
-                    print(f"DEBUG: Gemini model {model_name} failed completely: {str(model_error)}")
-                    # Try next model
-                    continue
+            # Use Hugging Face for content refinement
+            print(f"DEBUG: Using Hugging Face to refine content")
+            refined_content = refine_pitch_content(current_content, update_prompt)
             
-            # If all models failed, raise exception for final fallback
-            print("DEBUG: All Gemini models failed for content update")
-            raise Exception("All Gemini models failed")
+            if refined_content and refined_content != current_content:
+                return {
+                    'response': "I've enhanced your pitch deck with more specific details!",
+                    'updated_content': refined_content
+                }
+            else:
+                # If refinement didn't work, provide helpful advice
+                raise Exception("Content refinement failed")
         else:
             # Fun, conversational advice-only prompt
             advice_prompt = f"""
@@ -1852,39 +1651,18 @@ def format_with_gemini(research_data, user_message, current_content):
             Be conversational, enthusiastic, and supportive. Use emojis and casual language. Keep it concise but super helpful (2-3 sentences max).
             """
             
-            # Retry logic for advice requests with multiple models
-            max_retries = 2
-            for model_name in models_to_try:
-                try:
-                    model = genai.GenerativeModel(model_name)
-                    for attempt in range(max_retries):
-                        try:
-                            response = model.generate_content(
-                                advice_prompt,
-                                generation_config=genai.types.GenerationConfig(
-                                    max_output_tokens=500,
-                                    temperature=0.3,
-                                )
-                            )
-                            
-                            return {
-                                'response': response.text,
-                                'updated_content': None
-                            }
-                            
-                        except Exception as retry_error:
-                            if attempt < max_retries - 1:
-                                time.sleep(1)  # Quick retry
-                                continue
-                            else:
-                                # Try next model
-                                break
-                except Exception:
-                    # Try next model
-                    continue
+            # Use Hugging Face for advice
+            print(f"DEBUG: Using Hugging Face for advice")
+            advice_response = refine_pitch_content("", advice_prompt)
             
-            # If all models failed, raise exception for final fallback
-            raise Exception("All Gemini models failed")
+            if advice_response:
+                return {
+                    'response': advice_response,
+                    'updated_content': None
+                }
+            else:
+                # If HF fails, raise for fallback
+                raise Exception("Hugging Face advice failed")
             
     except Exception as e:
         # Gemini unavailable, providing fallback guidance

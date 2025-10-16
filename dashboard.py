@@ -539,7 +539,7 @@ def generator():
         # Import here to avoid circular imports
         from api import try_fetch_readme_raw, try_fetch_readme_api, fetch_additional_repo_signals, analyze_repository_structure, build_gemini_prompt_from_code
         from firebase_models import Project
-        import google.generativeai as genai
+        from huggingface_client import generate_pitch_json
         import os
         import json
         from datetime import datetime
@@ -572,15 +572,8 @@ def generator():
             print(f"DEBUG: User token exists: {bool(current_user.github_token)}")
             print(f"DEBUG: Fetching README for {repo_owner}/{repo_name}")
             
-            # Configure Gemini AI first (needed for both paths)
-            GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
-            if not GOOGLE_API_KEY:
-                flash('AI service not configured', 'error')
-                return redirect(url_for('dashboard.index'))
-            
-            # Use gemini-pro - FREE TIER: 15 RPM, 1M tokens/min, 1500 requests/day
-            genai.configure(api_key=GOOGLE_API_KEY)
-            model = genai.GenerativeModel('gemini-pro')
+            # REPLACED: Now using Hugging Face instead of Gemini
+            print("DEBUG: Using Hugging Face for pitch generation (dashboard)")
             
             # Try to get README content
             user_token = current_user.github_token if current_user.is_authenticated else None
@@ -604,56 +597,21 @@ def generator():
                     flash('Unable to analyze repository structure. Repository may be empty or inaccessible.', 'error')
                     return redirect(url_for('dashboard.generator'))
                 
-                # Generate content from code analysis
-                prompt = build_gemini_prompt_from_code(repo_analysis, repo_name, extra_context=None)
-                print(f"DEBUG: Code analysis prompt length: {len(prompt)} chars")
+                # Generate content from code analysis using Hugging Face
+                code_summary = f"""
+Project: {repo_name}
+Main Language: {repo_analysis.get('main_language', 'Unknown')}
+Tech Stack: {', '.join(repo_analysis.get('tech_stack', []))}
+File Count: {repo_analysis.get('file_count', 0)}
+Directory Structure: {', '.join(repo_analysis.get('directory_structure', [])[:10])}
+"""
                 
                 try:
-                    resp = model.generate_content(prompt)
+                    analysis_result = generate_pitch_json(code_summary, None)
                 except Exception as e:
-                    print(f"DEBUG: AI generation failed: {str(e)}")
+                    print(f"DEBUG: Hugging Face generation failed: {str(e)}")
                     flash(f'AI service error: {str(e)}', 'error')
                     return redirect(url_for('dashboard.generator'))
-                
-                text = getattr(resp, 'text', None) or (resp.candidates[0].content.parts[0].text if getattr(resp, 'candidates', None) else None)
-                if not text:
-                    print(f"DEBUG: Empty AI response for {repo_owner}/{repo_name}")
-                    flash('Failed to generate content from AI service', 'error')
-                    return redirect(url_for('dashboard.generator'))
-                
-                print(f"DEBUG: AI response length: {len(text)} chars")
-                print(f"DEBUG: AI response preview: {text[:200]}...")
-                
-                # Parse JSON response - strip markdown code blocks if present
-                try:
-                    # Remove markdown code blocks if present
-                    clean_text = text.strip()
-                    if clean_text.startswith('```json'):
-                        clean_text = clean_text[7:]  # Remove ```json
-                    if clean_text.startswith('```'):
-                        clean_text = clean_text[3:]   # Remove ```
-                    if clean_text.endswith('```'):
-                        clean_text = clean_text[:-3]  # Remove trailing ```
-                    clean_text = clean_text.strip()
-                    
-                    parsed = json.loads(clean_text)
-                except json.JSONDecodeError as e:
-                    print(f"DEBUG: JSON parsing failed. Raw response: {text}")
-                    print(f"DEBUG: Cleaned text: {clean_text}")
-                    flash(f'Invalid response format from AI service: {str(e)}', 'error')
-                    return redirect(url_for('dashboard.generator'))
-                
-                # Map the response to expected format (code analysis uses different keys)
-                analysis_result = {
-                    "title": parsed.get("project_title", repo_name),
-                    "introduction": parsed.get("solution_overview", "Project analysis based on code structure."),
-                    "problem_statement": parsed.get("problem_statement", "Problem inferred from code analysis."),
-                    "solution_overview": parsed.get("solution_overview", "Solution based on technical implementation."),
-                    "key_features": parsed.get("key_features", "Features inferred from codebase."),
-                    "target_audience": parsed.get("target_audience", "Target audience based on technical stack."),
-                    "technology_stack": parsed.get("technology_stack", "Technology stack detected from code."),
-                    "future_scope": parsed.get("future_scope", "Future enhancements based on current foundation.")
-                }
                 
                 content_source = "code_analysis"
                 print(f"DEBUG: Generated content from code analysis for {repo_owner}/{repo_name}")
