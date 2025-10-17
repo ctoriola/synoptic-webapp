@@ -9,7 +9,7 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">AI Pitch Deck Generator</h1>
-                <p class="mt-1 text-sm text-gray-600">Transform any project into compelling investor presentations using AI</p>
+                <p class="mt-1 text-sm text-gray-600">Create investor-grade pitch decks using multi-step AI pipeline with real market intelligence</p>
             </div>
             <div class="flex flex-col sm:text-right gap-2">
                 <div class="flex items-center space-x-2">
@@ -44,55 +44,49 @@
     <div class="bg-white shadow rounded-lg mb-8">
         <div class="px-6 py-8">
             <form id="repo-form" class="space-y-6">
+                <!-- New: Startup Name Field -->
                 <div>
-                    <label for="generationType" class="block text-sm font-medium text-gray-700 mb-2">
-                        Pitch Deck Style
+                    <label for="startupName" class="block text-sm font-medium text-gray-700 mb-2">
+                        Startup/Project Name <span class="text-red-500">*</span>
                     </label>
-                    <select id="generationType" 
-                            name="generationType" 
-                            class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                        <option value="investor">Investor Pitch</option>
-                        <option value="product">Product Demo</option>
-                        <option value="partnership">Partnership Proposal</option>
-                    </select>
+                    <input type="text" 
+                           id="startupName" 
+                           name="startupName" 
+                           placeholder="e.g., TechStartup, HealthAI, EduLearn"
+                           required 
+                           class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
                     <p class="mt-2 text-sm text-gray-500">
-                        Choose the style of pitch deck to generate
+                        Enter your startup or project name (2-4 words recommended)
                     </p>
                 </div>
 
+                <!-- Updated: Project Description -->
                 <div>
                     <label for="projectDescription" class="block text-sm font-medium text-gray-700 mb-2">
-                        Project Description
+                        Project Description <span class="text-red-500">*</span>
                     </label>
                     <textarea id="projectDescription" 
                               name="projectDescription" 
-                              rows="8"
-                              placeholder="Describe your project in detail. Include information about what it does, the problem it solves, target audience, technology stack, features, and any other relevant details..."
+                              rows="6"
+                              placeholder="Describe what your startup does and the problem it solves. Example: 'AI-powered health monitoring platform that helps doctors detect diseases early through continuous patient data analysis'"
                               required 
                               class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm resize-vertical"></textarea>
                     <p class="mt-2 text-sm text-gray-500">
-                        Provide a comprehensive description of your project. The more details you include, the better the AI can generate your investor-ready pitch deck.
+                        <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+                        Be specific about your core value proposition (1-2 sentences). The AI will use this to generate detailed, investor-grade content.
                     </p>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Or Upload Project Document
-                    </label>
-                    <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-primary-400 transition-colors">
-                        <div class="space-y-1 text-center">
-                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                            </svg>
-                            <div class="flex text-sm text-gray-600">
-                                <label for="projectFile" class="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                                    <span>Upload a file</span>
-                                    <input id="projectFile" name="projectFile" type="file" accept=".txt,.md,.doc,.docx,.pdf" class="sr-only">
-                                </label>
-                                <p class="pl-1">or drag and drop</p>
-                            </div>
-                            <p class="text-xs text-gray-500">
-                                TXT, MD, DOC, DOCX, PDF up to 10MB
+                <!-- New: Deep Pipeline Info Badge -->
+                <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-rocket text-purple-600 text-xl"></i>
+                        </div>
+                        <div class="ml-3">
+                            <h4 class="text-sm font-semibold text-purple-900">Multi-Step Deep Pipeline</h4>
+                            <p class="mt-1 text-xs text-purple-700">
+                                Our AI generates comprehensive pitch decks in 4 strategic steps: Problem Analysis → Solution Design → Market Research → Business Strategy. Includes real-time market intelligence from web search.
                             </p>
                         </div>
                     </div>
@@ -109,8 +103,8 @@
                     </button>
                     
                     <div class="text-sm text-gray-500 text-center sm:text-left">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Usually takes 10-30 seconds
+                        <i class="fas fa-clock mr-1"></i>
+                        Deep pipeline takes 15-35 seconds
                     </div>
                 </div>
             </form>
@@ -194,15 +188,15 @@
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-search text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">Project Analysis</h4>
-                <p class="text-sm text-gray-600">We analyze your project description, documentation, and uploaded files</p>
+                <h4 class="font-medium text-gray-900 mb-2">Market Intelligence</h4>
+                <p class="text-sm text-gray-600">We search for real-time industry trends and competitive landscape data</p>
             </div>
             <div class="text-center">
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-brain text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">AI Processing</h4>
-                <p class="text-sm text-gray-600">Advanced AI understands your project and generates comprehensive content</p>
+                <h4 class="font-medium text-gray-900 mb-2">Multi-Step Generation</h4>
+                <p class="text-sm text-gray-600">Dual AI models create Problem, Solution, Market, and Business sections sequentially</p>
             </div>
             <div class="text-center">
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
@@ -258,14 +252,36 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function showContent(data, type) {
         let content = '';
-        let title = 'Pitch Deck';
+        let title = 'Investor-Grade Pitch Deck';
         let message = 'Pitch deck saved to your projects';
         
-        // Handle pitch deck content
-        const pitchDeck = data.pitch_deck || {};
-        if (pitchDeck.content) {
-            // Convert markdown-style content to HTML
-            content = `<div class="prose max-w-none pitch-deck-content">${pitchDeck.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>`;
+        // Handle deep pitch content (markdown format)
+        if (data.pitch) {
+            // Convert markdown to HTML with better formatting
+            content = `<div class="prose max-w-none pitch-deck-content">`;
+            
+            // Split by sections
+            const sections = data.pitch.split('##').filter(s => s.trim());
+            
+            sections.forEach(section => {
+                const lines = section.trim().split('\n');
+                const sectionTitle = lines[0].trim();
+                const sectionContent = lines.slice(1).join('\n').trim();
+                
+                if (sectionTitle && sectionContent) {
+                    content += `
+                        <div class="mb-8 pb-6 border-b border-gray-200 last:border-0">
+                            <h2 class="text-2xl font-bold text-gray-900 mb-4">${sectionTitle}</h2>
+                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">${sectionContent}</div>
+                        </div>
+                    `;
+                }
+            });
+            
+            content += `</div>`;
+        } else if (data.pitch_deck && data.pitch_deck.content) {
+            // Fallback to old format
+            content = `<div class="prose max-w-none pitch-deck-content">${data.pitch_deck.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>`;
         } else {
             content = '<div class="prose max-w-none">No pitch deck content available</div>';
         }
@@ -317,37 +333,38 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        // Get project description from textarea
+        // Get startup name and description
+        const startupName = document.getElementById('startupName').value.trim();
         const description = document.getElementById('projectDescription').value.trim();
-        const fileInput = document.getElementById('projectFile');
-        const file = fileInput.files[0];
         
-        if (!description && !file) {
-            showError('Please provide either a project description or upload a document');
+        if (!startupName || !description) {
+            showError('Please provide both startup name and description');
             return;
         }
 
-        const type = generationType.value;
         setLoading(true);
-        showStatus('Processing your project information...');
-
+        
+        // Show multi-step progress
+        showStatus('🔍 Step 1/4: Searching for market intelligence...');
+        
         try {
-            let endpoint = '/api/generate';
-            let formData = new FormData();
+            // Use the new deep pitch generation endpoint
+            const endpoint = '/api/generate-deep-pitch';
             
-            formData.append('generation_type', type);
-            
-            if (file) {
-                formData.append('project_file', file);
-                showStatus('Processing uploaded document...');
-            } else {
-                formData.append('project_description', description);
-                showStatus('Processing project description...');
-            }
+            // Simulate progress updates
+            setTimeout(() => showStatus('🧠 Step 2/4: Analyzing problem statement...'), 3000);
+            setTimeout(() => showStatus('💡 Step 3/4: Designing solution strategy...'), 8000);
+            setTimeout(() => showStatus('📊 Step 4/4: Building market & business model...'), 15000);
             
             const response = await fetch(endpoint, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: startupName,
+                    description: description
+                })
             });
 
             if (response.status === 403) {
@@ -359,7 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Check if response is JSON before parsing
             const contentType = response.headers.get('content-type');
             if (!contentType || !contentType.includes('application/json')) {
-                // If not JSON, likely an HTML error page or redirect
                 const text = await response.text();
                 if (text.includes('<!doctype') || text.includes('<html')) {
                     throw new Error('Server returned an error page. Please try again or contact support.');
@@ -370,10 +386,15 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to generate content');
+                throw new Error(data.error || 'Failed to generate pitch deck');
             }
 
-            showContent(data, type);
+            // Show success and display content
+            showStatus('✅ Pitch deck generated successfully!');
+            setTimeout(() => {
+                showContent(data, 'deep-pitch');
+            }, 500);
+            
         } catch (error) {
             console.error('Error:', error);
             showError(error.message || 'An unexpected error occurred');
