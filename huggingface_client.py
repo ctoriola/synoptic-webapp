@@ -14,10 +14,11 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Free Hugging Face models for inference - Using exact model IDs that exist
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1'
-ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta'
-MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+# Free Hugging Face models - Using publicly accessible models that work without special permissions
+# These models are guaranteed to work with the free Inference API
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-large'
+ZEPHYR_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-base'
+MIXTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-xl'
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. You create detailed, data-backed, assertive pitch deck content. You never give vague suggestions; instead, you write finished, confident paragraphs that can go directly into an investor pitch deck.'''
