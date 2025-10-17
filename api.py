@@ -9,7 +9,7 @@ import requests
 from flask import Blueprint, request, jsonify, send_file, redirect, url_for, session
 from flask_login import login_required, current_user
 # Replaced Gemini with Hugging Face for free inference
-from huggingface_client import generate_pitch_json, refine_pitch_content, generate_basic_template
+from huggingface_client import generate_pitch_json, refine_pitch_content, generate_basic_template, deep_pitch_generation
 # PDF generation temporarily disabled for Vercel compatibility
 # from reportlab.lib.pagesizes import letter, A4
 # from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
@@ -1092,6 +1092,61 @@ def pitchy_chat():
             'response': get_fallback_response(message),
             'updated_content': None
         })
+
+
+@api_bp.route('/generate-deep-pitch', methods=['POST'])
+@login_required
+def generate_deep_pitch():
+    """
+    Generate investor-grade pitch deck using multi-step depth pipeline
+    Expects JSON: { "name": "Startup Name", "description": "Brief description" }
+    """
+    # Check if user has generation access
+    from dashboard import _has_generation_access
+    if not _has_generation_access(current_user):
+        return jsonify({'error': 'No tokens remaining or access denied'}), 403
+    
+    try:
+        data = request.get_json()
+        startup_name = data.get('name', '').strip()
+        startup_description = data.get('description', '').strip()
+        
+        if not startup_name or not startup_description:
+            return jsonify({'error': 'Both startup name and description are required'}), 400
+        
+        print(f"DEBUG: Generating deep pitch for {startup_name}")
+        
+        # Generate investor-grade pitch using multi-step pipeline
+        pitch_content = deep_pitch_generation(startup_name, startup_description)
+        
+        # Save to project
+        from firebase_models import Project
+        project = Project(
+            title=startup_name,
+            repo_url="",
+            repo_owner=current_user.username,
+            repo_name=startup_name.lower().replace(' ', '-'),
+            pitch_deck={
+                'content': pitch_content,
+                'generated_at': datetime.utcnow().isoformat(),
+                'version': '2.0',
+                'generation_type': 'deep_pipeline'
+            },
+            user_id=current_user.id
+        )
+        project.save()
+        
+        return jsonify({
+            'success': True,
+            'pitch': pitch_content,
+            'project_id': project.id,
+            'tokens_remaining': current_user.tokens
+        })
+        
+    except Exception as e:
+        print(f"DEBUG: Deep pitch generation failed: {str(e)}")
+        return jsonify({'error': f'Failed to generate pitch: {str(e)}'}), 500
+
 
 def get_duckduckgo_research(user_message, project):
     """Fallback research using DuckDuckGo when OpenAI is unavailable"""
