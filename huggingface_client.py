@@ -95,13 +95,21 @@ def query_model(prompt, model_url, max_retries=3):
     
     for attempt in range(max_retries):
         try:
+            # Format prompt for instruction-tuned models
+            formatted_prompt = f"[INST] {prompt[:2000]} [/INST]"
+            
             payload = {
-                'inputs': prompt[:2000],  # Limit input size
+                'inputs': formatted_prompt,
                 'parameters': {
                     'max_new_tokens': 1000,
                     'temperature': 0.7,
                     'top_p': 0.95,
-                    'return_full_text': False
+                    'return_full_text': False,
+                    'do_sample': True
+                },
+                'options': {
+                    'wait_for_model': True,
+                    'use_cache': False
                 }
             }
             
@@ -128,15 +136,22 @@ def query_model(prompt, model_url, max_retries=3):
             elif response.status_code == 503:
                 # Model is loading, wait and retry
                 wait_time = 2 ** attempt  # Exponential backoff
-                print(f"DEBUG: Model loading, waiting {wait_time}s...")
+                print(f"DEBUG: Model loading (503), waiting {wait_time}s...")
                 time.sleep(wait_time)
                 continue
             elif response.status_code == 404:
-                print(f"DEBUG: Model not found (404). Response: {response.text[:200]}")
+                print(f"DEBUG: Model not found (404).")
+                print(f"DEBUG: Full response: {response.text}")
+                print(f"DEBUG: Model URL: {model_url}")
                 # Don't retry on 404 - model doesn't exist
                 return None
+            elif response.status_code == 403:
+                print(f"DEBUG: Access forbidden (403). Check if model requires authentication.")
+                print(f"DEBUG: Response: {response.text[:300]}")
+                return None
             else:
-                print(f"DEBUG: API error {response.status_code}: {response.text[:200]}")
+                print(f"DEBUG: API error {response.status_code}")
+                print(f"DEBUG: Response: {response.text[:300]}")
                 
         except Exception as e:
             print(f"DEBUG: Query error on attempt {attempt + 1}: {str(e)}")
