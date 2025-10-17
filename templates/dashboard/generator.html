@@ -164,17 +164,24 @@
             </div>
 
             <div class="mt-8 pt-6 border-t border-gray-200">
-                <div class="flex items-center justify-between">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <p class="text-sm text-gray-500">
                         <i class="fas fa-check-circle text-green-500 mr-1"></i>
                         <span id="save-message">Content saved to your projects</span>
                     </p>
-                    <a id="view-project-btn" 
-                       href="#" 
-                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-200 hover:bg-primary-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                        <i class="fas fa-eye mr-2"></i>
-                        View in Projects
-                    </a>
+                    <div class="flex gap-3">
+                        <button id="regenerate-btn"
+                                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-redo mr-2"></i>
+                            Regenerate
+                        </button>
+                        <a id="view-project-btn" 
+                           href="#" 
+                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                            <i class="fas fa-eye mr-2"></i>
+                            View in Projects
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -389,17 +396,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(data.error || 'Failed to generate pitch deck');
             }
 
-            // Show success and display content
-            showStatus('✅ Pitch deck generated successfully!');
-            setTimeout(() => {
-                showContent(data, 'deep-pitch');
-            }, 500);
+            // Show success and display content immediately
+            console.log('Generation complete, displaying content...', data);
+            showContent(data, 'deep-pitch');
             
         } catch (error) {
             console.error('Error:', error);
             showError(error.message || 'An unexpected error occurred');
         } finally {
             setLoading(false);
+        }
+    });
+
+    // Regenerate button functionality
+    document.addEventListener('click', function(e) {
+        if (e.target && (e.target.id === 'regenerate-btn' || e.target.closest('#regenerate-btn'))) {
+            e.preventDefault();
+            // Scroll to form and clear it
+            document.getElementById('repo-form').scrollIntoView({ behavior: 'smooth' });
+            // Hide the result
+            proposalDiv.style.display = 'none';
+            // Optionally clear the form
+            // document.getElementById('startupName').value = '';
+            // document.getElementById('projectDescription').value = '';
         }
     });
 

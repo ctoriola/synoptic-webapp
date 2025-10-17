@@ -14,10 +14,14 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Free Hugging Face models for inference
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
+# Free Hugging Face models for inference (updated URLs)
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2'
 ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta'
 MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+
+# Fallback models if primary fails
+LLAMA_URL = 'https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf'
+GPT2_URL = 'https://api-inference.huggingface.co/models/gpt2-large'
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. You create detailed, data-backed, assertive pitch deck content. You never give vague suggestions; instead, you write finished, confident paragraphs that can go directly into an investor pitch deck.'''
@@ -191,11 +195,12 @@ def get_context(query):
     """
     try:
         print(f"DEBUG: Searching for context: {query}")
-        with DDGS() as ddgs:
-            results = ddgs.text(query, max_results=2)
-            snippets = '\n'.join([r['body'] for r in results if 'body' in r])
-            print(f"DEBUG: Context found: {len(snippets)} chars")
-            return snippets or ''
+        # Updated DDGS initialization without proxies parameter
+        ddgs = DDGS()
+        results = list(ddgs.text(query, max_results=2))
+        snippets = '\n'.join([r.get('body', '') for r in results if r.get('body')])
+        print(f"DEBUG: Context found: {len(snippets)} chars")
+        return snippets or ''
     except Exception as e:
         print(f"DEBUG: Context search failed: {str(e)}")
         return ''
