@@ -14,20 +14,20 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Free Hugging Face models for inference (updated URLs)
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2'
+# Free Hugging Face models for inference - Using exact model IDs that exist
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1'
 ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta'
 MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
-
-# Fallback models if primary fails
-LLAMA_URL = 'https://api-inference.huggingface.co/models/meta-llama/Llama-2-7b-chat-hf'
-GPT2_URL = 'https://api-inference.huggingface.co/models/gpt2-large'
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. You create detailed, data-backed, assertive pitch deck content. You never give vague suggestions; instead, you write finished, confident paragraphs that can go directly into an investor pitch deck.'''
 
 def query_model(prompt, model_url, max_retries=3):
     """Query a Hugging Face model with retry logic"""
+    # Check if HF token is configured
+    if not HF_TOKEN:
+        print(f"WARNING: HF_API_TOKEN not configured! Set it in environment variables.")
+    
     for attempt in range(max_retries):
         try:
             payload = {
@@ -41,6 +41,7 @@ def query_model(prompt, model_url, max_retries=3):
             }
             
             print(f"DEBUG: Querying {model_url} (attempt {attempt + 1}/{max_retries})")
+            print(f"DEBUG: Using HF token: {'Yes' if HF_TOKEN else 'No'}")
             response = requests.post(model_url, headers=HEADERS, json=payload, timeout=30)
             
             if response.status_code == 200:
@@ -65,8 +66,12 @@ def query_model(prompt, model_url, max_retries=3):
                 print(f"DEBUG: Model loading, waiting {wait_time}s...")
                 time.sleep(wait_time)
                 continue
+            elif response.status_code == 404:
+                print(f"DEBUG: Model not found (404). Response: {response.text[:200]}")
+                # Don't retry on 404 - model doesn't exist
+                return None
             else:
-                print(f"DEBUG: API error {response.status_code}: {response.text}")
+                print(f"DEBUG: API error {response.status_code}: {response.text[:200]}")
                 
         except Exception as e:
             print(f"DEBUG: Query error on attempt {attempt + 1}: {str(e)}")
@@ -195,14 +200,14 @@ def get_context(query):
     """
     try:
         print(f"DEBUG: Searching for context: {query}")
-        # Updated DDGS initialization without proxies parameter
-        ddgs = DDGS()
-        results = list(ddgs.text(query, max_results=2))
+        # DDGS v8+ uses different initialization
+        results = DDGS().text(query, max_results=2)
         snippets = '\n'.join([r.get('body', '') for r in results if r.get('body')])
         print(f"DEBUG: Context found: {len(snippets)} chars")
         return snippets or ''
     except Exception as e:
         print(f"DEBUG: Context search failed: {str(e)}")
+        # Gracefully continue without context
         return ''
 
 
