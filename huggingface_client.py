@@ -1,9 +1,12 @@
 """
 Hugging Face Inference API Client
 Free alternative to Gemini for pitch deck generation
-Uses a hybrid approach with Mistral and Zephyr models
+Uses a hybrid approach with FLAN-T5 pre-processing + Mistral/Zephyr models
 
-UPGRADED: Now includes multi-step depth pipeline for investor-grade pitch decks
+UPGRADED: Multi-stage intelligent pipeline:
+1. FLAN-T5 (local) - Structural analysis and extraction
+2. Mistral-7B - Deep problem and market analysis
+3. Zephyr-7B - Solution articulation and business strategy
 """
 import os
 import requests
@@ -14,14 +17,75 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Free Hugging Face models - Using publicly accessible models that work without special permissions
-# These models are guaranteed to work with the free Inference API
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-large'
-ZEPHYR_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-base'
-MIXTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-xl'
+# Hugging Face Inference API models (require license acceptance)
+# IMPORTANT: You must accept licenses at:
+# - https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3
+# - https://huggingface.co/HuggingFaceH4/zephyr-7b-beta
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
+ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta'
+MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+
+# FLAN-T5 for local pre-processing (loaded on-demand)
+FLAN_MODEL = None
+FLAN_TOKENIZER = None
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. You create detailed, data-backed, assertive pitch deck content. You never give vague suggestions; instead, you write finished, confident paragraphs that can go directly into an investor pitch deck.'''
+
+def load_flan_model():
+    """Load FLAN-T5 model locally for pre-processing (lazy loading)"""
+    global FLAN_MODEL, FLAN_TOKENIZER
+    
+    if FLAN_MODEL is None:
+        try:
+            print("DEBUG: Loading FLAN-T5 model for pre-processing...")
+            from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+            
+            FLAN_TOKENIZER = AutoTokenizer.from_pretrained('google/flan-t5-base')
+            FLAN_MODEL = AutoModelForSeq2SeqLM.from_pretrained('google/flan-t5-base')
+            print("DEBUG: FLAN-T5 model loaded successfully")
+        except Exception as e:
+            print(f"DEBUG: Failed to load FLAN-T5: {str(e)}")
+            print("DEBUG: Will skip pre-processing stage")
+            return False
+    
+    return FLAN_MODEL is not None
+
+def preprocess_with_flan(startup_name, startup_description):
+    """
+    Use FLAN-T5 locally to extract structural elements from startup description
+    This creates a structured summary that feeds into Mistral/Zephyr
+    """
+    if not load_flan_model():
+        print("DEBUG: FLAN-T5 not available, skipping pre-processing")
+        return None
+    
+    try:
+        prompt = f"""Extract key structural elements from this startup description. 
+        
+Startup: {startup_name}
+Description: {startup_description}
+
+Identify and list:
+1. Core Problem being solved
+2. Proposed Solution approach
+3. Target Market/Customers
+4. Key Value Proposition
+5. Potential Business Model
+
+Return a concise bullet summary."""
+
+        print("DEBUG: Running FLAN-T5 pre-processing...")
+        inputs = FLAN_TOKENIZER(prompt, return_tensors='pt', max_length=512, truncation=True)
+        outputs = FLAN_MODEL.generate(**inputs, max_new_tokens=300, temperature=0.7)
+        structured_summary = FLAN_TOKENIZER.decode(outputs[0], skip_special_tokens=True)
+        
+        print(f"DEBUG: FLAN-T5 structured summary: {len(structured_summary)} chars")
+        return structured_summary
+        
+    except Exception as e:
+        print(f"DEBUG: FLAN-T5 pre-processing failed: {str(e)}")
+        return None
 
 def query_model(prompt, model_url, max_retries=3):
     """Query a Hugging Face model with retry logic"""
@@ -212,9 +276,15 @@ def get_context(query):
         return ''
 
 
-def deep_pitch_generation(startup_name, startup_description):
+def intelligent_pitch_generation(startup_name, startup_description):
     """
-    Generate detailed, investor-grade pitch deck using multi-step pipeline
+    INTELLIGENT MULTI-STAGE PIPELINE for investor-grade pitch decks
+    
+    Stage 0: FLAN-T5 (local) - Extract structural elements
+    Stage 1: Mistral-7B - Deep problem analysis
+    Stage 2: Zephyr-7B - Solution articulation
+    Stage 3: Mistral-7B - Market opportunity
+    Stage 4: Zephyr-7B - Business model & traction
     
     Args:
         startup_name: Name of the startup
@@ -223,19 +293,26 @@ def deep_pitch_generation(startup_name, startup_description):
     Returns:
         Markdown-formatted pitch deck with Problem, Solution, Market, and Business Model sections
     """
-    print(f"DEBUG: Starting deep pitch generation for {startup_name}")
+    print(f"DEBUG: Starting intelligent pitch generation for {startup_name}")
     
-    # Get market context
+    # Stage 0: FLAN-T5 Pre-processing (local structural analysis)
+    structured_summary = preprocess_with_flan(startup_name, startup_description)
+    
+    # Get market context from web search
     context_snippet = get_context(f'{startup_name} industry trends 2025')
     
-    # Step 1: Problem Statement
-    print("DEBUG: Generating problem statement...")
+    # Stage 1: Problem Statement (Mistral-7B with FLAN pre-processing)
+    print("DEBUG: Stage 1 - Generating problem statement with Mistral...")
+    
+    # Use FLAN structured summary if available
+    context_info = f"\nStructured Analysis:\n{structured_summary}\n" if structured_summary else ""
+    
     problem_prompt = f"""{DEPTH_PROMPT}
 
 Write a comprehensive problem statement for {startup_name}. 
 
 Description: {startup_description}
-
+{context_info}
 Market Context:
 {context_snippet[:500]}
 
@@ -245,13 +322,13 @@ Focus on real pain points, inefficiencies, and urgency in the market. Write 3-4 
     if not problem:
         problem = "The market faces significant challenges that require innovative solutions. Current alternatives are inadequate, creating a substantial opportunity for disruption."
     
-    # Step 2: Solution Overview
-    print("DEBUG: Generating solution overview...")
+    # Stage 2: Solution Overview (Zephyr-7B)
+    print("DEBUG: Stage 2 - Generating solution overview with Zephyr...")
     solution_prompt = f"""{DEPTH_PROMPT}
 
 Given this problem:
 {problem[:800]}
-
+{context_info}
 Write a persuasive, investor-level solution overview for {startup_name} that emphasizes innovation and differentiation.
 
 Description: {startup_description}
@@ -262,8 +339,8 @@ Write 3-4 detailed paragraphs explaining how the solution works, what makes it u
     if not solution:
         solution = f"{startup_name} provides an innovative solution that addresses these challenges through cutting-edge technology and user-centric design."
     
-    # Step 3: Market Opportunity
-    print("DEBUG: Generating market analysis...")
+    # Stage 3: Market Opportunity (Mistral-7B)
+    print("DEBUG: Stage 3 - Generating market analysis with Mistral...")
     market_prompt = f"""{DEPTH_PROMPT}
 
 Based on the startup {startup_name} and its solution:
@@ -284,8 +361,8 @@ Write 3-4 detailed paragraphs with specific data points and projections."""
     if not market:
         market = "The market opportunity is substantial, with significant growth potential across multiple customer segments. Industry trends indicate strong demand for innovative solutions in this space."
     
-    # Step 4: Business Model & Traction
-    print("DEBUG: Generating business model...")
+    # Stage 4: Business Model & Traction (Zephyr-7B)
+    print("DEBUG: Stage 4 - Generating business model with Zephyr...")
     business_prompt = f"""{DEPTH_PROMPT}
 
 Using the context below:
@@ -293,7 +370,7 @@ Using the context below:
 Problem: {problem[:500]}
 Solution: {solution[:500]}
 Market: {market[:500]}
-
+{context_info}
 Write a comprehensive business model, traction, and go-to-market section for {startup_name} as if for a real investor deck.
 
 Include:
@@ -308,8 +385,14 @@ Write 3-4 detailed paragraphs that demonstrate a clear path to profitability."""
     if not business:
         business = f"{startup_name} employs a scalable business model with multiple revenue streams. The go-to-market strategy focuses on rapid customer acquisition and strategic partnerships."
     
-    # Step 5: Assemble Final Pitch
+    # Stage 5: Assemble Final Pitch
     print("DEBUG: Assembling final pitch deck...")
+    
+    # Add FLAN-T5 attribution if used
+    generation_note = "*Generated by PitchPerfectAI - Intelligent Multi-Stage Pipeline*"
+    if structured_summary:
+        generation_note += "\n*Powered by FLAN-T5 structural analysis + Mistral-7B + Zephyr-7B*"
+    
     final_pitch = f"""# {startup_name} Pitch Deck
 
 ## Problem
@@ -326,8 +409,16 @@ Write 3-4 detailed paragraphs that demonstrate a clear path to profitability."""
 
 ---
 
-*Generated by PitchPerfectAI - Investor-Grade Pitch Deck Generator*
+{generation_note}
 """
     
-    print(f"DEBUG: Deep pitch generation complete - {len(final_pitch)} chars")
+    print(f"DEBUG: Intelligent pitch generation complete - {len(final_pitch)} chars")
     return final_pitch
+
+
+# Backward compatibility alias
+def deep_pitch_generation(startup_name, startup_description):
+    """
+    Backward compatibility wrapper for intelligent_pitch_generation
+    """
+    return intelligent_pitch_generation(startup_name, startup_description)
