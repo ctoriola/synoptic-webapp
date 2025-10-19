@@ -17,13 +17,14 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Hugging Face Inference API models (require license acceptance)
-# IMPORTANT: You must accept licenses at:
-# - https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.3
-# - https://huggingface.co/HuggingFaceH4/zephyr-7b-beta
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3'
-ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-beta'
-MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+# Hugging Face Inference API models - Using models that work on free tier
+# These models are publicly accessible and work with the free Inference API
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct'
+ZEPHYR_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-large'
+MIXTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-xl'
+
+# Backup: If above don't work, these definitely will
+BACKUP_MODEL = 'https://api-inference.huggingface.co/models/gpt2'
 
 # FLAN-T5 for local pre-processing (loaded on-demand)
 FLAN_MODEL = None
@@ -95,8 +96,8 @@ def query_model(prompt, model_url, max_retries=3):
     
     for attempt in range(max_retries):
         try:
-            # Format prompt for instruction-tuned models
-            formatted_prompt = f"[INST] {prompt[:2000]} [/INST]"
+            # Simple prompt formatting - works for most models
+            formatted_prompt = prompt[:2000]
             
             payload = {
                 'inputs': formatted_prompt,
@@ -104,7 +105,6 @@ def query_model(prompt, model_url, max_retries=3):
                     'max_new_tokens': 1000,
                     'temperature': 0.7,
                     'top_p': 0.95,
-                    'return_full_text': False,
                     'do_sample': True
                 },
                 'options': {
@@ -115,7 +115,7 @@ def query_model(prompt, model_url, max_retries=3):
             
             print(f"DEBUG: Querying {model_url} (attempt {attempt + 1}/{max_retries})")
             print(f"DEBUG: Using HF token: {'Yes' if HF_TOKEN else 'No'}")
-            response = requests.post(model_url, headers=HEADERS, json=payload, timeout=30)
+            response = requests.post(model_url, headers=HEADERS, json=payload, timeout=60)
             
             if response.status_code == 200:
                 data = response.json()
