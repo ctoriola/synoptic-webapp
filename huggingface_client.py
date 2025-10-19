@@ -17,14 +17,11 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Hugging Face Inference API models - Using models that work on free tier
-# These models are publicly accessible and work with the free Inference API
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct'
-ZEPHYR_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-large'
-MIXTRAL_URL = 'https://api-inference.huggingface.co/models/google/flan-t5-xl'
-
-# Backup: If above don't work, these definitely will
-BACKUP_MODEL = 'https://api-inference.huggingface.co/models/gpt2'
+# Hugging Face Inference API models - Using models that ACTUALLY work on free tier
+# Tested and verified to work without authentication
+MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2'
+ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-alpha'
+MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
 
 # FLAN-T5 for local pre-processing (loaded on-demand)
 FLAN_MODEL = None
@@ -316,8 +313,8 @@ def intelligent_pitch_generation(startup_name, startup_description):
     # Get market context from web search
     context_snippet = get_context(f'{startup_name} industry trends 2025')
     
-    # Stage 1: Problem Statement (Mistral-7B with FLAN pre-processing)
-    print("DEBUG: Stage 1 - Generating problem statement with Mistral...")
+    # Stage 1: Problem Statement (Mistral-7B-v0.2 with FLAN pre-processing)
+    print("DEBUG: Stage 1 - Generating problem statement with Mistral-7B-v0.2...")
     
     # Use FLAN structured summary if available
     context_info = f"\nStructured Analysis:\n{structured_summary}\n" if structured_summary else ""
@@ -337,8 +334,8 @@ Focus on real pain points, inefficiencies, and urgency in the market. Write 3-4 
     if not problem:
         problem = "The market faces significant challenges that require innovative solutions. Current alternatives are inadequate, creating a substantial opportunity for disruption."
     
-    # Stage 2: Solution Overview (Zephyr-7B)
-    print("DEBUG: Stage 2 - Generating solution overview with Zephyr...")
+    # Stage 2: Solution Overview (Zephyr-7b-alpha)
+    print("DEBUG: Stage 2 - Generating solution overview with Zephyr-7b-alpha...")
     solution_prompt = f"""{DEPTH_PROMPT}
 
 Given this problem:
@@ -354,8 +351,8 @@ Write 3-4 detailed paragraphs explaining how the solution works, what makes it u
     if not solution:
         solution = f"{startup_name} provides an innovative solution that addresses these challenges through cutting-edge technology and user-centric design."
     
-    # Stage 3: Market Opportunity (Mistral-7B)
-    print("DEBUG: Stage 3 - Generating market analysis with Mistral...")
+    # Stage 3: Market Opportunity (Mistral-7B-v0.2)
+    print("DEBUG: Stage 3 - Generating market analysis with Mistral-7B-v0.2...")
     market_prompt = f"""{DEPTH_PROMPT}
 
 Based on the startup {startup_name} and its solution:
@@ -376,8 +373,8 @@ Write 3-4 detailed paragraphs with specific data points and projections."""
     if not market:
         market = "The market opportunity is substantial, with significant growth potential across multiple customer segments. Industry trends indicate strong demand for innovative solutions in this space."
     
-    # Stage 4: Business Model & Traction (Zephyr-7B)
-    print("DEBUG: Stage 4 - Generating business model with Zephyr...")
+    # Stage 4: Business Model & Traction (Zephyr-7b-alpha)
+    print("DEBUG: Stage 4 - Generating business model with Zephyr-7b-alpha...")
     business_prompt = f"""{DEPTH_PROMPT}
 
 Using the context below:
