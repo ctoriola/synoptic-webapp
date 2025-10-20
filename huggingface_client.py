@@ -13,6 +13,7 @@ import requests
 import json
 import time
 from duckduckgo_search import DDGS
+from gradio_client import Client
 
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
@@ -85,7 +86,7 @@ Return a concise bullet summary."""
         return None
 
 def query_model(prompt, model_url, max_retries=3):
-    """Query a Hugging Face Space with retry logic"""
+    """Query a Hugging Face Space using gradio_client"""
     # Check if HF token is configured
     if not HF_TOKEN:
         print(f"WARNING: HF_API_TOKEN not configured! Set it in environment variables.")
@@ -95,67 +96,51 @@ def query_model(prompt, model_url, max_retries=3):
             # Simple prompt formatting - works for most models
             formatted_prompt = prompt[:2000]
             
-            # Hugging Face Spaces API format
-            payload = {
-                'data': [formatted_prompt]
-            }
-            
             print(f"DEBUG: Querying {model_url} (attempt {attempt + 1}/{max_retries})")
-            print(f"DEBUG: Using HF token: {'Yes' if HF_TOKEN else 'No'}")
-            response = requests.post(model_url, headers=HEADERS, json=payload, timeout=60)
+            print(f"DEBUG: Using gradio_client")
             
-            if response.status_code == 200:
-                data = response.json()
-                
-                # Handle Hugging Face Spaces API response format
-                if isinstance(data, dict) and 'data' in data:
-                    # Spaces API returns {"data": ["generated text"]}
-                    if isinstance(data['data'], list) and len(data['data']) > 0:
-                        text = data['data'][0]
-                        print(f"DEBUG: Model response length: {len(text)} chars")
-                        return text
-                # Fallback: Handle Inference API format
-                elif isinstance(data, list) and len(data) > 0:
-                    if isinstance(data[0], dict) and 'generated_text' in data[0]:
-                        text = data[0]['generated_text']
-                        print(f"DEBUG: Model response length: {len(text)} chars")
-                        return text
-                    elif isinstance(data[0], str):
-                        text = data[0]
-                        print(f"DEBUG: Model response length: {len(text)} chars")
-                        return text
-                elif isinstance(data, dict) and 'generated_text' in data:
-                    text = data['generated_text']
-                    print(f"DEBUG: Model response length: {len(text)} chars")
-                    return text
-                
-                print(f"DEBUG: Unexpected response format: {data}")
-                
-            elif response.status_code == 503:
-                # Model is loading, wait and retry
-                wait_time = 2 ** attempt  # Exponential backoff
-                print(f"DEBUG: Model loading (503), waiting {wait_time}s...")
-                time.sleep(wait_time)
-                continue
-            elif response.status_code == 404:
-                print(f"DEBUG: Model not found (404).")
-                print(f"DEBUG: Full response: {response.text}")
-                print(f"DEBUG: Model URL: {model_url}")
-                # Don't retry on 404 - model doesn't exist
-                return None
-            elif response.status_code == 403:
-                print(f"DEBUG: Access forbidden (403). Check if model requires authentication.")
-                print(f"DEBUG: Response: {response.text[:300]}")
-                return None
+            # Use gradio_client to connect to the Space
+            client = Client(model_url, hf_token=HF_TOKEN)
+            
+            # Call the predict endpoint
+            result = client.predict(
+                formatted_prompt,
+                api_name="/predict"
+            )
+            
+            # Result is typically a string or tuple
+            if isinstance(result, str):
+                text = result
+            elif isinstance(result, (list, tuple)) and len(result) > 0:
+                text = result[0] if isinstance(result[0], str) else str(result[0])
             else:
-                print(f"DEBUG: API error {response.status_code}")
-                print(f"DEBUG: Response: {response.text[:300]}")
+                text = str(result)
+            
+            print(f"DEBUG: Model response length: {len(text)} chars")
+            return text
                 
         except Exception as e:
-            print(f"DEBUG: Query error on attempt {attempt + 1}: {str(e)}")
-            if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
+            error_msg = str(e)
+            print(f"DEBUG: Query error on attempt {attempt + 1}: {error_msg}")
+            
+            # Check for specific error types
+            if "503" in error_msg or "loading" in error_msg.lower():
+                wait_time = 2 ** attempt  # Exponential backoff
+                print(f"DEBUG: Model loading, waiting {wait_time}s...")
+                time.sleep(wait_time)
                 continue
+            elif "404" in error_msg or "not found" in error_msg.lower():
+                print(f"DEBUG: Space not found or not accessible")
+                print(f"DEBUG: URL: {model_url}")
+                return None
+            elif "403" in error_msg or "forbidden" in error_msg.lower():
+                print(f"DEBUG: Access forbidden. Check if space is private or requires authentication.")
+                return None
+            else:
+                # Generic error, retry
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)
+                    continue
     
     return None
 
