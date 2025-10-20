@@ -17,11 +17,10 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Hugging Face Spaces - Using your deployed spaces
-# These are your personal spaces with the models deployed
-MISTRAL_URL = 'https://charl33zy-mistralai-mistral-7b-instruct-v0-2.hf.space/api/predict'
-ZEPHYR_URL = 'https://charl33zy-huggingfaceh4-zephyr-7b-alpha.hf.space/api/predict'
-MIXTRAL_URL = 'https://charl33zy-mistralai-mistral-7b-instruct-v0-2.hf.space/api/predict'
+# Hugging Face Spaces - Using your deployed spaces (EXACT URLs provided by user)
+MISTRAL_URL = 'https://huggingface.co/spaces/charl33zy/mistralai-Mistral-7B-Instruct-v0.2'
+ZEPHYR_URL = 'https://huggingface.co/spaces/charl33zy/HuggingFaceH4-zephyr-7b-alpha'
+MIXTRAL_URL = 'https://huggingface.co/spaces/charl33zy/mistralai-Mistral-7B-Instruct-v0.2'
 
 # FLAN-T5 for local pre-processing (loaded on-demand)
 FLAN_MODEL = None
