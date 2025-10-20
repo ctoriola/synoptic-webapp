@@ -17,11 +17,11 @@ from duckduckgo_search import DDGS
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Hugging Face Inference API models - Using models that ACTUALLY work on free tier
-# Tested and verified to work without authentication
-MISTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2'
-ZEPHYR_URL = 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-alpha'
-MIXTRAL_URL = 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1'
+# Hugging Face Spaces - Using your deployed spaces
+# These are your personal spaces with the models deployed
+MISTRAL_URL = 'https://charl33zy-mistralai-mistral-7b-instruct-v0-2.hf.space/api/predict'
+ZEPHYR_URL = 'https://charl33zy-huggingfaceh4-zephyr-7b-alpha.hf.space/api/predict'
+MIXTRAL_URL = 'https://charl33zy-mistralai-mistral-7b-instruct-v0-2.hf.space/api/predict'
 
 # FLAN-T5 for local pre-processing (loaded on-demand)
 FLAN_MODEL = None
@@ -86,7 +86,7 @@ Return a concise bullet summary."""
         return None
 
 def query_model(prompt, model_url, max_retries=3):
-    """Query a Hugging Face model with retry logic"""
+    """Query a Hugging Face Space with retry logic"""
     # Check if HF token is configured
     if not HF_TOKEN:
         print(f"WARNING: HF_API_TOKEN not configured! Set it in environment variables.")
@@ -96,18 +96,9 @@ def query_model(prompt, model_url, max_retries=3):
             # Simple prompt formatting - works for most models
             formatted_prompt = prompt[:2000]
             
+            # Hugging Face Spaces API format
             payload = {
-                'inputs': formatted_prompt,
-                'parameters': {
-                    'max_new_tokens': 1000,
-                    'temperature': 0.7,
-                    'top_p': 0.95,
-                    'do_sample': True
-                },
-                'options': {
-                    'wait_for_model': True,
-                    'use_cache': False
-                }
+                'data': [formatted_prompt]
             }
             
             print(f"DEBUG: Querying {model_url} (attempt {attempt + 1}/{max_retries})")
@@ -117,10 +108,21 @@ def query_model(prompt, model_url, max_retries=3):
             if response.status_code == 200:
                 data = response.json()
                 
-                # Handle different response formats
-                if isinstance(data, list) and len(data) > 0:
-                    if 'generated_text' in data[0]:
+                # Handle Hugging Face Spaces API response format
+                if isinstance(data, dict) and 'data' in data:
+                    # Spaces API returns {"data": ["generated text"]}
+                    if isinstance(data['data'], list) and len(data['data']) > 0:
+                        text = data['data'][0]
+                        print(f"DEBUG: Model response length: {len(text)} chars")
+                        return text
+                # Fallback: Handle Inference API format
+                elif isinstance(data, list) and len(data) > 0:
+                    if isinstance(data[0], dict) and 'generated_text' in data[0]:
                         text = data[0]['generated_text']
+                        print(f"DEBUG: Model response length: {len(text)} chars")
+                        return text
+                    elif isinstance(data[0], str):
+                        text = data[0]
                         print(f"DEBUG: Model response length: {len(text)} chars")
                         return text
                 elif isinstance(data, dict) and 'generated_text' in data:
