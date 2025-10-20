@@ -14,9 +14,13 @@ import json
 import time
 from duckduckgo_search import DDGS
 from gradio_client import Client
+from openai import OpenAI
 
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
+
+# OpenAI client for fallback
+openai_client = OpenAI(api_key=os.getenv('OPENAI_API_KEY')) if os.getenv('OPENAI_API_KEY') else None
 
 # Hugging Face Spaces - Using your deployed spaces (EXACT URLs provided by user)
 MISTRAL_URL = 'https://huggingface.co/spaces/charl33zy/mistralai-Mistral-7B-Instruct-v0.2'
@@ -85,8 +89,32 @@ Return a concise bullet summary."""
         print(f"DEBUG: FLAN-T5 pre-processing failed: {str(e)}")
         return None
 
+def query_openai_fallback(prompt):
+    """Fallback to OpenAI when HF Spaces fail"""
+    if not openai_client:
+        print("DEBUG: OpenAI not configured, cannot use fallback")
+        return None
+    
+    try:
+        print("DEBUG: Using OpenAI fallback (gpt-4o-mini)")
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert pitch deck consultant. Generate detailed, investor-grade content."},
+                {"role": "user", "content": prompt[:4000]}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        text = response.choices[0].message.content
+        print(f"DEBUG: OpenAI response length: {len(text)} chars")
+        return text
+    except Exception as e:
+        print(f"DEBUG: OpenAI fallback failed: {str(e)}")
+        return None
+
 def query_model(prompt, model_url, max_retries=3):
-    """Query a Hugging Face Space using gradio_client"""
+    """Query a Hugging Face Space using gradio_client, fallback to OpenAI"""
     # Check if HF token is configured
     if not HF_TOKEN:
         print(f"WARNING: HF_API_TOKEN not configured! Set it in environment variables.")
@@ -131,18 +159,25 @@ def query_model(prompt, model_url, max_retries=3):
                 continue
             elif "404" in error_msg or "not found" in error_msg.lower():
                 print(f"DEBUG: Space not found or not accessible")
-                print(f"DEBUG: URL: {model_url}")
-                return None
+                print(f"DEBUG: Falling back to OpenAI")
+                return query_openai_fallback(prompt)
             elif "403" in error_msg or "forbidden" in error_msg.lower():
-                print(f"DEBUG: Access forbidden. Check if space is private or requires authentication.")
-                return None
+                print(f"DEBUG: Access forbidden")
+                print(f"DEBUG: Falling back to OpenAI")
+                return query_openai_fallback(prompt)
+            elif "config" in error_msg.lower():
+                print(f"DEBUG: Could not fetch Space config")
+                print(f"DEBUG: Falling back to OpenAI")
+                return query_openai_fallback(prompt)
             else:
                 # Generic error, retry
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
                     continue
     
-    return None
+    # All retries failed, use OpenAI fallback
+    print("DEBUG: All HF Space attempts failed, using OpenAI fallback")
+    return query_openai_fallback(prompt)
 
 def generate_pitch_json(readme_content, extra_context=None):
     """
