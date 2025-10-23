@@ -89,32 +89,8 @@ Return a concise bullet summary."""
         print(f"DEBUG: FLAN-T5 pre-processing failed: {str(e)}")
         return None
 
-def query_openai_fallback(prompt):
-    """Fallback to OpenAI when HF Spaces fail"""
-    if not openai_client:
-        print("DEBUG: OpenAI not configured, cannot use fallback")
-        return None
-    
-    try:
-        print("DEBUG: Using OpenAI fallback (gpt-4o-mini)")
-        response = openai_client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an expert pitch deck consultant. Generate detailed, investor-grade content."},
-                {"role": "user", "content": prompt[:4000]}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        text = response.choices[0].message.content
-        print(f"DEBUG: OpenAI response length: {len(text)} chars")
-        return text
-    except Exception as e:
-        print(f"DEBUG: OpenAI fallback failed: {str(e)}")
-        return None
-
 def query_model(prompt, model_url, max_retries=3):
-    """Query a Hugging Face Space using gradio_client, fallback to OpenAI"""
+    """Query a Hugging Face Space using gradio_client"""
     # Check if HF token is configured
     if not HF_TOKEN:
         print(f"WARNING: HF_API_TOKEN not configured! Set it in environment variables.")
@@ -149,7 +125,8 @@ def query_model(prompt, model_url, max_retries=3):
                 
         except Exception as e:
             error_msg = str(e)
-            print(f"DEBUG: Query error on attempt {attempt + 1}: {error_msg}")
+            print(f"DEBUG: Query error on attempt {attempt + 1}/{max_retries}: {error_msg}")
+            print(f"ERROR: Full exception details: {repr(e)}")
             
             # Check for specific error types
             if "503" in error_msg or "loading" in error_msg.lower():
@@ -158,26 +135,26 @@ def query_model(prompt, model_url, max_retries=3):
                 time.sleep(wait_time)
                 continue
             elif "404" in error_msg or "not found" in error_msg.lower():
-                print(f"DEBUG: Space not found or not accessible")
-                print(f"DEBUG: Falling back to OpenAI")
-                return query_openai_fallback(prompt)
+                print(f"ERROR: Space not found or not accessible: {model_url}")
+                return None
             elif "403" in error_msg or "forbidden" in error_msg.lower():
-                print(f"DEBUG: Access forbidden")
-                print(f"DEBUG: Falling back to OpenAI")
-                return query_openai_fallback(prompt)
+                print(f"ERROR: Access forbidden for Space: {model_url}")
+                return None
             elif "config" in error_msg.lower():
-                print(f"DEBUG: Could not fetch Space config")
-                print(f"DEBUG: Falling back to OpenAI")
-                return query_openai_fallback(prompt)
+                print(f"ERROR: Could not fetch Space config for: {model_url}")
+                print(f"ERROR: This Space may not have a proper Gradio interface")
+                return None
             else:
                 # Generic error, retry
                 if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
+                    wait_time = 2 ** attempt
+                    print(f"DEBUG: Retrying in {wait_time}s...")
+                    time.sleep(wait_time)
                     continue
     
-    # All retries failed, use OpenAI fallback
-    print("DEBUG: All HF Space attempts failed, using OpenAI fallback")
-    return query_openai_fallback(prompt)
+    # All retries failed
+    print(f"ERROR: All {max_retries} attempts failed for {model_url}")
+    return None
 
 def generate_pitch_json(readme_content, extra_context=None):
     """
@@ -353,7 +330,7 @@ Focus on real pain points, inefficiencies, and urgency in the market. Write 3-4 
     
     problem = query_model(problem_prompt, MISTRAL_URL)
     if not problem:
-        problem = "The market faces significant challenges that require innovative solutions. Current alternatives are inadequate, creating a substantial opportunity for disruption."
+        raise Exception(f"PITCH GENERATION FAILED: Could not generate problem statement. Mistral Space at {MISTRAL_URL} is not responding. Check logs for full error details.")
     
     # Stage 2: Solution Overview (Zephyr-7b-alpha)
     print("DEBUG: Stage 2 - Generating solution overview with Zephyr-7b-alpha...")
@@ -370,7 +347,7 @@ Write 3-4 detailed paragraphs explaining how the solution works, what makes it u
     
     solution = query_model(solution_prompt, ZEPHYR_URL)
     if not solution:
-        solution = f"{startup_name} provides an innovative solution that addresses these challenges through cutting-edge technology and user-centric design."
+        raise Exception(f"PITCH GENERATION FAILED: Could not generate solution overview. Zephyr Space at {ZEPHYR_URL} is not responding. Check logs for full error details.")
     
     # Stage 3: Market Opportunity (Mistral-7B-v0.2)
     print("DEBUG: Stage 3 - Generating market analysis with Mistral-7B-v0.2...")
@@ -392,7 +369,7 @@ Write 3-4 detailed paragraphs with specific data points and projections."""
     
     market = query_model(market_prompt, MISTRAL_URL)
     if not market:
-        market = "The market opportunity is substantial, with significant growth potential across multiple customer segments. Industry trends indicate strong demand for innovative solutions in this space."
+        raise Exception(f"PITCH GENERATION FAILED: Could not generate market analysis. Mistral Space at {MISTRAL_URL} is not responding. Check logs for full error details.")
     
     # Stage 4: Business Model & Traction (Zephyr-7b-alpha)
     print("DEBUG: Stage 4 - Generating business model with Zephyr-7b-alpha...")
@@ -416,7 +393,7 @@ Write 3-4 detailed paragraphs that demonstrate a clear path to profitability."""
     
     business = query_model(business_prompt, ZEPHYR_URL)
     if not business:
-        business = f"{startup_name} employs a scalable business model with multiple revenue streams. The go-to-market strategy focuses on rapid customer acquisition and strategic partnerships."
+        raise Exception(f"PITCH GENERATION FAILED: Could not generate business model. Zephyr Space at {ZEPHYR_URL} is not responding. Check logs for full error details.")
     
     # Stage 5: Assemble Final Pitch
     print("DEBUG: Assembling final pitch deck...")
