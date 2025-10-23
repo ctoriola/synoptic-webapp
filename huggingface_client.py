@@ -25,13 +25,16 @@ DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultan
 
 def get_context_ddgs(query):
     """
-    Get contextual information using DDGS (new duckduckgo library)
+    Get contextual information using DDGS (duckduckgo search library v9+)
     """
     try:
         print(f"DEBUG: Searching for context: {query}")
         from ddgs import DDGS
         
-        results = DDGS().text(query, max_results=2)
+        # ddgs v9+ returns list directly
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, max_results=2))
+        
         snippets = '\n'.join([r.get('body', '') for r in results if r.get('body')])
         print(f"DEBUG: Context found: {len(snippets)} chars")
         return snippets or ''
@@ -136,6 +139,10 @@ def query_inference_api(prompt, model_url, max_retries=3):
 def load_flan_locally():
     """
     Load FLAN-T5 locally using transformers (fallback to base if large fails)
+    
+    NOTE: On Vercel deployment, transformers/torch are not included (too large).
+    This stage will be skipped gracefully, and the pipeline will still work
+    using only the Inference API stages (Mistral + Zephyr).
     """
     try:
         from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
