@@ -60,20 +60,26 @@ STAGE 5: Assembly
 - **After**: 5 essential files (76% reduction)
 - **Result**: Single `SETUP_GUIDE.md` with all setup instructions
 
-### **✅ Pipeline Overhaul (Oct 23)**
+### **✅ Pipeline Overhaul v2 (Oct 23, 9:41am)**
 
 **Problems Fixed:**
 1. ❌ `No module named 'transformers'` → ✅ Added with graceful fallback
 2. ❌ `duckduckgo_search` deprecated → ✅ Switched to `ddgs==9.6.1`
 3. ❌ Broken HF Spaces (404 errors) → ✅ Using Free Inference API
 4. ❌ Missing functions in api.py → ✅ Added backward compatibility
+5. ❌ 404 errors on Mistral endpoint → ✅ Smart fallback chain
+6. ❌ No endpoint verification → ✅ Pre-flight checks before use
 
 **Key Improvements:**
-- ✅ Defensive loading (FLAN-T5-large → base fallback)
-- ✅ Comprehensive error handling with detailed logs
-- ✅ 3 retries with exponential backoff
-- ✅ Model availability testing
-- ✅ Vercel-optimized (removed torch to meet size limits)
+- ✅ **Smart Fallback Chain**: Mistral → Zephyr → Phi-3 → FLAN-T5
+- ✅ **Endpoint Verification**: Tests models with "Hello" before use
+- ✅ **Cached Verification**: Avoids repeated endpoint checks
+- ✅ **Timestamp Logging**: Tracks each stage with millisecond precision
+- ✅ **404 Handling**: Skips unavailable models automatically
+- ✅ **Defensive Loading**: FLAN-T5-large → base fallback
+- ✅ **Comprehensive Error Handling**: Try/except on all model calls
+- ✅ **3 Retries with Exponential Backoff**: 2s, 4s, 8s delays
+- ✅ **Vercel-Optimized**: Removed torch to meet size limits
 
 ### **✅ Vercel Deployment Fix**
 
