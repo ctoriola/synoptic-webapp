@@ -35,6 +35,14 @@ DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultan
 # Track verified models (cache to avoid repeated checks)
 VERIFIED_MODELS = {}
 
+# Reasons for the most recent failures, surfaced in error messages
+LAST_ERRORS = []
+
+
+def _record_error(msg):
+    LAST_ERRORS.append(msg)
+    del LAST_ERRORS[:-5]
+
 
 def log_timestamp(stage, message):
     """Log with timestamp for tracking"""
@@ -82,8 +90,10 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
     """
     if not HF_TOKEN:
         log_timestamp(stage_name, "❌ HF_API_TOKEN is not set")
+        _record_error("HF_API_TOKEN is not set on the server")
         return None
 
+    LAST_ERRORS.clear()
     models_to_try = [m for m in (preferred_models or MODEL_PRIORITY) if m in FREE_MODELS]
 
     for model_key in models_to_try:
@@ -122,6 +132,7 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
                 text = (choices[0].get('message', {}).get('content') or '').strip() if choices else ''
                 if not text:
                     log_timestamp(stage_name, f"⚠ Empty response from {model_id}")
+                    _record_error(f"{model_id}: empty response")
                     return None
                 log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_id}")
                 return text
@@ -130,20 +141,25 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
                 # Model not served / bad request for this model - don't retry, try next model
                 log_timestamp(stage_name, f"❌ {response.status_code} for {model_id}: {response.text[:150]}")
                 VERIFIED_MODELS[model_key] = False
+                _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
                 return None
 
             if response.status_code in (401, 403):
                 log_timestamp(stage_name, f"❌ Auth error {response.status_code}: check HF_API_TOKEN permissions")
+                _record_error(f"HTTP {response.status_code}: HF_API_TOKEN is invalid or lacks the 'Make calls to Inference Providers' permission")
                 return None
 
             log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:150]}")
+            _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
             if attempt < max_retries - 1:
                 time.sleep(2 * (attempt + 1))
 
         except requests.exceptions.Timeout:
             log_timestamp(stage_name, f"⏱ Timeout on attempt {attempt + 1}")
+            _record_error(f"{model_id}: timed out")
         except Exception as e:
             log_timestamp(stage_name, f"❌ Error on attempt {attempt + 1}: {str(e)}")
+            _record_error(f"{model_id}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 * (attempt + 1))
 
@@ -260,7 +276,7 @@ Focus on real pain points and market urgency. Write 3-4 detailed paragraphs."""
     
     problem = query_with_fallback(problem_prompt, "STAGE-1", ['mistral', 'zephyr', 'phi'])
     if not problem:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 1 (Problem Statement)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 1 (Problem Statement). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 2: Solution Overview
     log_timestamp("STAGE-2", "Solution Overview Generation")
@@ -276,7 +292,7 @@ Write 3-4 detailed paragraphs on innovation and differentiation."""
     
     solution = query_with_fallback(solution_prompt, "STAGE-2", ['zephyr', 'mistral', 'phi'])
     if not solution:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 2 (Solution)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 2 (Solution). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 3: Market Analysis
     log_timestamp("STAGE-3", "Market Analysis Generation")
@@ -296,7 +312,7 @@ Write 3-4 detailed paragraphs."""
     
     market = query_with_fallback(market_prompt, "STAGE-3", ['mistral', 'zephyr', 'phi'])
     if not market:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 3 (Market)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 3 (Market). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 4: Business Model & Traction
     log_timestamp("STAGE-4", "Business Model Generation")
@@ -320,7 +336,7 @@ Write 3-4 detailed paragraphs."""
     
     business = query_with_fallback(business_prompt, "STAGE-4", ['zephyr', 'mistral', 'phi'])
     if not business:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 4 (Business)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 4 (Business). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 5: Assembly
     log_timestamp("STAGE-5", "Assembling Final Pitch Deck")
