@@ -362,6 +362,20 @@ Rules:
     return final_pitch
 
 
+def friendly_error(raw):
+    """Map a raw generation error to a short, user-facing message."""
+    text = str(raw)
+    if 'API_KEY is not set' in text or 'HTTP 400' in text or 'HTTP 401' in text or 'HTTP 403' in text:
+        return "Pitch generation isn't configured correctly right now. Please try again later or contact support if this continues."
+    if 'HTTP 503' in text or 'high demand' in text or 'overloaded' in text.lower():
+        return "Our AI provider is experiencing very high demand right now. Please wait a minute and try again."
+    if 'HTTP 429' in text or 'quota' in text.lower():
+        return "We've hit our AI usage limit for the moment. Please try again in a few minutes."
+    if 'timed out' in text or 'time budget' in text:
+        return "Generating your pitch took too long. Please try again."
+    return "Something went wrong while generating your pitch. Please try again."
+
+
 # API Compatibility Functions
 
 def generate_pitch_json(readme_content, extra_context=None):
