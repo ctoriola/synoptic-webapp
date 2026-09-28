@@ -1,9 +1,7 @@
 """
-Hugging Face Free Models Client - PRODUCTION READY v2
-✅ Smart fallback chain: Mistral → Zephyr → Phi-3 → FLAN-T5
-✅ Endpoint verification before use
-✅ Comprehensive error handling
-✅ 100% free resources
+AI generation client (Google Gemini).
+Module name kept for import compatibility; all generation goes through
+query_with_fallback(), which calls Gemini with model fallback.
 """
 import os
 import requests
@@ -11,26 +9,33 @@ import json
 import time
 from datetime import datetime
 
-HF_TOKEN = os.getenv('HF_API_TOKEN')
-HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
+# Google Gemini (generateContent REST API). Model IDs can be overridden via env.
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
-# Free Hugging Face Inference API endpoints - VERIFIED URLS
+# Keys are kept for backward compatibility with the stage fallback lists below.
 FREE_MODELS = {
-    'mistral': 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
-    'zephyr': 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-alpha',
-    'phi': 'https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct',
-    'flan_large': 'https://api-inference.huggingface.co/models/google/flan-t5-large',
-    'flan_base': 'https://api-inference.huggingface.co/models/google/flan-t5-base'
+    'mistral': os.getenv('GEMINI_MODEL_PRIMARY', 'gemini-2.5-flash'),
+    'zephyr': os.getenv('GEMINI_MODEL_SECONDARY', 'gemini-2.5-flash-lite'),
+    'phi': os.getenv('GEMINI_MODEL_TERTIARY', 'gemini-2.0-flash'),
 }
 
 # Model fallback priority for each stage
-MODEL_PRIORITY = ['mistral', 'zephyr', 'phi', 'flan_large', 'flan_base']
+MODEL_PRIORITY = ['mistral', 'zephyr', 'phi']
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. Create detailed, data-backed, assertive pitch deck content. Write finished, confident paragraphs for investor pitch decks.'''
 
 # Track verified models (cache to avoid repeated checks)
 VERIFIED_MODELS = {}
+
+# Reasons for the most recent failures, surfaced in error messages
+LAST_ERRORS = []
+
+
+def _record_error(msg):
+    LAST_ERRORS.append(msg)
+    del LAST_ERRORS[:-5]
 
 
 def log_timestamp(stage, message):
@@ -63,146 +68,98 @@ def get_context_ddgs(query):
 
 def verify_endpoint(model_key):
     """
-    Verify that a model endpoint is accessible
-    Returns True if accessible, False otherwise
+    Check that a model is configured and has not been marked unavailable.
+    (No extra network round-trip: the real request reports availability.)
     """
-    # Check cache first
-    if model_key in VERIFIED_MODELS:
-        return VERIFIED_MODELS[model_key]
-    
-    model_url = FREE_MODELS.get(model_key)
-    if not model_url:
-        return False
-    
-    try:
-        log_timestamp("VERIFY", f"Testing {model_key}...")
-        payload = {
-            'inputs': 'Hello',
-            'parameters': {'max_new_tokens': 5},
-            'options': {'wait_for_model': True}
-        }
-        response = requests.post(model_url, headers=HEADERS, json=payload, timeout=30)
-        
-        if response.status_code in [200, 503]:  # 200 = ready, 503 = loading but will work
-            log_timestamp("VERIFY", f"✓ {model_key} available")
-            VERIFIED_MODELS[model_key] = True
-            return True
-        elif response.status_code == 404:
-            log_timestamp("VERIFY", f"❌ {model_key} not found (404)")
-            VERIFIED_MODELS[model_key] = False
-            return False
-        else:
-            log_timestamp("VERIFY", f"⚠ {model_key} returned {response.status_code}")
-            VERIFIED_MODELS[model_key] = False
-            return False
-            
-    except Exception as e:
-        log_timestamp("VERIFY", f"❌ {model_key} error: {str(e)}")
-        VERIFIED_MODELS[model_key] = False
-        return False
+    return model_key in FREE_MODELS and VERIFIED_MODELS.get(model_key, True)
 
 
 def query_with_fallback(prompt, stage_name, preferred_models=None):
     """
     Query models with smart fallback chain
     Tries models in priority order until one succeeds
-    
-    Args:
-        prompt: The prompt to send
-        stage_name: Name of the stage for logging
-        preferred_models: List of preferred model keys, or None for default priority
-    
+
     Returns:
         Generated text or None if all models fail
     """
-    models_to_try = preferred_models or MODEL_PRIORITY
-    
+    if not GOOGLE_API_KEY:
+        log_timestamp(stage_name, "❌ GOOGLE_API_KEY is not set")
+        _record_error("GOOGLE_API_KEY is not set on the server")
+        return None
+
+    LAST_ERRORS.clear()
+    # Always prefer the primary Gemini model; stage lists only affect fallback order
+    models_to_try = MODEL_PRIORITY
+
     for model_key in models_to_try:
-        # Verify endpoint first
         if not verify_endpoint(model_key):
             log_timestamp(stage_name, f"⏭ Skipping {model_key} (not available)")
             continue
-        
-        # Try to query the model
+
         result = query_inference_api(prompt, FREE_MODELS[model_key], stage_name, model_key)
         if result:
             return result
-    
+
     log_timestamp(stage_name, "❌ All models failed")
     return None
 
 
-def query_inference_api(prompt, model_url, stage_name, model_key, max_retries=3):
+def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
     """
-    Query Hugging Face free Inference API with retry logic
+    Query Google Gemini (generateContent) with retry logic
     """
+    url = f"{GEMINI_API_BASE}/{model_id}:generateContent"
+    payload = {
+        'contents': [{'role': 'user', 'parts': [{'text': prompt[:30000]}]}],
+        'generationConfig': {'temperature': 0.7, 'topP': 0.95, 'maxOutputTokens': 2048},
+    }
+    headers = {'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_API_KEY}
+
     for attempt in range(max_retries):
         try:
-            formatted_prompt = prompt[:2000]  # Limit prompt length
-            
-            payload = {
-                'inputs': formatted_prompt,
-                'parameters': {
-                    'max_new_tokens': 800,
-                    'temperature': 0.7,
-                    'top_p': 0.95,
-                    'do_sample': True
-                },
-                'options': {
-                    'wait_for_model': True,
-                    'use_cache': False
-                }
-            }
-            
-            log_timestamp(stage_name, f"Querying {model_key} (attempt {attempt + 1}/{max_retries})")
-            response = requests.post(model_url, headers=HEADERS, json=payload, timeout=60)
-            
+            log_timestamp(stage_name, f"Querying {model_id} (attempt {attempt + 1}/{max_retries})")
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
+
             if response.status_code == 200:
                 data = response.json()
-                
-                # Parse response - Inference API returns array
-                if isinstance(data, list) and len(data) > 0:
-                    if isinstance(data[0], dict) and 'generated_text' in data[0]:
-                        text = data[0]['generated_text']
-                    elif isinstance(data[0], str):
-                        text = data[0]
-                    else:
-                        text = str(data[0])
-                elif isinstance(data, dict) and 'generated_text' in data:
-                    text = data['generated_text']
-                else:
-                    text = str(data)
-                
-                log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_key}")
+                candidates = data.get('candidates') or []
+                parts = (candidates[0].get('content') or {}).get('parts', []) if candidates else []
+                text = ''.join(p.get('text', '') for p in parts).strip()
+                if not text:
+                    reason = candidates[0].get('finishReason') if candidates else data.get('promptFeedback')
+                    log_timestamp(stage_name, f"⚠ Empty response from {model_id} ({reason})")
+                    _record_error(f"{model_id}: empty response ({reason})")
+                    return None
+                log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_id}")
                 return text
-                
-            elif response.status_code == 503:
-                # Model loading
-                wait_time = 5 * (attempt + 1)
-                log_timestamp(stage_name, f"⏳ Model loading, waiting {wait_time}s...")
-                time.sleep(wait_time)
-                continue
-                
-            elif response.status_code == 404:
-                log_timestamp(stage_name, f"❌ 404 Not Found for {model_key}")
-                return None  # Don't retry on 404
-                
-            else:
-                log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:100]}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
-                    continue
-                    
+
+            if response.status_code == 404:
+                # Model not available for this key - don't retry, try next model
+                log_timestamp(stage_name, f"❌ 404 for {model_id}: {response.text[:150]}")
+                VERIFIED_MODELS[model_key] = False
+                _record_error(f"{model_id}: HTTP 404 (model not available)")
+                return None
+
+            if response.status_code in (400, 401, 403):
+                log_timestamp(stage_name, f"❌ {response.status_code} for {model_id}: {response.text[:150]}")
+                _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:150]}")
+                return None
+
+            # 429 (rate limit) / 5xx: retry with backoff
+            log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:150]}")
+            _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
+            if attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))
+
         except requests.exceptions.Timeout:
             log_timestamp(stage_name, f"⏱ Timeout on attempt {attempt + 1}")
-            if attempt < max_retries - 1:
-                continue
+            _record_error(f"{model_id}: timed out")
         except Exception as e:
             log_timestamp(stage_name, f"❌ Error on attempt {attempt + 1}: {str(e)}")
+            _record_error(f"{model_id}: {e}")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
-                continue
-    
+                time.sleep(2 * (attempt + 1))
+
     return None
 
 
@@ -287,7 +244,7 @@ def intelligent_pitch_generation(startup_name, startup_description):
     Stage 3: AI Model - Market analysis
     Stage 4: AI Model - Business model
     
-    Uses smart fallback: Mistral → Zephyr → Phi-3 → FLAN-T5
+    Uses Gemini with model fallback (see FREE_MODELS)
     """
     log_timestamp("PIPELINE", "="*60)
     log_timestamp("PIPELINE", f"Starting pitch generation for: {startup_name}")
@@ -316,7 +273,7 @@ Focus on real pain points and market urgency. Write 3-4 detailed paragraphs."""
     
     problem = query_with_fallback(problem_prompt, "STAGE-1", ['mistral', 'zephyr', 'phi'])
     if not problem:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 1 (Problem Statement)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 1 (Problem Statement). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 2: Solution Overview
     log_timestamp("STAGE-2", "Solution Overview Generation")
@@ -332,7 +289,7 @@ Write 3-4 detailed paragraphs on innovation and differentiation."""
     
     solution = query_with_fallback(solution_prompt, "STAGE-2", ['zephyr', 'mistral', 'phi'])
     if not solution:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 2 (Solution)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 2 (Solution). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 3: Market Analysis
     log_timestamp("STAGE-3", "Market Analysis Generation")
@@ -352,7 +309,7 @@ Write 3-4 detailed paragraphs."""
     
     market = query_with_fallback(market_prompt, "STAGE-3", ['mistral', 'zephyr', 'phi'])
     if not market:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 3 (Market)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 3 (Market). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 4: Business Model & Traction
     log_timestamp("STAGE-4", "Business Model Generation")
@@ -376,7 +333,7 @@ Write 3-4 detailed paragraphs."""
     
     business = query_with_fallback(business_prompt, "STAGE-4", ['zephyr', 'mistral', 'phi'])
     if not business:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 4 (Business)")
+        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 4 (Business). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
     
     # Stage 5: Assembly
     log_timestamp("STAGE-5", "Assembling Final Pitch Deck")
@@ -401,7 +358,7 @@ Based on our market analysis and business model, we are seeking strategic invest
 ---
 
 *Generated by PitchPerfectAI - Intelligent Multi-Stage Pipeline*
-*Powered by Free Hugging Face Models (Mistral-7B, Zephyr-7B, Phi-3)*
+*Powered by Google Gemini*
 """
 
     log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")
@@ -541,9 +498,9 @@ def test_visionARy_pipeline():
         print("="*80)
         print(f"Error: {str(e)}")
         print("\n🔍 Troubleshooting:")
-        print("1. Check HF_API_TOKEN is set: export HF_API_TOKEN=hf_xxx")
+        print("1. Check GOOGLE_API_KEY is set: export GOOGLE_API_KEY=...")
         print("2. Verify internet connection for API calls")
-        print("3. Check Hugging Face API status: https://status.huggingface.co")
+        print("3. Check Gemini API status: https://aistudio.google.com/status")
         print("4. Install ddgs: pip install ddgs")
         print("5. Models may be loading (503) - retry in 30 seconds")
         print("="*80 + "\n")
