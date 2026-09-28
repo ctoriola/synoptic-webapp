@@ -1,9 +1,7 @@
 """
-Hugging Face Free Models Client - PRODUCTION READY v2
-✅ Smart fallback chain: Mistral → Zephyr → Phi-3 → FLAN-T5
-✅ Endpoint verification before use
-✅ Comprehensive error handling
-✅ 100% free resources
+AI generation client (Google Gemini).
+Module name kept for import compatibility; all generation goes through
+query_with_fallback(), which calls Gemini with model fallback.
 """
 import os
 import requests
@@ -11,19 +9,15 @@ import json
 import time
 from datetime import datetime
 
-HF_TOKEN = os.getenv('HF_API_TOKEN')
-HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
-
-# Hugging Face Inference Providers router (OpenAI-compatible chat completions).
-# The legacy api-inference.huggingface.co/models/... endpoint has been retired,
-# which caused every generation stage to fail.
-HF_ROUTER_URL = os.getenv('HF_ROUTER_URL', 'https://router.huggingface.co/v1/chat/completions')
+# Google Gemini (generateContent REST API). Model IDs can be overridden via env.
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY') or os.getenv('GEMINI_API_KEY')
+GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 # Keys are kept for backward compatibility with the stage fallback lists below.
 FREE_MODELS = {
-    'mistral': os.getenv('HF_MODEL_PRIMARY', 'meta-llama/Llama-3.1-8B-Instruct'),
-    'zephyr': os.getenv('HF_MODEL_SECONDARY', 'Qwen/Qwen2.5-7B-Instruct'),
-    'phi': os.getenv('HF_MODEL_TERTIARY', 'mistralai/Mistral-7B-Instruct-v0.3'),
+    'mistral': os.getenv('GEMINI_MODEL_PRIMARY', 'gemini-2.5-flash'),
+    'zephyr': os.getenv('GEMINI_MODEL_SECONDARY', 'gemini-2.5-flash-lite'),
+    'phi': os.getenv('GEMINI_MODEL_TERTIARY', 'gemini-2.0-flash'),
 }
 
 # Model fallback priority for each stage
@@ -88,13 +82,14 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
     Returns:
         Generated text or None if all models fail
     """
-    if not HF_TOKEN:
-        log_timestamp(stage_name, "❌ HF_API_TOKEN is not set")
-        _record_error("HF_API_TOKEN is not set on the server")
+    if not GOOGLE_API_KEY:
+        log_timestamp(stage_name, "❌ GOOGLE_API_KEY is not set")
+        _record_error("GOOGLE_API_KEY is not set on the server")
         return None
 
     LAST_ERRORS.clear()
-    models_to_try = [m for m in (preferred_models or MODEL_PRIORITY) if m in FREE_MODELS]
+    # Always prefer the primary Gemini model; stage lists only affect fallback order
+    models_to_try = MODEL_PRIORITY
 
     for model_key in models_to_try:
         if not verify_endpoint(model_key):
@@ -111,44 +106,46 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
 
 def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
     """
-    Query the Hugging Face router (chat completions) with retry logic
+    Query Google Gemini (generateContent) with retry logic
     """
+    url = f"{GEMINI_API_BASE}/{model_id}:generateContent"
     payload = {
-        'model': model_id,
-        'messages': [{'role': 'user', 'content': prompt[:6000]}],
-        'max_tokens': 800,
-        'temperature': 0.7,
-        'top_p': 0.95,
+        'contents': [{'role': 'user', 'parts': [{'text': prompt[:30000]}]}],
+        'generationConfig': {'temperature': 0.7, 'topP': 0.95, 'maxOutputTokens': 2048},
     }
+    headers = {'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_API_KEY}
 
     for attempt in range(max_retries):
         try:
             log_timestamp(stage_name, f"Querying {model_id} (attempt {attempt + 1}/{max_retries})")
-            response = requests.post(HF_ROUTER_URL, headers=HEADERS, json=payload, timeout=60)
+            response = requests.post(url, headers=headers, json=payload, timeout=60)
 
             if response.status_code == 200:
                 data = response.json()
-                choices = data.get('choices') or []
-                text = (choices[0].get('message', {}).get('content') or '').strip() if choices else ''
+                candidates = data.get('candidates') or []
+                parts = (candidates[0].get('content') or {}).get('parts', []) if candidates else []
+                text = ''.join(p.get('text', '') for p in parts).strip()
                 if not text:
-                    log_timestamp(stage_name, f"⚠ Empty response from {model_id}")
-                    _record_error(f"{model_id}: empty response")
+                    reason = candidates[0].get('finishReason') if candidates else data.get('promptFeedback')
+                    log_timestamp(stage_name, f"⚠ Empty response from {model_id} ({reason})")
+                    _record_error(f"{model_id}: empty response ({reason})")
                     return None
                 log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_id}")
                 return text
 
-            if response.status_code in (400, 404, 422):
-                # Model not served / bad request for this model - don't retry, try next model
-                log_timestamp(stage_name, f"❌ {response.status_code} for {model_id}: {response.text[:150]}")
+            if response.status_code == 404:
+                # Model not available for this key - don't retry, try next model
+                log_timestamp(stage_name, f"❌ 404 for {model_id}: {response.text[:150]}")
                 VERIFIED_MODELS[model_key] = False
-                _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
+                _record_error(f"{model_id}: HTTP 404 (model not available)")
                 return None
 
-            if response.status_code in (401, 403):
-                log_timestamp(stage_name, f"❌ Auth error {response.status_code}: check HF_API_TOKEN permissions")
-                _record_error(f"HTTP {response.status_code}: HF_API_TOKEN is invalid or lacks the 'Make calls to Inference Providers' permission")
+            if response.status_code in (400, 401, 403):
+                log_timestamp(stage_name, f"❌ {response.status_code} for {model_id}: {response.text[:150]}")
+                _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:150]}")
                 return None
 
+            # 429 (rate limit) / 5xx: retry with backoff
             log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:150]}")
             _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
             if attempt < max_retries - 1:
@@ -247,7 +244,7 @@ def intelligent_pitch_generation(startup_name, startup_description):
     Stage 3: AI Model - Market analysis
     Stage 4: AI Model - Business model
     
-    Uses smart fallback: Mistral → Zephyr → Phi-3 → FLAN-T5
+    Uses Gemini with model fallback (see FREE_MODELS)
     """
     log_timestamp("PIPELINE", "="*60)
     log_timestamp("PIPELINE", f"Starting pitch generation for: {startup_name}")
@@ -361,7 +358,7 @@ Based on our market analysis and business model, we are seeking strategic invest
 ---
 
 *Generated by PitchPerfectAI - Intelligent Multi-Stage Pipeline*
-*Powered by open models via Hugging Face Inference Providers*
+*Powered by Google Gemini*
 """
 
     log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")
@@ -501,9 +498,9 @@ def test_visionARy_pipeline():
         print("="*80)
         print(f"Error: {str(e)}")
         print("\n🔍 Troubleshooting:")
-        print("1. Check HF_API_TOKEN is set: export HF_API_TOKEN=hf_xxx")
+        print("1. Check GOOGLE_API_KEY is set: export GOOGLE_API_KEY=...")
         print("2. Verify internet connection for API calls")
-        print("3. Check Hugging Face API status: https://status.huggingface.co")
+        print("3. Check Gemini API status: https://aistudio.google.com/status")
         print("4. Install ddgs: pip install ddgs")
         print("5. Models may be loading (503) - retry in 30 seconds")
         print("="*80 + "\n")
