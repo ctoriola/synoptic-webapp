@@ -50,33 +50,25 @@ def create_app():
     def markdown_filter(text):
         return markdown.markdown(text, extensions=['codehilite', 'fenced_code'])
     
-    # Add comprehensive markdown formatting filter for pitch deck content
+    # Render pitch deck Markdown as safe, structured HTML
     @app.template_filter('format_markdown')
     def format_markdown_filter(text):
+        import html
         import re
         if not text:
-            return text
-        
-        # Replace **text** with <strong>text</strong>
-        formatted = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', text)
-        
-        # Replace ## Heading with <h3>Heading</h3>
-        formatted = re.sub(r'^## (.*?)$', r'<h3>\1</h3>', formatted, flags=re.MULTILINE)
-        
-        # Replace ### Heading with <h4>Heading</h4>
-        formatted = re.sub(r'^### (.*?)$', r'<h4>\1</h4>', formatted, flags=re.MULTILINE)
-        
-        # Replace # Heading with <h2>Heading</h2>
-        formatted = re.sub(r'^# (.*?)$', r'<h2>\1</h2>', formatted, flags=re.MULTILINE)
-        
-        # Replace bullet points - item with <li>item</li>
-        formatted = re.sub(r'^- (.*?)$', r'<li>\1</li>', formatted, flags=re.MULTILINE)
-        
-        # Clean up any remaining ** or ##
-        formatted = re.sub(r'\*\*', '', formatted)
-        formatted = re.sub(r'##', '', formatted)
-        
-        return formatted
+            return ''
+        lines = []
+        for line in text.replace('\r', '').split('\n'):
+            # Treat "•" bullets as Markdown list items
+            line = re.sub(r'^(\s*)[•▪●]\s+', r'\1- ', line)
+            # Markdown needs a blank line before a list that follows a paragraph
+            if re.match(r'^\s*([-*+]|\d+\.)\s+', line) and lines and lines[-1].strip() \
+                    and not re.match(r'^\s*([-*+]|\d+\.)\s+', lines[-1]):
+                lines.append('')
+            lines.append(line)
+        # Escape raw HTML first: pitch text comes from AI and users
+        source = html.escape('\n'.join(lines), quote=False)
+        return markdown.markdown(source, extensions=['sane_lists', 'nl2br', 'tables'])
     
     # Create admin user route for Firebase (since we can't do it automatically)
     @app.route('/init-admin')

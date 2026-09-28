@@ -110,15 +110,7 @@
                     <div class="px-6 py-6">
                         {% if project.pitch_deck and project.pitch_deck.get('content') %}
                             <!-- Pitch Deck Content -->
-                            <div class="mb-8">
-                                <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                                    <i class="fas fa-presentation text-primary-600 mr-2"></i>
-                                    Pitch Deck
-                                </h3>
-                                <div class="prose max-w-none">
-                                    <div id="pitch-deck-content" class="text-gray-700 leading-relaxed whitespace-pre-wrap select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">{{ project.pitch_deck.content | format_markdown | safe }}</div>
-                                </div>
-                            </div>
+                            <article id="pitch-deck-content" class="pitch-doc select-none">{{ project.pitch_deck.content | format_markdown | safe }}</article>
                         {% else %}
                             <!-- No Pitch Deck -->
                             <div class="text-center py-12">
@@ -306,7 +298,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Prevent copying of generated content
 document.addEventListener('DOMContentLoaded', function() {
-    const pitchDeckContent = document.querySelector('.whitespace-pre-wrap');
+    const pitchDeckContent = document.getElementById('pitch-deck-content');
     
     if (pitchDeckContent) {
         // Disable right-click context menu
