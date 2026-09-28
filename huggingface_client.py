@@ -14,17 +14,20 @@ from datetime import datetime
 HF_TOKEN = os.getenv('HF_API_TOKEN')
 HEADERS = {'Authorization': f'Bearer {HF_TOKEN}'} if HF_TOKEN else {}
 
-# Free Hugging Face Inference API endpoints - VERIFIED URLS
+# Hugging Face Inference Providers router (OpenAI-compatible chat completions).
+# The legacy api-inference.huggingface.co/models/... endpoint has been retired,
+# which caused every generation stage to fail.
+HF_ROUTER_URL = os.getenv('HF_ROUTER_URL', 'https://router.huggingface.co/v1/chat/completions')
+
+# Keys are kept for backward compatibility with the stage fallback lists below.
 FREE_MODELS = {
-    'mistral': 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
-    'zephyr': 'https://api-inference.huggingface.co/models/HuggingFaceH4/zephyr-7b-alpha',
-    'phi': 'https://api-inference.huggingface.co/models/microsoft/Phi-3-mini-4k-instruct',
-    'flan_large': 'https://api-inference.huggingface.co/models/google/flan-t5-large',
-    'flan_base': 'https://api-inference.huggingface.co/models/google/flan-t5-base'
+    'mistral': os.getenv('HF_MODEL_PRIMARY', 'meta-llama/Llama-3.1-8B-Instruct'),
+    'zephyr': os.getenv('HF_MODEL_SECONDARY', 'Qwen/Qwen2.5-7B-Instruct'),
+    'phi': os.getenv('HF_MODEL_TERTIARY', 'mistralai/Mistral-7B-Instruct-v0.3'),
 }
 
 # Model fallback priority for each stage
-MODEL_PRIORITY = ['mistral', 'zephyr', 'phi', 'flan_large', 'flan_base']
+MODEL_PRIORITY = ['mistral', 'zephyr', 'phi']
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. Create detailed, data-backed, assertive pitch deck content. Write finished, confident paragraphs for investor pitch decks.'''
@@ -63,146 +66,87 @@ def get_context_ddgs(query):
 
 def verify_endpoint(model_key):
     """
-    Verify that a model endpoint is accessible
-    Returns True if accessible, False otherwise
+    Check that a model is configured and has not been marked unavailable.
+    (No extra network round-trip: the real request reports availability.)
     """
-    # Check cache first
-    if model_key in VERIFIED_MODELS:
-        return VERIFIED_MODELS[model_key]
-    
-    model_url = FREE_MODELS.get(model_key)
-    if not model_url:
-        return False
-    
-    try:
-        log_timestamp("VERIFY", f"Testing {model_key}...")
-        payload = {
-            'inputs': 'Hello',
-            'parameters': {'max_new_tokens': 5},
-            'options': {'wait_for_model': True}
-        }
-        response = requests.post(model_url, headers=HEADERS, json=payload, timeout=30)
-        
-        if response.status_code in [200, 503]:  # 200 = ready, 503 = loading but will work
-            log_timestamp("VERIFY", f"✓ {model_key} available")
-            VERIFIED_MODELS[model_key] = True
-            return True
-        elif response.status_code == 404:
-            log_timestamp("VERIFY", f"❌ {model_key} not found (404)")
-            VERIFIED_MODELS[model_key] = False
-            return False
-        else:
-            log_timestamp("VERIFY", f"⚠ {model_key} returned {response.status_code}")
-            VERIFIED_MODELS[model_key] = False
-            return False
-            
-    except Exception as e:
-        log_timestamp("VERIFY", f"❌ {model_key} error: {str(e)}")
-        VERIFIED_MODELS[model_key] = False
-        return False
+    return model_key in FREE_MODELS and VERIFIED_MODELS.get(model_key, True)
 
 
 def query_with_fallback(prompt, stage_name, preferred_models=None):
     """
     Query models with smart fallback chain
     Tries models in priority order until one succeeds
-    
-    Args:
-        prompt: The prompt to send
-        stage_name: Name of the stage for logging
-        preferred_models: List of preferred model keys, or None for default priority
-    
+
     Returns:
         Generated text or None if all models fail
     """
-    models_to_try = preferred_models or MODEL_PRIORITY
-    
+    if not HF_TOKEN:
+        log_timestamp(stage_name, "❌ HF_API_TOKEN is not set")
+        return None
+
+    models_to_try = [m for m in (preferred_models or MODEL_PRIORITY) if m in FREE_MODELS]
+
     for model_key in models_to_try:
-        # Verify endpoint first
         if not verify_endpoint(model_key):
             log_timestamp(stage_name, f"⏭ Skipping {model_key} (not available)")
             continue
-        
-        # Try to query the model
+
         result = query_inference_api(prompt, FREE_MODELS[model_key], stage_name, model_key)
         if result:
             return result
-    
+
     log_timestamp(stage_name, "❌ All models failed")
     return None
 
 
-def query_inference_api(prompt, model_url, stage_name, model_key, max_retries=3):
+def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
     """
-    Query Hugging Face free Inference API with retry logic
+    Query the Hugging Face router (chat completions) with retry logic
     """
+    payload = {
+        'model': model_id,
+        'messages': [{'role': 'user', 'content': prompt[:6000]}],
+        'max_tokens': 800,
+        'temperature': 0.7,
+        'top_p': 0.95,
+    }
+
     for attempt in range(max_retries):
         try:
-            formatted_prompt = prompt[:2000]  # Limit prompt length
-            
-            payload = {
-                'inputs': formatted_prompt,
-                'parameters': {
-                    'max_new_tokens': 800,
-                    'temperature': 0.7,
-                    'top_p': 0.95,
-                    'do_sample': True
-                },
-                'options': {
-                    'wait_for_model': True,
-                    'use_cache': False
-                }
-            }
-            
-            log_timestamp(stage_name, f"Querying {model_key} (attempt {attempt + 1}/{max_retries})")
-            response = requests.post(model_url, headers=HEADERS, json=payload, timeout=60)
-            
+            log_timestamp(stage_name, f"Querying {model_id} (attempt {attempt + 1}/{max_retries})")
+            response = requests.post(HF_ROUTER_URL, headers=HEADERS, json=payload, timeout=60)
+
             if response.status_code == 200:
                 data = response.json()
-                
-                # Parse response - Inference API returns array
-                if isinstance(data, list) and len(data) > 0:
-                    if isinstance(data[0], dict) and 'generated_text' in data[0]:
-                        text = data[0]['generated_text']
-                    elif isinstance(data[0], str):
-                        text = data[0]
-                    else:
-                        text = str(data[0])
-                elif isinstance(data, dict) and 'generated_text' in data:
-                    text = data['generated_text']
-                else:
-                    text = str(data)
-                
-                log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_key}")
+                choices = data.get('choices') or []
+                text = (choices[0].get('message', {}).get('content') or '').strip() if choices else ''
+                if not text:
+                    log_timestamp(stage_name, f"⚠ Empty response from {model_id}")
+                    return None
+                log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {model_id}")
                 return text
-                
-            elif response.status_code == 503:
-                # Model loading
-                wait_time = 5 * (attempt + 1)
-                log_timestamp(stage_name, f"⏳ Model loading, waiting {wait_time}s...")
-                time.sleep(wait_time)
-                continue
-                
-            elif response.status_code == 404:
-                log_timestamp(stage_name, f"❌ 404 Not Found for {model_key}")
-                return None  # Don't retry on 404
-                
-            else:
-                log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:100]}")
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)
-                    continue
-                    
+
+            if response.status_code in (400, 404, 422):
+                # Model not served / bad request for this model - don't retry, try next model
+                log_timestamp(stage_name, f"❌ {response.status_code} for {model_id}: {response.text[:150]}")
+                VERIFIED_MODELS[model_key] = False
+                return None
+
+            if response.status_code in (401, 403):
+                log_timestamp(stage_name, f"❌ Auth error {response.status_code}: check HF_API_TOKEN permissions")
+                return None
+
+            log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:150]}")
+            if attempt < max_retries - 1:
+                time.sleep(2 * (attempt + 1))
+
         except requests.exceptions.Timeout:
             log_timestamp(stage_name, f"⏱ Timeout on attempt {attempt + 1}")
-            if attempt < max_retries - 1:
-                continue
         except Exception as e:
             log_timestamp(stage_name, f"❌ Error on attempt {attempt + 1}: {str(e)}")
             if attempt < max_retries - 1:
-                time.sleep(2 ** attempt)
-                continue
-    
+                time.sleep(2 * (attempt + 1))
+
     return None
 
 
@@ -401,7 +345,7 @@ Based on our market analysis and business model, we are seeking strategic invest
 ---
 
 *Generated by PitchPerfectAI - Intelligent Multi-Stage Pipeline*
-*Powered by Free Hugging Face Models (Mistral-7B, Zephyr-7B, Phi-3)*
+*Powered by open models via Hugging Face Inference Providers*
 """
 
     log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")

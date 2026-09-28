@@ -1277,13 +1277,6 @@ def get_huggingface_research(user_message, current_content, project):
     import requests
     import json
     
-    # Try multiple Hugging Face models for better results
-    models_to_try = [
-        "microsoft/DialoGPT-large",
-        "facebook/blenderbot-400M-distill", 
-        "microsoft/DialoGPT-medium"
-    ]
-    
     # Analyze request type for better prompting
     is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
     is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
@@ -1299,49 +1292,18 @@ def get_huggingface_research(user_message, current_content, project):
     else:
         prompt = f"Business strategy analysis for {project.title}: {user_message}. Provide actionable business insights, industry best practices, and strategic recommendations."
     
-    for model_url in models_to_try:
-        try:
-            API_URL = f"https://api-inference.huggingface.co/models/{model_url}"
-            print(f"DEBUG: Trying Hugging Face model: {model_url}")
-            
-            response = requests.post(
-                API_URL,
-                headers={"Content-Type": "application/json"},
-                json={"inputs": prompt[:400]},  # Limit input length
-                timeout=15
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                research_content = ""
-                
-                # Handle different response formats
-                if isinstance(result, list) and len(result) > 0:
-                    if 'generated_text' in result[0]:
-                        research_content = result[0]['generated_text']
-                    elif 'text' in result[0]:
-                        research_content = result[0]['text']
-                elif isinstance(result, dict):
-                    research_content = result.get('generated_text', result.get('text', ''))
-                
-                if research_content and len(research_content) > 50:
-                    print(f"DEBUG: Hugging Face {model_url} success! Response length: {len(research_content)}")
-                    
-                    return {
-                        'research': research_content,
-                        'user_request': user_message,
-                        'project_context': {
-                            'title': project.title,
-                            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-                        }
-                    }
-            
-            print(f"DEBUG: Hugging Face {model_url} failed with status: {response.status_code}")
-            
-        except Exception as e:
-            print(f"DEBUG: Hugging Face {model_url} error: {str(e)}")
-            continue
-    
+    from huggingface_client import query_with_fallback
+    research_content = query_with_fallback(prompt, "PITCHY")
+    if research_content and len(research_content) > 50:
+        return {
+            'research': research_content,
+            'user_request': user_message,
+            'project_context': {
+                'title': project.title,
+                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
+            }
+        }
+
     # If all models failed
     raise Exception("All Hugging Face models failed")
 
