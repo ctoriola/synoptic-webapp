@@ -23,6 +23,24 @@ FREE_MODELS = {
 if os.getenv('GEMINI_MODEL_TERTIARY'):
     FREE_MODELS['phi'] = os.getenv('GEMINI_MODEL_TERTIARY')
 
+# Backup providers (OpenAI-compatible chat completions), tried after Gemini.
+OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
+OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
+# Free model IDs change often; OpenRouter tries these in order (max 3).
+OPENROUTER_MODELS = [m.strip() for m in os.getenv(
+    'OPENROUTER_MODELS',
+    'meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-chat-v3-0324:free,mistralai/mistral-small-3.2-24b-instruct:free'
+).split(',') if m.strip()][:3]
+
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+
+# Optional last resort (Mistral requires a plan to issue API keys)
+MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY')
+MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions'
+MISTRAL_MODEL = os.getenv('MISTRAL_MODEL', 'mistral-small-latest')
+
 # Wall-clock budget for one generation request (Vercel maxDuration is 60s)
 REQUEST_BUDGET_SECONDS = int(os.getenv('GEMINI_REQUEST_BUDGET', '50'))
 _deadline = None
@@ -46,7 +64,7 @@ LAST_ERRORS = []
 
 def _record_error(msg):
     LAST_ERRORS.append(msg)
-    del LAST_ERRORS[:-5]
+    del LAST_ERRORS[:-12]
 
 
 def log_timestamp(stage, message):
@@ -126,29 +144,25 @@ def verify_endpoint(model_key):
     return model_key in FREE_MODELS and VERIFIED_MODELS.get(model_key, True)
 
 
-def query_with_fallback(prompt, stage_name, preferred_models=None):
+def generate_text(prompt, stage_name, budget_seconds=45):
     """
-    Query models with smart fallback chain
-    Tries models in priority order until one succeeds
-
-    Returns:
-        Generated text or None if all models fail
+    Run the provider fallback chain within a wall-clock budget.
+    Returns generated text, or None (reasons are in LAST_ERRORS).
     """
-    if not GOOGLE_API_KEY:
-        log_timestamp(stage_name, "❌ GOOGLE_API_KEY is not set")
-        _record_error("GOOGLE_API_KEY is not set on the server")
-        return None
+    global _deadline
+    _deadline = time.monotonic() + budget_seconds
+    try:
+        return query_with_fallback(prompt, stage_name)
+    finally:
+        _deadline = None
 
-    LAST_ERRORS.clear()
-    # Always prefer the primary Gemini model; stage lists only affect fallback order
-    models_to_try = MODEL_PRIORITY
 
-    for model_key in models_to_try:
+def _gemini_round(prompt, stage_name):
+    """One pass over the Gemini models (single attempt each)."""
+    for model_key in MODEL_PRIORITY:
         if not verify_endpoint(model_key):
-            log_timestamp(stage_name, f"⏭ Skipping {model_key} (not available)")
             continue
-
-        result = query_inference_api(prompt, FREE_MODELS[model_key], stage_name, model_key)
+        result = query_inference_api(prompt, FREE_MODELS[model_key], stage_name, model_key, max_retries=1)
         if result:
             return result
 
@@ -158,11 +172,126 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
         if discovered:
             FREE_MODELS['mistral'] = discovered
             VERIFIED_MODELS['mistral'] = True
-            result = query_inference_api(prompt, discovered, stage_name, 'mistral')
+            return query_inference_api(prompt, discovered, stage_name, 'mistral', max_retries=1)
+    return None
+
+
+def discover_openrouter_free_models():
+    """Return up to 3 currently listed free OpenRouter text models."""
+    try:
+        response = requests.get('https://openrouter.ai/api/v1/models', timeout=15)
+        response.raise_for_status()
+        ids = [m['id'] for m in response.json().get('data', []) if m.get('id', '').endswith(':free')]
+    except Exception as e:
+        _record_error(f"OpenRouter model list: {e}")
+        return []
+    # Prefer larger instruct/chat models
+    preferred = [i for i in ids if any(k in i for k in ('llama-3.3-70b', 'deepseek', 'qwen', 'mistral', 'gemma'))]
+    return (preferred + [i for i in ids if i not in preferred])[:3]
+
+
+def query_openai_compatible(prompt, provider, url, api_key, stage_name, model=None, models=None):
+    """Single attempt against an OpenAI-compatible chat completions API."""
+    label = f"{provider}:{model or ','.join(models or [])}"
+    if _time_left() < 8:
+        _record_error(f"{provider}: skipped, request time budget exhausted")
+        return None
+    payload = {
+        'messages': [{'role': 'user', 'content': prompt[:30000]}],
+        'temperature': 0.7,
+        'max_tokens': 2048,
+    }
+    if models:
+        payload['models'] = models  # OpenRouter-native fallback list
+    else:
+        payload['model'] = model
+    headers = {'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'}
+    if provider == 'OpenRouter':
+        headers['X-Title'] = 'Synoptic'
+    try:
+        log_timestamp(stage_name, f"Querying {label}")
+        response = requests.post(url, headers=headers, json=payload,
+                                 timeout=max(5, min(55, _time_left() - 2)))
+        if response.status_code == 200:
+            choices = response.json().get('choices') or []
+            text = ((choices[0].get('message') or {}).get('content') or '').strip() if choices else ''
+            if text:
+                log_timestamp(stage_name, f"✓ Generated {len(text)} chars with {label}")
+                return text
+            _record_error(f"{provider}: empty response")
+            return None
+        log_timestamp(stage_name, f"⚠ {provider} {response.status_code}: {response.text[:150]}")
+        _record_error(f"{provider}: HTTP {response.status_code} {response.text[:120]}")
+        return None
+    except requests.exceptions.Timeout:
+        _record_error(f"{provider}: timed out")
+    except Exception as e:
+        _record_error(f"{provider}: {e}")
+    return None
+
+
+def _openrouter(prompt, stage_name):
+    global OPENROUTER_MODELS
+    if not OPENROUTER_API_KEY:
+        return None
+    result = query_openai_compatible(prompt, 'OpenRouter', OPENROUTER_URL, OPENROUTER_API_KEY,
+                                     stage_name, models=OPENROUTER_MODELS)
+    # Free model IDs get retired; refresh the list once if they're no longer valid
+    if result is None and LAST_ERRORS and any(c in LAST_ERRORS[-1] for c in ('HTTP 400', 'HTTP 404')):
+        discovered = discover_openrouter_free_models()
+        if discovered and discovered != OPENROUTER_MODELS:
+            OPENROUTER_MODELS = discovered
+            result = query_openai_compatible(prompt, 'OpenRouter', OPENROUTER_URL, OPENROUTER_API_KEY,
+                                             stage_name, models=OPENROUTER_MODELS)
+    return result
+
+
+def _groq(prompt, stage_name):
+    if not GROQ_API_KEY:
+        return None
+    return query_openai_compatible(prompt, 'Groq', GROQ_URL, GROQ_API_KEY,
+                                   stage_name, model=GROQ_MODEL)
+
+
+def _mistral(prompt, stage_name):
+    if not MISTRAL_API_KEY:
+        return None
+    return query_openai_compatible(prompt, 'Mistral', MISTRAL_URL, MISTRAL_API_KEY,
+                                   stage_name, model=MISTRAL_MODEL)
+
+
+def query_with_fallback(prompt, stage_name, preferred_models=None):
+    """
+    Generate text with provider fallback:
+    Gemini (each configured model) -> OpenRouter (free models) -> Groq -> Mistral (optional).
+    If every provider fails and time remains, wait briefly and do one more round.
+
+    Returns:
+        Generated text or None if all providers fail
+    """
+    LAST_ERRORS.clear()
+    providers = []
+    if GOOGLE_API_KEY:
+        providers.append(_gemini_round)
+    providers += [p for p, key in ((_openrouter, OPENROUTER_API_KEY), (_groq, GROQ_API_KEY),
+                                   (_mistral, MISTRAL_API_KEY)) if key]
+    if not providers:
+        log_timestamp(stage_name, "❌ No AI provider API key is set")
+        _record_error("No AI provider API_KEY is set on the server (GOOGLE_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY)")
+        return None
+
+    for round_no in range(2):
+        for provider in providers:
+            result = provider(prompt, stage_name)
             if result:
                 return result
+        if round_no == 0 and _time_left() > 30:
+            log_timestamp(stage_name, "⏳ All providers failed, retrying once in 5s")
+            time.sleep(5)
+        else:
+            break
 
-    log_timestamp(stage_name, "❌ All models failed")
+    log_timestamp(stage_name, "❌ All providers failed")
     return None
 
 
@@ -356,24 +485,24 @@ Rules:
 
 ---
 
-*Generated by PitchPerfectAI - Powered by Google Gemini*
+*Generated by PitchPerfectAI*
 """
     log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")
     return final_pitch
 
 
-def friendly_error(raw):
+def friendly_error(raw, action='generating your pitch'):
     """Map a raw generation error to a short, user-facing message."""
     text = str(raw)
-    if 'API_KEY is not set' in text or 'HTTP 400' in text or 'HTTP 401' in text or 'HTTP 403' in text:
-        return "Pitch generation isn't configured correctly right now. Please try again later or contact support if this continues."
     if 'HTTP 503' in text or 'high demand' in text or 'overloaded' in text.lower():
-        return "Our AI provider is experiencing very high demand right now. Please wait a minute and try again."
+        return "Our AI providers are experiencing very high demand right now. Please wait a minute and try again."
     if 'HTTP 429' in text or 'quota' in text.lower():
         return "We've hit our AI usage limit for the moment. Please try again in a few minutes."
     if 'timed out' in text or 'time budget' in text:
-        return "Generating your pitch took too long. Please try again."
-    return "Something went wrong while generating your pitch. Please try again."
+        return f"{action[0].upper() + action[1:]} took too long. Please try again."
+    if 'API_KEY is not set' in text or 'HTTP 400' in text or 'HTTP 401' in text or 'HTTP 403' in text:
+        return "Pitch generation isn't configured correctly right now. Please try again later or contact support if this continues."
+    return f"Something went wrong while {action}. Please try again."
 
 
 # API Compatibility Functions

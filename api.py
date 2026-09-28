@@ -6,7 +6,7 @@ from datetime import datetime
 from io import BytesIO
 
 import requests
-from flask import Blueprint, request, jsonify, send_file, redirect, url_for, session
+from flask import Blueprint, request, jsonify, send_file, redirect, url_for, session, current_app
 from flask_login import login_required, current_user
 # Replaced Gemini with Hugging Face for free inference
 from huggingface_client import generate_pitch_json, refine_pitch_content, generate_basic_template, deep_pitch_generation
@@ -100,117 +100,6 @@ def generate_mock_market_data(query):
         })
     
     return mock_data
-
-def process_markdown_to_pptx(text, text_frame):
-    """Process text and add it to PowerPoint text frame with enhanced formatting"""
-    import re
-    from pptx.dml.color import RGBColor
-    from pptx.enum.text import PP_ALIGN
-    
-    # Clean up any remaining markdown symbols
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # Remove ** bold markers
-    text = re.sub(r'##\s*', '', text)  # Remove ## headers
-    text = re.sub(r'#\s*', '', text)  # Remove # headers
-    
-    # Split text into lines
-    lines = text.split('\n')
-    
-    for i, line in enumerate(lines):
-        line = line.strip()
-        if not line:  # Skip empty lines
-            continue
-            
-        if i > 0:  # Add new paragraph for each line except the first
-            p = text_frame.add_paragraph()
-        else:
-            p = text_frame.paragraphs[0] if text_frame.paragraphs else text_frame.add_paragraph()
-        
-        # Set paragraph spacing for better readability
-        p.space_before = Pt(6)
-        p.space_after = Pt(6)
-        
-        # Check if this is a bullet point (starts with - or •)
-        is_bullet = line.startswith('-') or line.startswith('•')
-        if is_bullet:
-            line = line[1:].strip()  # Remove bullet character
-            p.level = 0  # Set bullet level
-        
-        # Check if this is an image prompt (contains "Image:" and parentheses)
-        is_image_prompt = re.search(r'\(Image:', line, re.IGNORECASE)
-        
-        # Create text run
-        run = p.add_run()
-        run.text = line
-        
-        # Enhanced font styling
-        run.font.name = 'Segoe UI'  # Modern, clean font
-        run.font.color.rgb = RGBColor(0x2d, 0x2d, 0x2d)  # Dark gray for readability
-        
-        # Set font size based on content type
-        if is_image_prompt:
-            run.font.size = Pt(10)  # Small size for image prompts
-            run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)  # Lighter gray for image prompts
-            run.font.italic = True  # Italicize image prompts
-        elif is_bullet:
-            run.font.size = Pt(12)  # Body text size for bullet points
-        else:
-            run.font.size = Pt(12)  # Body text size for regular content
-
-def add_slide_styling(slide, slide_title):
-    """Add enhanced visual styling to slides"""
-    try:
-        from pptx.dml.color import RGBColor
-        from pptx.enum.dml import MSO_THEME_COLOR
-        
-        # Add subtle gradient or accent colors based on slide type
-        slide_type = slide_title.lower()
-        
-        # Define color schemes for different slide types
-        if any(word in slide_type for word in ['problem', 'challenge', 'pain']):
-            accent_color = RGBColor(0xd9, 0x53, 0x4f)  # Red for problems
-        elif any(word in slide_type for word in ['solution', 'product', 'demo']):
-            accent_color = RGBColor(0x5c, 0xb8, 0x5c)  # Green for solutions
-        elif any(word in slide_type for word in ['market', 'opportunity', 'growth']):
-            accent_color = RGBColor(0x42, 0x85, 0xf4)  # Blue for market
-        elif any(word in slide_type for word in ['team', 'about', 'founder']):
-            accent_color = RGBColor(0xff, 0x9f, 0x40)  # Orange for team
-        elif any(word in slide_type for word in ['financial', 'revenue', 'funding']):
-            accent_color = RGBColor(0x9c, 0x27, 0xb0)  # Purple for financials
-        else:
-            accent_color = RGBColor(0x1f, 0x4e, 0x79)  # Default professional blue
-        
-        # Try to add a subtle accent line or shape (this may not work on all templates)
-        try:
-            # Add a thin accent line at the top of the slide
-            from pptx.shapes.autoshape import Shape
-            from pptx.enum.shapes import MSO_SHAPE
-            
-            # Create a thin rectangle as accent line
-            left = PptxInches(0)
-            top = PptxInches(0)
-            width = PptxInches(10)
-            height = PptxInches(0.05)
-            
-            accent_shape = slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE, left, top, width, height
-            )
-            
-            # Style the accent line
-            fill = accent_shape.fill
-            fill.solid()
-            fill.fore_color.rgb = accent_color
-            
-            # Remove border
-            line = accent_shape.line
-            line.fill.background()
-            
-        except Exception:
-            # If accent line fails, continue without it
-            pass
-            
-    except Exception:
-        # If styling fails, continue without enhanced styling
-        pass
 
 # Configuration
 # Removed GOOGLE_API_KEY - now using Hugging Face
@@ -1016,82 +905,92 @@ Make each slide investor-ready with specific, actionable content that tells a co
     except Exception as e:
         return jsonify({'error': f'Failed to generate pitch deck: {str(e)}'}), 500
 
+def _pitchy_project(project_id):
+    """Load a project owned by the current user, or None."""
+    from firebase_models import Project
+    project = Project.get(project_id) if project_id else None
+    if not project or project.user_id != current_user.id:
+        return None
+    return project
+
+
+def _pitch_content(project):
+    return (project.pitch_deck or {}).get('content', '') if project else ''
+
+
+def _pitchy_error(e, action):
+    """Log the raw failure; return a friendly message (raw details for admins)."""
+    from huggingface_client import friendly_error
+    print(f"ERROR: Pitchy {action} failed for user {current_user.id}: {e}")
+    payload = {'error': friendly_error(e, 'talking to Pitchy')}
+    if getattr(current_user, 'is_admin', False):
+        payload['details'] = str(e)
+    return jsonify(payload), 503
+
+
+@api_bp.route('/pitchy-review', methods=['POST'])
+@login_required
+def pitchy_review():
+    """Score each pitch section and suggest what to strengthen."""
+    import pitchy
+    data = request.get_json(silent=True) or {}
+    project = _pitchy_project(data.get('project_id'))
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+    content = _pitch_content(project)
+    if not content.strip():
+        return jsonify({'error': 'This project has no pitch deck to review yet.'}), 400
+    try:
+        return jsonify({'success': True, **pitchy.review_pitch(project.title, content)})
+    except Exception as e:
+        return _pitchy_error(e, 'review')
+
+
 @api_bp.route('/pitchy-chat', methods=['POST'])
 @login_required
 def pitchy_chat():
-    """Handle Pitchy AI chat messages for pitch deck improvement"""
+    """Chat with Pitchy about the project's pitch; may propose a section rewrite."""
+    import pitchy
+    data = request.get_json(silent=True) or {}
+    message = (data.get('message') or '').strip()
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+    project = _pitchy_project(data.get('project_id'))
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+    history = data.get('history') if isinstance(data.get('history'), list) else []
     try:
-        data = request.get_json()
-        message = data.get('message', '').strip()
-        project_id = data.get('project_id')
-        current_content = data.get('current_content', '')
-        
-        if not message or not project_id:
-            return jsonify({'error': 'Message and project ID are required'}), 400
-        
-        # Get the project
-        project = Project.get(project_id)
-        if not project or project.user_id != current_user.id:
-            return jsonify({'error': 'Project not found or access denied'}), 404
-        
-        # Use free AI methods to understand the request and gather information
-        try:
-            print(f"DEBUG: Attempting Hugging Face research for message: {message[:50]}...")
-            research_response = get_huggingface_research(message, current_content, project)
-            if not research_response or not research_response.get('research'):
-                print("DEBUG: Hugging Face returned empty research data")
-                raise Exception("No research data from Hugging Face")
-            print(f"DEBUG: Hugging Face success - research length: {len(research_response.get('research', ''))}")
-        except Exception as e:
-            print(f"DEBUG: Hugging Face failed: {str(e)}")
-            # Fallback to local analysis
-            try:
-                print("DEBUG: Attempting local analysis fallback...")
-                research_response = get_local_analysis(message, current_content, project)
-                print(f"DEBUG: Local analysis research length: {len(research_response.get('research', ''))}")
-            except Exception as e2:
-                print(f"DEBUG: Local analysis failed: {str(e2)}")
-                # Final fallback to DuckDuckGo search
-                print("DEBUG: Attempting DuckDuckGo fallback...")
-                research_response = get_duckduckgo_research(message, project)
-                print(f"DEBUG: DuckDuckGo research length: {len(research_response.get('research', ''))}")
-        
-        # Comment out OpenAI for now
-        # try:
-        #     print(f"DEBUG: Attempting OpenAI research for message: {message[:50]}...")
-        #     openai_response = get_openai_research(message, current_content, project)
-        #     if not openai_response or not openai_response.get('research'):
-        #         print("DEBUG: OpenAI returned empty research data")
-        #         raise Exception("No research data from OpenAI")
-        #     print(f"DEBUG: OpenAI success - research length: {len(openai_response.get('research', ''))}")
-        # except Exception as e:
-        #     print(f"DEBUG: OpenAI failed: {str(e)}")
-        #     # Fallback to other methods...
-        
-        # Use Gemini to format and present the response
-        print(f"DEBUG: Attempting Gemini processing...")
-        print(f"DEBUG: Current content length: {len(current_content) if current_content else 0}")
-        print(f"DEBUG: Research data available: {bool(research_response.get('research'))}")
-        gemini_response = format_with_gemini(research_response, message, current_content)
-        print(f"DEBUG: Gemini response type: {type(gemini_response)}")
-        print(f"DEBUG: Gemini response keys: {list(gemini_response.keys()) if isinstance(gemini_response, dict) else 'Not a dict'}")
-        if isinstance(gemini_response, dict):
-            print(f"DEBUG: Has updated_content: {bool(gemini_response.get('updated_content'))}")
-            print(f"DEBUG: Response length: {len(gemini_response.get('response', ''))}")
-        
-        return jsonify({
-            'success': True,
-            'response': gemini_response.get('response', get_fallback_response(message)),
-            'updated_content': gemini_response.get('updated_content')
-        })
-        
+        result = pitchy.chat(project.title, _pitch_content(project), history, message)
+        return jsonify({'success': True, **result})
     except Exception as e:
-        # Final fallback - never return error messages, always provide helpful guidance
+        return _pitchy_error(e, 'chat')
+
+
+@api_bp.route('/pitchy-apply', methods=['POST'])
+@login_required
+def pitchy_apply():
+    """Apply a Pitchy section rewrite to the pitch (previous version kept for undo)."""
+    import pitchy
+    from dashboard import save_pitch_version
+    data = request.get_json(silent=True) or {}
+    project = _pitchy_project(data.get('project_id'))
+    section = (data.get('section') or '').strip()
+    new_body = (data.get('content') or '').strip()
+    if not project:
+        return jsonify({'error': 'Project not found'}), 404
+    if not section or not new_body:
+        return jsonify({'error': 'Section and content are required'}), 400
+    try:
+        updated, heading = pitchy.replace_section(_pitch_content(project), section[:80], new_body[:8000])
+        save_pitch_version(project, updated, 'pitchy_ai')
         return jsonify({
             'success': True,
-            'response': get_fallback_response(message),
-            'updated_content': None
+            'section': heading,
+            'html': current_app.jinja_env.filters['format_markdown'](updated)
         })
+    except Exception as e:
+        print(f"ERROR: Pitchy apply failed for user {current_user.id}: {e}")
+        return jsonify({'error': 'Could not apply the change. Please try again.'}), 500
 
 
 @api_bp.route('/generate-deep-pitch', methods=['POST'])
@@ -1151,604 +1050,6 @@ def generate_deep_pitch():
             payload['details'] = str(e)
         return jsonify(payload), 500
 
-
-def get_duckduckgo_research(user_message, project):
-    """Fallback research using DuckDuckGo when OpenAI is unavailable"""
-    try:
-        from duckduckgo_search import DDGS
-        
-        # Determine request type for better search queries
-        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market', 'tam', 'sam'])
-        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-        is_problem_statement = 'problem statement' in user_message.lower()
-        
-        # Create targeted search queries based on project type
-        project_type = ""
-        if project.repo_name:
-            # Try to infer project type from repo name
-            repo_lower = project.repo_name.lower()
-            if any(word in repo_lower for word in ['web', 'app', 'site', 'frontend', 'backend']):
-                project_type = "web application"
-            elif any(word in repo_lower for word in ['ai', 'ml', 'data', 'analytics']):
-                project_type = "AI/ML platform"
-            elif any(word in repo_lower for word in ['mobile', 'ios', 'android']):
-                project_type = "mobile app"
-            elif any(word in repo_lower for word in ['api', 'service', 'microservice']):
-                project_type = "API service"
-            else:
-                project_type = "software platform"
-        
-        # Create more specific search queries
-        search_queries = []
-        if is_financial:
-            search_queries = [
-                f"{project_type} revenue model examples",
-                f"{project_type} startup financial projections",
-                "SaaS business metrics CAC LTV",
-                f"{project_type} pricing strategy"
-            ]
-        elif is_market_data:
-            search_queries = [
-                f"{project_type} market size 2024",
-                f"{project_type} industry statistics",
-                f"{project_type} market growth trends",
-                "TAM SAM SOM calculation examples"
-            ]
-        elif is_competition:
-            search_queries = [
-                f"{project_type} competitors analysis",
-                f"{project_type} competitive landscape",
-                f"{project_type} market leaders",
-                f"top {project_type} companies"
-            ]
-        elif is_problem_statement:
-            search_queries = [
-                f"{project_type} common problems",
-                f"{project_type} user pain points",
-                f"{project_type} market challenges",
-                f"{project_type} industry issues"
-            ]
-        else:
-            search_queries = [
-                f"{project_type} business analysis",
-                f"{project_type} industry insights",
-                f"{project_type} market trends"
-            ]
-        
-        # Perform searches and collect results
-        ddgs = DDGS()
-        search_results = []
-        for query in search_queries[:3]:  # Limit to 3 queries
-            try:
-                results = ddgs.text(query, max_results=4)
-                search_results.extend(results[:2])  # Take top 2 from each query
-            except Exception as e:
-                print(f"DuckDuckGo search failed for '{query}': {e}")
-                continue
-        
-        research_text = ""
-        for result in search_results:
-            title = result.get('title', '')
-            body = result.get('body', '')
-            if title and body:
-                research_text += f"Source: {title}\n{body[:200]}...\n\n"
-        
-        return {
-            'research': research_text if research_text else 'Using general business knowledge and industry best practices.',
-            'user_request': user_message,
-            'project_context': {
-                'title': project.title,
-                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-            }
-        }
-        
-    except Exception as e:
-        print(f"DuckDuckGo search failed: {e}")
-        # Final fallback - return basic structure with general knowledge
-        return {
-            'research': 'Using general business knowledge and industry best practices for improvements.',
-            'user_request': user_message,
-            'project_context': {
-                'title': project.title,
-                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-            }
-        }
-
-def get_free_ai_research(user_message, current_content, project):
-    """Use free AI alternatives for research when OpenAI is unavailable"""
-    import os
-    
-    # Try Hugging Face Inference API (free tier)
-    try:
-        print("DEBUG: Attempting Hugging Face free inference...")
-        return get_huggingface_research(user_message, current_content, project)
-    except Exception as e:
-        print(f"DEBUG: Hugging Face failed: {str(e)}")
-        
-    # Try local/offline analysis
-    try:
-        print("DEBUG: Using local analysis...")
-        return get_local_analysis(user_message, current_content, project)
-    except Exception as e:
-        print(f"DEBUG: Local analysis failed: {str(e)}")
-        
-    # Final fallback
-    raise Exception("All free AI methods failed")
-
-def get_huggingface_research(user_message, current_content, project):
-    """Use Hugging Face free inference API"""
-    import requests
-    import json
-    
-    # Analyze request type for better prompting
-    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-    
-    # Create focused prompt based on request type
-    if is_financial:
-        prompt = f"Business financial analysis for {project.title}: {user_message}. Provide specific revenue models, key metrics (CAC, LTV, MRR), funding requirements, and realistic financial projections for this type of business."
-    elif is_market_data:
-        prompt = f"Market research for {project.title}: {user_message}. Provide market size data (TAM, SAM, SOM), growth rates, industry statistics, and market trends relevant to this business."
-    elif is_competition:
-        prompt = f"Competitive analysis for {project.title}: {user_message}. Identify key competitors, market positioning, competitive advantages, and industry landscape analysis."
-    else:
-        prompt = f"Business strategy analysis for {project.title}: {user_message}. Provide actionable business insights, industry best practices, and strategic recommendations."
-    
-    from huggingface_client import query_with_fallback
-    research_content = query_with_fallback(prompt, "PITCHY")
-    if research_content and len(research_content) > 50:
-        return {
-            'research': research_content,
-            'user_request': user_message,
-            'project_context': {
-                'title': project.title,
-                'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-            }
-        }
-
-    # If all models failed
-    raise Exception("All Hugging Face models failed")
-
-def get_local_analysis(user_message, current_content, project):
-    """Generate insights using local analysis (no AI required)"""
-    
-    # Analyze request type
-    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-    is_problem_statement = 'problem statement' in user_message.lower()
-    
-    # Generate context-aware insights
-    insights = []
-    
-    if is_financial:
-        insights.extend([
-            "Consider including 3-5 year revenue projections with realistic growth rates",
-            "Add key SaaS metrics: Customer Acquisition Cost (CAC), Lifetime Value (LTV), Monthly Recurring Revenue (MRR)",
-            "Include funding requirements with specific use of funds breakdown",
-            "Show unit economics and path to profitability",
-            "Add competitive pricing analysis and revenue model validation"
-        ])
-    
-    if is_market_data:
-        insights.extend([
-            "Include Total Addressable Market (TAM), Serviceable Available Market (SAM), and Serviceable Obtainable Market (SOM)",
-            "Add market growth rate statistics from reputable sources",
-            "Include customer segment analysis with market sizing",
-            "Show market trends and drivers supporting growth",
-            "Add geographic market breakdown if applicable"
-        ])
-    
-    if is_competition:
-        insights.extend([
-            "Identify 3-5 direct competitors with specific company names",
-            "Create competitive feature comparison matrix",
-            "Highlight unique value propositions and differentiators",
-            "Include competitive pricing analysis",
-            "Show market positioning and competitive advantages"
-        ])
-    
-    if is_problem_statement:
-        insights.extend([
-            "Quantify the problem with specific statistics and data points",
-            "Include customer pain points with supporting evidence",
-            "Show the cost of not solving this problem",
-            "Add market validation and customer discovery insights",
-            "Include urgency factors driving need for solution"
-        ])
-    
-    # Add project-specific insights based on repo name
-    if project.repo_name:
-        repo_lower = project.repo_name.lower()
-        if 'web' in repo_lower or 'app' in repo_lower:
-            insights.append("Consider web application market trends and user acquisition strategies")
-        elif 'ai' in repo_lower or 'ml' in repo_lower:
-            insights.append("Include AI/ML market growth statistics and competitive landscape")
-        elif 'mobile' in repo_lower:
-            insights.append("Add mobile app market data and user engagement metrics")
-    
-    research_content = "\n".join([f"• {insight}" for insight in insights[:8]])  # Limit to top 8 insights
-    
-    print(f"DEBUG: Local analysis success! Generated {len(insights)} insights")
-    
-    return {
-        'research': research_content,
-        'user_request': user_message,
-        'project_context': {
-            'title': project.title,
-            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-        }
-    }
-
-def get_openai_research(user_message, current_content, project):
-    """Use OpenAI to research and gather information for the user's request"""
-    import os
-    import time
-    
-    try:
-        from openai import OpenAI
-        
-        api_key = os.getenv('OPENAI_API_KEY')
-        print(f"DEBUG: OpenAI API key configured: {bool(api_key)}")
-        if not api_key:
-            # Immediately fall back to free alternatives
-            print("DEBUG: No OpenAI API key found, trying free alternatives...")
-            return get_free_ai_research(user_message, current_content, project)
-        
-        print("DEBUG: Creating OpenAI client...")
-        client = OpenAI(api_key=api_key)
-        print("DEBUG: OpenAI client created successfully")
-        
-        # Analyze the user's request and current content
-        research_prompt = f"""
-        You are an expert business consultant and researcher. A user is asking for help with their pitch deck.
-        
-        User Request: "{user_message}"
-        Project: {project.title}
-        Repository: {project.repo_owner}/{project.repo_name if project.repo_name else 'N/A'}
-        
-        Current Pitch Deck Content (first 1000 chars):
-        {current_content[:1000] if current_content else 'No content provided'}
-        
-        Based on this request, provide:
-        1. Specific research data, statistics, or information that would help address their request
-        2. Concrete suggestions for improvement
-        3. Industry benchmarks or competitor information if relevant
-        4. Market data or financial metrics if applicable
-        
-        Focus on providing factual, specific information rather than generic advice.
-        Use real company names, actual statistics, and concrete data points.
-        """
-        
-        # Retry logic with multiple models for better reliability
-        models_to_try = ["gpt-4o-mini", "gpt-4", "gpt-3.5-turbo"]
-        max_retries = 2  # Reduced retries, faster fallback
-        
-        for model in models_to_try:
-            print(f"DEBUG: Trying OpenAI model: {model}")
-            for attempt in range(max_retries):
-                try:
-                    print(f"DEBUG: Attempt {attempt + 1} with {model}")
-                    response = client.chat.completions.create(
-                        model=model,
-                        messages=[{"role": "user", "content": research_prompt}],
-                        max_tokens=800,
-                        temperature=0.3,
-                        timeout=10  # 10 second timeout
-                    )
-                    
-                    research_content = response.choices[0].message.content
-                    print(f"DEBUG: OpenAI {model} success! Response length: {len(research_content)}")
-                    
-                    return {
-                        'research': research_content,
-                        'user_request': user_message,
-                        'project_context': {
-                            'title': project.title,
-                            'repo': f"{project.repo_owner}/{project.repo_name}" if project.repo_name else None
-                        }
-                    }
-                    
-                except Exception as retry_error:
-                    print(f"DEBUG: OpenAI {model} attempt {attempt + 1} failed: {str(retry_error)}")
-                    if attempt < max_retries - 1:
-                        time.sleep(1)  # Quick retry
-                        continue
-                    else:
-                        # Try next model
-                        break
-        
-        # If all models failed, raise exception to trigger DuckDuckGo fallback
-        raise Exception("All OpenAI models failed")
-        
-    except Exception as e:
-        # Don't return here - let the calling function handle DuckDuckGo fallback
-        raise e
-
-def format_with_gemini(research_data, user_message, current_content):
-    """
-    REPLACED: Now uses Hugging Face instead of Gemini
-    Kept function name for backward compatibility
-    """
-    try:
-        print("DEBUG: Using Hugging Face for Pitchy chat (Gemini replaced)")
-        
-        # Determine if this is a content update request or just a question
-        # Include informal language patterns
-        is_update_request = any(keyword in user_message.lower() for keyword in [
-            'improve', 'enhance', 'add', 'update', 'change', 'modify', 'rewrite', 'better', 
-            'create', 'help me', 'realistic', 'projections', 'metrics', 'financial',
-            # Informal language
-            'sucks', 'fix', 'make it', 'do something', 'help', 'bro', 'dude', 'man',
-            'terrible', 'awful', 'bad', 'boring', 'lame', 'weak', 'needs work',
-            'spice up', 'jazz up', 'make cooler', 'make better', 'upgrade'
-        ])
-        
-        # Special handling for different request types
-        is_problem_statement = 'problem statement' in user_message.lower()
-        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-        
-        # Request type detection for specialized handling
-        print(f"DEBUG: Request analysis:")
-        print(f"DEBUG: - is_update_request: {is_update_request}")
-        print(f"DEBUG: - is_financial: {is_financial}")
-        print(f"DEBUG: - is_market_data: {is_market_data}")
-        print(f"DEBUG: - is_competition: {is_competition}")
-        print(f"DEBUG: - is_problem_statement: {is_problem_statement}")
-        print(f"DEBUG: - has_current_content: {bool(current_content)}")
-        
-        if is_update_request and current_content:
-            # Generate updated content with retry logic
-            if is_problem_statement:
-                # Fun, conversational prompt for problem statement improvements
-                update_prompt = f"""
-                Hey there! 🚀 I'm Pitchy, your friendly pitch deck guru, and I'm here to make your problem statement absolutely shine!
-                
-                User Request: "{user_message}" 
-                
-                I totally get it - problem statements can be tricky! Let me help you craft something that really grabs attention and makes investors go "wow, this is a real problem that needs solving!" 💡
-                
-                Current Complete Content:
-                {current_content}
-                
-                INSTRUCTIONS:
-                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Focus on enhancing the problem statement section within the full content
-                3. Add specific statistics (use realistic percentages like 73%, 42%, etc.)
-                4. Make it more urgent and compelling while keeping all other sections intact
-                5. Return the COMPLETE updated pitch deck with enhanced problem statement
-                
-                Format as:
-                RESPONSE: Brief explanation of improvements made
-                UPDATED_CONTENT: [Complete pitch deck with enhanced problem statement]
-                """
-            elif is_financial:
-                # Fun, conversational prompt for financial projections
-                update_prompt = f"""
-                Yo! 💰 Pitchy here, and I'm about to turn your financial section into something that'll make investors reach for their checkbooks!
-                
-                User Request: "{user_message}"
-                
-                I know, I know - numbers can be scary, but trust me, we're gonna make this financial section absolutely irresistible! Time to show them the money! 🤑
-                
-                Current Complete Content:
-                {current_content}
-                
-                Research Information:
-                {research_data.get('research', '')}
-                
-                INSTRUCTIONS:
-                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Find the financial/business model section and enhance it with comprehensive projections
-                3. If no financial section exists, add one after the business model or solution section
-                4. Include 3-5 year revenue projections with realistic growth rates
-                5. Add key metrics like CAC, LTV, gross margins, burn rate
-                6. Include funding requirements and use of funds
-                7. Use realistic numbers based on industry standards and research data
-                8. Return the COMPLETE pitch deck with enhanced financial section
-                
-                Format as:
-                RESPONSE: Brief explanation of financial projections added
-                UPDATED_CONTENT: [Complete updated pitch deck with financial section]
-                """
-            elif is_market_data:
-                # Fun, conversational prompt for market data
-                update_prompt = f"""
-                Hey hey! 📊 Pitchy here, ready to dive deep into some juicy market data that'll blow investors' minds!
-                
-                User Request: "{user_message}"
-                
-                Market research time! Let's paint a picture of this massive opportunity with some killer stats and trends. We're talking TAM, SAM, SOM - the whole shebang! 🎯
-                
-                Current Complete Content:
-                {current_content}
-                
-                Research Information:
-                {research_data.get('research', '')}
-                
-                INSTRUCTIONS:
-                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Find the market opportunity/market size section and enhance it with specific data
-                3. If no market section exists, add one after the problem/solution section
-                4. Add specific market size data (TAM, SAM, SOM) with realistic numbers
-                5. Include growth rates and market trends from research
-                6. Add relevant industry statistics and benchmarks
-                7. Use research data to make improvements factual and specific
-                8. Return the COMPLETE pitch deck with enhanced market section
-                
-                Format as:
-                RESPONSE: Brief explanation of market data added
-                UPDATED_CONTENT: [Complete updated pitch deck with market data]
-                """
-            elif is_competition:
-                # Fun, conversational prompt for competitive analysis
-                update_prompt = f"""
-                What's up! 🥊 Pitchy here, and we're about to show why you're gonna absolutely crush the competition!
-                
-                User Request: "{user_message}"
-                
-                Competition analysis time! Let's break down who you're up against and why you're gonna win this thing. Time to show your competitive edge! 💪
-                
-                Current Complete Content:
-                {current_content}
-                
-                Research Information:
-                {research_data.get('research', '')}
-                
-                INSTRUCTIONS:
-                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Find the competitive analysis/competition section and enhance it with detailed analysis
-                3. If no competition section exists, add one after the market opportunity section
-                4. Add detailed competitor analysis with specific company names from research
-                5. Include competitive advantages and differentiators
-                6. Add market positioning and competitive landscape insights
-                7. Use research data to identify realistic competitor examples
-                8. Return the COMPLETE pitch deck with enhanced competitive analysis
-                
-                Format as:
-                RESPONSE: Brief explanation of competitive analysis added
-                UPDATED_CONTENT: [Complete updated pitch deck with competitive analysis]
-                """
-            else:
-                # Fun, conversational prompt for general improvements
-                update_prompt = f"""
-                Hey there! 🎉 Pitchy here, your pitch deck bestie, and I'm SO excited to help make your deck absolutely amazing!
-                
-                User Request: "{user_message}"
-                
-                Alright, let's turn this pitch deck into something that'll have investors saying "TAKE MY MONEY!" 💸 I'm here to make it shine! ✨
-                
-                Research Information:
-                {research_data.get('research', '')}
-                
-                Current Pitch Deck Content:
-                {current_content[:3000]}...
-                
-                CRITICAL INSTRUCTIONS:
-                1. PRESERVE ALL EXISTING CONTENT - DO NOT DELETE ANY SLIDES OR SECTIONS
-                2. Provide a brief explanation of what you're improving (2-3 sentences)
-                3. Generate an updated version that ADDS to the existing pitch deck
-                4. Use the research information to make specific, factual improvements
-                5. Maintain the original structure and ENHANCE the content
-                6. NO placeholder text - use specific data, companies, and figures
-                7. NEVER remove or replace existing slides - only add or enhance
-                
-                Format your response EXACTLY as:
-                RESPONSE: [Your brief explanation]
-                UPDATED_CONTENT: [The complete updated pitch deck content]
-                """
-            
-            # Use Hugging Face for content refinement
-            print(f"DEBUG: Using Hugging Face to refine content")
-            refined_content = refine_pitch_content(current_content, update_prompt)
-            
-            if refined_content and refined_content != current_content:
-                return {
-                    'response': "I've enhanced your pitch deck with more specific details!",
-                    'updated_content': refined_content
-                }
-            else:
-                # If refinement didn't work, provide helpful advice
-                raise Exception("Content refinement failed")
-        else:
-            # Fun, conversational advice-only prompt
-            advice_prompt = f"""
-            Hey! 👋 Pitchy here, your friendly pitch deck guru! I'm here to help you out with whatever you need!
-            
-            User Question: "{user_message}"
-            
-            Research Information:
-            {research_data.get('research', '')}
-            
-            Current Pitch Deck Context:
-            {current_content[:500]}...
-            
-            Let me give you some awesome advice! I'll keep it fun, helpful, and straight to the point. Think of me as your pitch deck buddy who's got your back! 😊
-            
-            Be conversational, enthusiastic, and supportive. Use emojis and casual language. Keep it concise but super helpful (2-3 sentences max).
-            """
-            
-            # Use Hugging Face for advice
-            print(f"DEBUG: Using Hugging Face for advice")
-            advice_response = refine_pitch_content("", advice_prompt)
-            
-            if advice_response:
-                return {
-                    'response': advice_response,
-                    'updated_content': None
-                }
-            else:
-                # If HF fails, raise for fallback
-                raise Exception("Hugging Face advice failed")
-            
-    except Exception as e:
-        # Gemini unavailable, providing fallback guidance
-        # Provide a helpful response based on the request type even when Gemini fails
-        
-        # Determine request type for fallback response
-        is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model'])
-        is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market'])
-        is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive'])
-        is_problem_statement = 'problem statement' in user_message.lower()
-        
-        # Provide specific guidance based on request type
-        if is_financial:
-            fallback_response = "I'd be happy to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions based on your market size."
-        elif is_market_data:
-            fallback_response = "For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape statistics."
-        elif is_competition:
-            fallback_response = "To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies."
-        elif is_problem_statement:
-            fallback_response = "For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem."
-        else:
-            fallback_response = "I'm here to help improve your pitch deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements."
-        
-        return {
-            'response': fallback_response,
-            'updated_content': None
-        }
-
-def get_fallback_response(user_message):
-    """Generate a fun, helpful fallback response when all AI services fail"""
-    # Determine request type for fallback response (including informal language)
-    is_financial = any(word in user_message.lower() for word in ['financial', 'projections', 'metrics', 'revenue', 'business model', 'money', 'cash', 'funding'])
-    is_market_data = any(word in user_message.lower() for word in ['market data', 'statistics', 'market', 'tam', 'sam'])
-    is_competition = any(word in user_message.lower() for word in ['competition', 'competitor', 'competitive', 'rivals'])
-    is_problem_statement = any(word in user_message.lower() for word in ['problem statement', 'problem', 'pain point'])
-    
-    # Check for informal language patterns
-    is_informal = any(word in user_message.lower() for word in ['bro', 'dude', 'man', 'sucks', 'terrible', 'awful', 'fix', 'help me out'])
-    
-    # Provide fun, specific guidance based on request type
-    if is_financial:
-        if is_informal:
-            return "Yo! 💰 I totally get it - let's make those numbers shine! Try adding some killer 3-5 year revenue forecasts, key metrics like CAC and LTV, and show investors exactly how you'll use their money. Make it rain! 🌧️💸"
-        else:
-            return "Hey there! 💰 I'd love to help with financial projections! Consider adding: 3-5 year revenue forecasts, key metrics like CAC and LTV, funding requirements, and realistic growth assumptions. Let's show them the money! 🚀"
-    elif is_market_data:
-        if is_informal:
-            return "Dude! 📊 Market data time! Let's blow their minds with some solid TAM, SAM, SOM numbers, growth rates, and industry trends. Show them this market is HUGE! 🎯"
-        else:
-            return "Hey! 📊 For market data improvements, consider adding: Total Addressable Market (TAM), Serviceable Available Market (SAM), market growth rates, industry trends, and competitive landscape stats. Let's paint that big picture! 🎨"
-    elif is_competition:
-        if is_informal:
-            return "Yo! 🥊 Competition analysis time! Let's show why you're gonna crush it - add your main competitors, what makes you different, and why you're the clear winner. Time to flex! 💪"
-        else:
-            return "Hey there! 🥊 To enhance competitive analysis, include: direct and indirect competitors, competitive advantages, market positioning, pricing comparison, and differentiation strategies. Show them why you win! 🏆"
-    elif is_problem_statement:
-        if is_informal:
-            return "Bro! 🎯 Problem statement got you down? Let's fix that! Add some killer stats, real pain points people face, and show why this problem is costing everyone big time. Make it urgent! ⚡"
-        else:
-            return "Hey! 🎯 For a stronger problem statement, add: specific statistics showing the problem's scale, pain points your target customers face, current inadequate solutions, and the cost of not solving this problem. Let's make it compelling! ✨"
-    else:
-        if is_informal:
-            return "Hey hey! 👋 Pitchy here, and I'm totally here for you! Hit me up about financial projections, market data, competition, or problem statements - let's make this deck absolutely fire! 🔥"
-        else:
-            return "Hey there! 👋 I'm Pitchy, your pitch deck buddy! I'm here to help improve your deck! Try asking about specific sections like financial projections, market data, competitive analysis, or problem statement improvements. Let's make it amazing! ✨"
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
 @login_required
@@ -1841,243 +1142,10 @@ def export_project_pptx(project_id):
     if not project or project.user_id != current_user.id:
         return jsonify({'error': 'Project not found'}), 404
     
-    # Get template selection from query parameter
-    template = request.args.get('template', '1')  # Default to template 1
-    
-    # Load template file
-    template_path = None
-    if template == '1':
-        template_path = os.path.join(os.path.dirname(__file__), 'template1.pptx')
-    # Template 2 and 3 will be added later
-    # elif template == '2':
-    #     template_path = os.path.join(os.path.dirname(__file__), 'template2.pptx')
-    # elif template == '3':
-    #     template_path = os.path.join(os.path.dirname(__file__), 'template3.pptx')
-    
-    # Create PowerPoint presentation from template or blank
-    if template_path and os.path.exists(template_path):
-        prs = Presentation(template_path)
-        # Use the existing first slide and update its content
-        if len(prs.slides) > 0:
-            title_slide = prs.slides[0]
-            # Update title slide content
-            if title_slide.shapes.title:
-                title_slide.shapes.title.text = project.title
-            # Find subtitle placeholder and update it
-            for shape in title_slide.shapes:
-                if hasattr(shape, 'text_frame') and shape != title_slide.shapes.title:
-                    shape.text_frame.text = f"Investor Pitch Deck"
-                    if project.repo_owner and project.repo_name:
-                        shape.text_frame.text += f"\n{project.repo_owner}/{project.repo_name}"
-                    break
-        else:
-            # If template has no slides, create a title slide
-            title_slide_layout = prs.slide_layouts[0]
-            slide = prs.slides.add_slide(title_slide_layout)
-            title = slide.shapes.title
-            subtitle = slide.placeholders[1]
-            title.text = project.title
-            subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
-    else:
-        # Fallback to blank presentation
-        prs = Presentation()
-        title_slide_layout = prs.slide_layouts[0]
-        slide = prs.slides.add_slide(title_slide_layout)
-        title = slide.shapes.title
-        subtitle = slide.placeholders[1]
-        title.text = project.title
-        subtitle.text = f"Investor Pitch Deck\n{project.repo_owner}/{project.repo_name}"
-    
-    # Process pitch deck content
-    if project.pitch_deck and project.pitch_deck.get('content'):
-        content = project.pitch_deck.get('content', '')
-        
-        # Parse content into slides - handle both old and new formats
-        slides = []
-        if '**Slide' in content:
-            # Parse structured slide content (old markdown format)
-            slides = content.split('**Slide')[1:]  # Skip empty first element
-        elif 'Slide ' in content:
-            # Parse structured slide content (new plain text format) - removed ':' requirement
-            slides = content.split('Slide ')[1:]  # Skip empty first element
-        
-        # Debug: Log what we're parsing
-        print(f"Content preview: {content[:200]}...")
-        print(f"Found {len(slides)} slides")
-        if slides:
-            print(f"First slide preview: {slides[0][:100]}...")
-            
-        if slides:
-            for i, slide_text in enumerate(slides):
-                lines = slide_text.strip().split('\n')
-                if lines:
-                    # For the first slide, replace the Demo Page (slide index 1) if it exists
-                    if i == 0 and len(prs.slides) > 1:
-                        # Replace the Demo Page content with Title Slide content
-                        slide = prs.slides[1]  # Demo Page is the second slide (index 1)
-                        print(f"Replacing Demo Page with Title Slide content")
-                    else:
-                        # Create new slide with enhanced design for remaining slides
-                        slide_layout = prs.slide_layouts[1]  # Title and content layout
-                        slide = prs.slides.add_slide(slide_layout)
-                    
-                    # First line is the slide title - handle both formats
-                    slide_title = lines[0].replace(':', '').strip()
-                    # Remove any remaining numbers from slide titles (e.g., "1: Title" -> "Title")
-                    slide_title = re.sub(r'^\d+\s*:?\s*', '', slide_title)
-                    
-                    if slide.shapes.title:
-                        slide.shapes.title.text = slide_title
-                        # Apply consistent enhanced title formatting
-                        title_frame = slide.shapes.title.text_frame
-                        title_frame.clear()
-                        p = title_frame.paragraphs[0]
-                        p.alignment = PP_ALIGN.LEFT
-                        run = p.add_run()
-                        run.text = slide_title
-                        run.font.name = 'Segoe UI Semibold'
-                        run.font.size = Pt(32)
-                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)  # Professional blue
-                        run.font.bold = True
-                    
-                    # Rest is content
-                    slide_content = '\n'.join(lines[1:]).strip()
-                    
-                    # Find content placeholder - handle both template slides and new slides
-                    content_placeholder = None
-                    if i == 0 and len(prs.slides) > 1:
-                        # For Demo Page replacement, find the content text box
-                        for shape in slide.shapes:
-                            if hasattr(shape, 'text_frame') and shape != slide.shapes.title:
-                                content_placeholder = shape
-                                break
-                    elif len(slide.placeholders) > 1:
-                        content_placeholder = slide.placeholders[1]
-                    
-                    if slide_content and content_placeholder:
-                        text_frame = content_placeholder.text_frame
-                        text_frame.clear()
-                        
-                        # Process content with enhanced formatting
-                        process_markdown_to_pptx(slide_content, text_frame)
-                        
-                        # Add slide background styling
-                        add_slide_styling(slide, slide_title)
-                        
-                        # Ensure proper margins and spacing
-                        text_frame.margin_left = PptxInches(0.5)
-                        text_frame.margin_right = PptxInches(0.5)
-                        text_frame.margin_top = PptxInches(0.3)
-                        text_frame.margin_bottom = PptxInches(0.3)
-                        
-                        if i == 0:
-                            print(f"Replaced Demo Page with: {slide_title}")
-                        else:
-                            print(f"Created slide: {slide_title}")
-        else:
-            # Split content by common slide indicators or paragraphs
-            content_sections = []
-            
-            # Try to split by common pitch deck sections
-            section_markers = [
-                'Problem', 'Solution', 'Market', 'Product', 'Business Model',
-                'Competition', 'Team', 'Financials', 'Funding', 'Contact'
-            ]
-            
-            current_section = ""
-            current_content = ""
-            
-            for line in content.split('\n'):
-                line = line.strip()
-                if any(marker.lower() in line.lower() for marker in section_markers):
-                    if current_section and current_content:
-                        content_sections.append((current_section, current_content.strip()))
-                    current_section = line
-                    current_content = ""
-                else:
-                    current_content += line + "\n"
-            
-            # Add the last section
-            if current_section and current_content:
-                content_sections.append((current_section, current_content.strip()))
-            
-            # If no sections found, create slides from paragraphs
-            if not content_sections:
-                paragraphs = [p.strip() for p in content.split('\n\n') if p.strip()]
-                for i, paragraph in enumerate(paragraphs[:10]):  # Limit to 10 slides
-                    slide_layout = prs.slide_layouts[1]
-                    slide = prs.slides.add_slide(slide_layout)
-                    slide_title = f"Content Slide {i + 1}"
-                    
-                    if slide.shapes.title:
-                        slide.shapes.title.text = slide_title
-                        # Apply consistent enhanced title formatting
-                        title_frame = slide.shapes.title.text_frame
-                        title_frame.clear()
-                        p = title_frame.paragraphs[0]
-                        p.alignment = PP_ALIGN.LEFT
-                        run = p.add_run()
-                        run.text = slide_title
-                        run.font.name = 'Segoe UI Semibold'
-                        run.font.size = Pt(32)
-                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)
-                        run.font.bold = True
-                        
-                    if len(slide.placeholders) > 1:
-                        content_placeholder = slide.placeholders[1]
-                        text_frame = content_placeholder.text_frame
-                        text_frame.clear()
-                        
-                        # Process content with enhanced formatting
-                        process_markdown_to_pptx(paragraph, text_frame)
-                        
-                        # Add slide styling and margins
-                        add_slide_styling(slide, slide_title)
-                        text_frame.margin_left = PptxInches(0.5)
-                        text_frame.margin_right = PptxInches(0.5)
-                        text_frame.margin_top = PptxInches(0.3)
-                        text_frame.margin_bottom = PptxInches(0.3)
-            else:
-                # Create slides from sections
-                for section_title, section_content in content_sections:
-                    slide_layout = prs.slide_layouts[1]
-                    slide = prs.slides.add_slide(slide_layout)
-                    
-                    if slide.shapes.title:
-                        slide.shapes.title.text = section_title
-                        # Apply consistent enhanced title formatting
-                        title_frame = slide.shapes.title.text_frame
-                        title_frame.clear()
-                        p = title_frame.paragraphs[0]
-                        p.alignment = PP_ALIGN.LEFT
-                        run = p.add_run()
-                        run.text = section_title
-                        run.font.name = 'Segoe UI Semibold'
-                        run.font.size = Pt(32)
-                        run.font.color.rgb = RGBColor(0x1f, 0x4e, 0x79)
-                        run.font.bold = True
-                        
-                    if len(slide.placeholders) > 1:
-                        content_placeholder = slide.placeholders[1]
-                        text_frame = content_placeholder.text_frame
-                        text_frame.clear()
-                        
-                        # Process content with enhanced formatting
-                        process_markdown_to_pptx(section_content, text_frame)
-                        
-                        # Add slide styling and margins
-                        add_slide_styling(slide, section_title)
-                        text_frame.margin_left = PptxInches(0.5)
-                        text_frame.margin_right = PptxInches(0.5)
-                        text_frame.margin_top = PptxInches(0.3)
-                        text_frame.margin_bottom = PptxInches(0.3)
-                        
-                        print(f"Created section slide: {section_title}")
-    
-    # Save to buffer
-    buffer = BytesIO()
-    prs.save(buffer)
-    buffer.seek(0)
+    # Build the branded deck from the pitch Markdown
+    from deck_builder import build_pitch_deck
+    content = (project.pitch_deck or {}).get('content', '')
+    buffer = build_pitch_deck(project.title, content)
     
     # Deduct token for export
     current_user.use_token()
