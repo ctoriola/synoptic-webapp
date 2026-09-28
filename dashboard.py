@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session, current_app
 from flask_login import login_required, current_user
 from firebase_models import Project, User, Survey, SurveyResponse, Coupon
 from datetime import datetime
@@ -937,6 +937,32 @@ IMPORTANT: Make each slide rich with specific details, compelling narratives, an
     # Regular generator page for manual URL entry
     return render_template('dashboard/generator.html', from_github=from_github)
 
+def save_pitch_version(project, new_content, updated_by):
+    """Replace the pitch content, keeping the previous version (last 5) for revert."""
+    now = datetime.utcnow().isoformat()
+    if project.pitch_deck:
+        history = project.pitch_deck.setdefault('history', [])
+        history.append({
+            'content': project.pitch_deck.get('content', ''),
+            'timestamp': project.pitch_deck.get('updated_at', now),
+            'updated_by': project.pitch_deck.get('updated_by', 'user')
+        })
+        project.pitch_deck['history'] = history[-5:]
+        project.pitch_deck['content'] = new_content
+        project.pitch_deck['updated_at'] = now
+        project.pitch_deck['updated_by'] = updated_by
+    else:
+        project.pitch_deck = {
+            'content': new_content,
+            'generated_at': now,
+            'updated_at': now,
+            'updated_by': updated_by,
+            'version': '1.1',
+            'history': []
+        }
+    project.save()
+
+
 @dashboard_bp.route('/projects/<project_id>/update-content', methods=['POST'])
 @login_required
 def update_project_content(project_id):
@@ -953,41 +979,7 @@ def update_project_content(project_id):
         if not project or project.user_id != current_user.id:
             return jsonify({'error': 'Project not found or access denied'}), 404
         
-        # Store previous version for revert functionality
-        previous_content = data.get('previous_content', '')
-        
-        # Update the pitch deck content
-        if project.pitch_deck:
-            # Store previous version in history
-            if 'history' not in project.pitch_deck:
-                project.pitch_deck['history'] = []
-            
-            # Add current version to history before updating
-            project.pitch_deck['history'].append({
-                'content': project.pitch_deck.get('content', ''),
-                'timestamp': project.pitch_deck.get('updated_at', datetime.utcnow().isoformat()),
-                'updated_by': project.pitch_deck.get('updated_by', 'user')
-            })
-            
-            # Keep only last 5 versions
-            if len(project.pitch_deck['history']) > 5:
-                project.pitch_deck['history'] = project.pitch_deck['history'][-5:]
-            
-            project.pitch_deck['content'] = new_content
-            project.pitch_deck['updated_at'] = datetime.utcnow().isoformat()
-            project.pitch_deck['updated_by'] = 'pitchy_ai'
-        else:
-            project.pitch_deck = {
-                'content': new_content,
-                'generated_at': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow().isoformat(),
-                'updated_by': 'pitchy_ai',
-                'version': '1.1',
-                'history': []
-            }
-        
-        # Save the project
-        project.save()
+        save_pitch_version(project, new_content, 'pitchy_ai')
         
         return jsonify({
             'success': True,
@@ -1034,7 +1026,8 @@ def revert_project_content(project_id):
         return jsonify({
             'success': True,
             'message': 'Successfully reverted to previous version',
-            'content': previous_version['content']
+            'content': previous_version['content'],
+            'html': current_app.jinja_env.filters['format_markdown'](previous_version['content'])
         })
         
     except Exception as e:

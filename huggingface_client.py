@@ -144,6 +144,19 @@ def verify_endpoint(model_key):
     return model_key in FREE_MODELS and VERIFIED_MODELS.get(model_key, True)
 
 
+def generate_text(prompt, stage_name, budget_seconds=45):
+    """
+    Run the provider fallback chain within a wall-clock budget.
+    Returns generated text, or None (reasons are in LAST_ERRORS).
+    """
+    global _deadline
+    _deadline = time.monotonic() + budget_seconds
+    try:
+        return query_with_fallback(prompt, stage_name)
+    finally:
+        _deadline = None
+
+
 def _gemini_round(prompt, stage_name):
     """One pass over the Gemini models (single attempt each)."""
     for model_key in MODEL_PRIORITY:
@@ -478,7 +491,7 @@ Rules:
     return final_pitch
 
 
-def friendly_error(raw):
+def friendly_error(raw, action='generating your pitch'):
     """Map a raw generation error to a short, user-facing message."""
     text = str(raw)
     if 'HTTP 503' in text or 'high demand' in text or 'overloaded' in text.lower():
@@ -486,10 +499,10 @@ def friendly_error(raw):
     if 'HTTP 429' in text or 'quota' in text.lower():
         return "We've hit our AI usage limit for the moment. Please try again in a few minutes."
     if 'timed out' in text or 'time budget' in text:
-        return "Generating your pitch took too long. Please try again."
+        return f"{action[0].upper() + action[1:]} took too long. Please try again."
     if 'API_KEY is not set' in text or 'HTTP 400' in text or 'HTTP 401' in text or 'HTTP 403' in text:
         return "Pitch generation isn't configured correctly right now. Please try again later or contact support if this continues."
-    return "Something went wrong while generating your pitch. Please try again."
+    return f"Something went wrong while {action}. Please try again."
 
 
 # API Compatibility Functions
