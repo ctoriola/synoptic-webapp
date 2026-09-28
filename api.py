@@ -1144,8 +1144,12 @@ def generate_deep_pitch():
         })
         
     except Exception as e:
-        print(f"DEBUG: Deep pitch generation failed: {str(e)}")
-        return jsonify({'error': f'Failed to generate pitch: {str(e)}'}), 500
+        from huggingface_client import friendly_error
+        print(f"ERROR: Deep pitch generation failed for user {current_user.id}: {str(e)}")
+        payload = {'error': friendly_error(e)}
+        if getattr(current_user, 'is_admin', False):
+            payload['details'] = str(e)
+        return jsonify(payload), 500
 
 
 def get_duckduckgo_research(user_message, project):

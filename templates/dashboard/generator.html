@@ -138,6 +138,8 @@
                     <p class="text-sm font-medium text-red-800" id="error-text">
                         An error occurred
                     </p>
+                    <button type="button" id="error-details-toggle" class="mt-2 text-sm text-red-700 underline hover:text-red-900" style="display: none;">Learn more</button>
+                    <pre id="error-details" class="mt-2 text-xs text-red-700 whitespace-pre-wrap break-words" style="display: none;"></pre>
                 </div>
             </div>
         </div>
@@ -241,8 +243,22 @@ document.addEventListener('DOMContentLoaded', function() {
         proposalDiv.style.display = 'none';
     }
 
-    function showError(message) {
+    const errorDetails = document.getElementById('error-details');
+    const errorDetailsToggle = document.getElementById('error-details-toggle');
+
+    errorDetailsToggle.addEventListener('click', function() {
+        const open = errorDetails.style.display !== 'none';
+        errorDetails.style.display = open ? 'none' : 'block';
+        errorDetailsToggle.textContent = open ? 'Learn more' : 'Hide details';
+    });
+
+    function showError(message, details) {
         errorText.textContent = message;
+        // Full technical details are only sent by the server to admins
+        errorDetails.textContent = details || '';
+        errorDetails.style.display = 'none';
+        errorDetailsToggle.textContent = 'Learn more';
+        errorDetailsToggle.style.display = details ? 'inline' : 'none';
         errorDiv.style.display = 'block';
         statusDiv.style.display = 'none';
     }
@@ -393,7 +409,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Failed to generate pitch deck');
+                if (data.details) console.error('Pitch generation failed:', data.details);
+                const err = new Error(data.error || 'Failed to generate pitch deck');
+                err.details = data.details;
+                throw err;
             }
 
             // Show success and display content immediately
@@ -402,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error:', error);
-            showError(error.message || 'An unexpected error occurred');
+            showError(error.message || 'An unexpected error occurred', error.details);
         } finally {
             setLoading(false);
         }
