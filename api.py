@@ -1145,7 +1145,8 @@ def export_project_pptx(project_id):
     # Build the branded deck from the pitch Markdown
     from deck_builder import build_pitch_deck
     content = (project.pitch_deck or {}).get('content', '')
-    buffer = build_pitch_deck(project.title, content)
+    theme = {'1': 'coral', '2': 'green', '3': 'red'}.get(request.args.get('template', '1'), 'coral')
+    buffer = build_pitch_deck(project.title, content, theme)
     
     # Deduct token for export
     current_user.use_token()

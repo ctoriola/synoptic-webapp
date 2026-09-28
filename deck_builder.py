@@ -7,6 +7,7 @@ body text sized to fit and overflow continued on a follow-up slide.
 """
 import math
 import re
+import threading
 from datetime import date
 from io import BytesIO
 
@@ -17,19 +18,44 @@ from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.oxml.ns import qn
 from pptx.util import Emu, Inches, Pt
 
-# ---------- Brand ----------
-CORAL = RGBColor(0xD4, 0x4C, 0x3F)      # primary-600
-CORAL_DARK = RGBColor(0xB7, 0x3A, 0x2F)  # primary-700
-CORAL_SOFT = RGBColor(0xF1, 0x9C, 0x92)  # primary-300
-CORAL_TINT = RGBColor(0xFE, 0xF7, 0xF6)  # primary-50
-INK = RGBColor(0x11, 0x18, 0x27)         # gray-900
-BODY = RGBColor(0x37, 0x41, 0x51)        # gray-700
-MUTED = RGBColor(0x6B, 0x72, 0x80)       # gray-500
-LINE = RGBColor(0xE5, 0xE7, 0xEB)        # gray-200
-PANEL = RGBColor(0xF9, 0xFA, 0xFB)       # gray-50
-DARK = RGBColor(0x1F, 0x23, 0x2B)        # cover / closing background
-WHITE = RGBColor(0xFF, 0xFF, 0xFF)
-FONT = 'Calibri'
+# ---------- Themes ----------
+class Theme:
+    FONT_KEYS = ('head_font', 'body_font')
+
+    def __init__(self, key, name, **values):
+        self.key, self.name = key, name
+        for k, v in values.items():
+            setattr(self, k, v if k in self.FONT_KEYS else RGBColor.from_string(v))
+
+
+THEMES = {
+    # Synoptic brand: dark cover/closing, white content slides, coral accents
+    'coral': Theme(
+        'coral', 'Synoptic Coral',
+        accent='D44C3F', accent_strong='B73A2F', accent_soft='F19C92', tint='FEF7F6',
+        ink='111827', body='374151', muted='6B7280', line='E5E7EB', panel='F9FAFB',
+        bg='FFFFFF', on_accent='FFFFFF', cover_bg='1F232B', cover_text='FFFFFF', cover_muted='C9CDD4',
+        head_font='Calibri', body_font='Calibri'),
+    # Fresh and calm: forest-green cover, white content, mint accents, serif headings
+    'green': Theme(
+        'green', 'Modern Green',
+        accent='2C7A4B', accent_strong='1F5C38', accent_soft='97D4A9', tint='EEF8F1',
+        ink='13241A', body='3A4A40', muted='6B7A70', line='DDE7E0', panel='F5F9F6',
+        bg='FFFFFF', on_accent='FFFFFF', cover_bg='173D28', cover_text='FFFFFF', cover_muted='B9D3C2',
+        head_font='Cambria', body_font='Calibri'),
+    # High contrast: dark slides throughout with vivid red accents
+    'red': Theme(
+        'red', 'Bold Red',
+        accent='E5383B', accent_strong='FF6B6B', accent_soft='FF9A9C', tint='2A1718',
+        ink='FFFFFF', body='D6D8DC', muted='9CA0A8', line='33363D', panel='1E2026',
+        bg='131418', on_accent='FFFFFF', cover_bg='0B0B0D', cover_text='FFFFFF', cover_muted='A3A6AD',
+        head_font='Arial', body_font='Arial'),
+}
+# Average character width (in ems) of each body font, for text fitting
+CHAR_EM = {'Calibri': 0.47, 'Arial': 0.52}
+
+DEFAULT_THEME = 'coral'
+T = THEMES[DEFAULT_THEME]  # active theme while a deck is being built (see build_pitch_deck)
 
 # ---------- Geometry (16:9 widescreen, inches) ----------
 SLIDE_W, SLIDE_H = 13.333, 7.5
@@ -142,7 +168,7 @@ def inline_runs(text):
 # ============================================================
 def text_height(blocks, width_in, size_pt):
     """Estimate rendered height (inches) of text blocks at a font size."""
-    char_w = size_pt * 0.47 / 72
+    char_w = size_pt * CHAR_EM.get(T.body_font, 0.52) / 72
     line_h = size_pt * 1.2 / 72
     per_line = max(10, int(width_in / char_w))
     height = 0.0
@@ -225,8 +251,9 @@ def add_box(slide, x, y, w, h, color, shape=MSO_SHAPE.RECTANGLE, radius=None):
     return shp
 
 
-def add_text(slide, x, y, w, h, text, size, color=BODY, bold=False, italic=False,
-             align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, font=FONT, markdown=False, line_spacing=None):
+def add_text(slide, x, y, w, h, text, size, color=None, bold=False, italic=False,
+             align=PP_ALIGN.LEFT, anchor=MSO_ANCHOR.TOP, font=None, markdown=False, line_spacing=None):
+    color = color or T.body
     box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
     tf = box.text_frame
     tf.word_wrap = True
@@ -243,15 +270,16 @@ def add_text(slide, x, y, w, h, text, size, color=BODY, bold=False, italic=False
     return box
 
 
-def _style(run, size, color, bold=False, italic=False, font=FONT):
-    run.font.name = font
+def _style(run, size, color, bold=False, italic=False, font=None):
+    run.font.name = font or T.body_font
     run.font.size = Pt(size)
     run.font.bold = bold
     run.font.italic = italic
     run.font.color.rgb = color
 
 
-def _bullet(paragraph, char=None, autonum=False, color=CORAL, indent_in=0.3):
+def _bullet(paragraph, char=None, autonum=False, color=None, indent_in=0.3):
+    color = color or T.accent
     """Give a paragraph a real bullet (hanging indent)."""
     pPr = paragraph._p.get_or_add_pPr()
     pPr.set('marL', str(Emu(Inches(indent_in))))
@@ -291,13 +319,13 @@ def add_rich_text(slide, x, y, w, h, blocks, size):
             p.space_after = Pt(size * 0.6)
             for t, bold, italic in inline_runs(b['text']):
                 r = p.add_run(); r.text = t
-                _style(r, size, INK if bold else BODY, bold, italic)
+                _style(r, size, T.ink if bold else T.body, bold, italic)
         elif b['type'] == 'sub':
             p = new_par()
             p.space_before = Pt(size * 0.4)
             p.space_after = Pt(size * 0.3)
             r = p.add_run(); r.text = plain(b['text'])
-            _style(r, size + 2, CORAL_DARK, True)
+            _style(r, size + 2, T.accent_strong, True, font=T.head_font)
         elif b['type'] == 'list':
             for n, item in enumerate(b['items']):
                 p = new_par()
@@ -305,12 +333,28 @@ def add_rich_text(slide, x, y, w, h, blocks, size):
                 _bullet(p, autonum=b['ordered'])
                 for t, bold, italic in inline_runs(item):
                     r = p.add_run(); r.text = t
-                    _style(r, size, INK if bold else BODY, bold, italic)
+                    _style(r, size, T.ink if bold else T.body, bold, italic)
             p.space_after = Pt(size * 0.75)
     return box
 
 
-def number_badge(slide, x, y, d, label, fill=CORAL, color=WHITE, size=None):
+def _cell_borders(cell, color, width_pt=0.75):
+    """Give a table cell thin borders in the theme's line colour."""
+    tcPr = cell._tc.get_or_add_tcPr()
+    for tag in ('a:lnL', 'a:lnR', 'a:lnT', 'a:lnB'):
+        for el in tcPr.findall(qn(tag)):
+            tcPr.remove(el)
+        ln = tcPr.makeelement(qn(tag), {'w': str(int(width_pt * 12700)), 'cap': 'flat', 'cmpd': 'sng', 'algn': 'ctr'})
+        fill = ln.makeelement(qn('a:solidFill'), {})
+        fill.append(fill.makeelement(qn('a:srgbClr'), {'val': _rgb_hex(color)}))
+        ln.append(fill)
+        ln.append(ln.makeelement(qn('a:prstDash'), {'val': 'solid'}))
+        # Borders must precede the cell fill in tcPr
+        tcPr.insert(['a:lnL', 'a:lnR', 'a:lnT', 'a:lnB'].index(tag), ln)
+
+
+def number_badge(slide, x, y, d, label, fill=None, color=None, size=None):
+    fill, color = fill or T.accent, color or T.on_accent
     circle = add_box(slide, x, y, d, d, fill, MSO_SHAPE.OVAL)
     tf = circle.text_frame
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = 0
@@ -344,32 +388,32 @@ class DeckBuilder:
 
     def _chrome(self, slide, number, title):
         """Section badge + title + footer on a light content slide."""
-        fill_background(slide, WHITE)
+        fill_background(slide, T.bg)
         number_badge(slide, MARGIN, 0.62, 0.62, f'{number:02d}', size=15)
-        add_text(slide, MARGIN + 0.85, 0.5, CONTENT_W - 0.85, 0.85, title, 30, INK, bold=True,
-                 anchor=MSO_ANCHOR.MIDDLE)
-        add_text(slide, MARGIN, 7.0, 8, 0.3, self.title, 10, MUTED)
-        add_text(slide, SLIDE_W - MARGIN - 1, 7.0, 1, 0.3, str(self.page), 10, MUTED, align=PP_ALIGN.RIGHT)
+        add_text(slide, MARGIN + 0.85, 0.5, CONTENT_W - 0.85, 0.85, title, 30, T.ink, bold=True,
+                 anchor=MSO_ANCHOR.MIDDLE, font=T.head_font)
+        add_text(slide, MARGIN, 7.0, 8, 0.3, self.title, 10, T.muted)
+        add_text(slide, SLIDE_W - MARGIN - 1, 7.0, 1, 0.3, str(self.page), 10, T.muted, align=PP_ALIGN.RIGHT)
 
     # ---- cover / agenda / closing ----
     def cover(self):
         slide = self._new_slide()
-        fill_background(slide, DARK)
+        fill_background(slide, T.cover_bg)
         # Motif: overlapping coral circles bleeding off the right edge
-        add_box(slide, 8.9, -1.2, 6.2, 6.2, CORAL, MSO_SHAPE.OVAL)
-        add_box(slide, 10.6, 3.9, 4.2, 4.2, CORAL_DARK, MSO_SHAPE.OVAL)
-        add_box(slide, 8.2, 4.7, 1.3, 1.3, CORAL_SOFT, MSO_SHAPE.OVAL)
-        add_text(slide, MARGIN + 0.1, 1.2, 7.6, 0.4, self.subtitle.upper(), 14, CORAL_SOFT, bold=True)
+        add_box(slide, 8.9, -1.2, 6.2, 6.2, T.accent, MSO_SHAPE.OVAL)
+        add_box(slide, 10.6, 3.9, 4.2, 4.2, T.accent_strong, MSO_SHAPE.OVAL)
+        add_box(slide, 8.2, 4.7, 1.3, 1.3, T.accent_soft, MSO_SHAPE.OVAL)
+        add_text(slide, MARGIN + 0.1, 1.2, 7.6, 0.4, self.subtitle.upper(), 14, T.accent_soft, bold=True)
         size = 54 if len(self.title) <= 22 else 44 if len(self.title) <= 36 else 36
-        add_text(slide, MARGIN + 0.1, 1.75, 7.6, 3.2, self.title, size, WHITE, bold=True,
+        add_text(slide, MARGIN + 0.1, 1.75, 7.6, 3.2, self.title, size, T.cover_text, bold=True, font=T.head_font,
                  anchor=MSO_ANCHOR.TOP, line_spacing=0.95)
-        add_text(slide, MARGIN + 0.1, 6.35, 7, 0.4, date.today().strftime('%B %Y'), 14, RGBColor(0xC9, 0xCD, 0xD4))
+        add_text(slide, MARGIN + 0.1, 6.35, 7, 0.4, date.today().strftime('%B %Y'), 14, T.cover_muted)
 
     def agenda(self, section_names):
         slide = self._new_slide()
-        fill_background(slide, WHITE)
-        add_text(slide, MARGIN, 0.55, 5, 0.9, 'Agenda', 36, INK, bold=True)
-        add_text(slide, MARGIN, 1.4, 4.4, 1.2, f'What we\'ll cover in the next {len(section_names)} sections.', 16, MUTED)
+        fill_background(slide, T.bg)
+        add_text(slide, MARGIN, 0.55, 5, 0.9, 'Agenda', 36, T.ink, bold=True, font=T.head_font)
+        add_text(slide, MARGIN, 1.4, 4.4, 1.2, f'What we\'ll cover in the next {len(section_names)} sections.', 16, T.muted)
         # Two columns of numbered rows on the right
         names = section_names[:10]
         per_col = math.ceil(len(names) / 2) if len(names) > 5 else len(names)
@@ -379,20 +423,20 @@ class DeckBuilder:
             col, row = divmod(i, per_col)
             x = 5.35 + col * (col_w + 0.35)
             y = 1.1 + row * row_h
-            number_badge(slide, x, y + (row_h - 0.55) / 2, 0.55, f'{i + 1:02d}', fill=CORAL_TINT, color=CORAL_DARK, size=14)
-            add_text(slide, x + 0.75, y, col_w - 0.8, row_h, name, 18, INK, bold=True, anchor=MSO_ANCHOR.MIDDLE)
-        add_text(slide, MARGIN, 7.0, 8, 0.3, self.title, 10, MUTED)
-        add_text(slide, SLIDE_W - MARGIN - 1, 7.0, 1, 0.3, str(self.page), 10, MUTED, align=PP_ALIGN.RIGHT)
+            number_badge(slide, x, y + (row_h - 0.55) / 2, 0.55, f'{i + 1:02d}', fill=T.tint, color=T.accent_strong, size=14)
+            add_text(slide, x + 0.75, y, col_w - 0.8, row_h, name, 18, T.ink, bold=True, anchor=MSO_ANCHOR.MIDDLE)
+        add_text(slide, MARGIN, 7.0, 8, 0.3, self.title, 10, T.muted)
+        add_text(slide, SLIDE_W - MARGIN - 1, 7.0, 1, 0.3, str(self.page), 10, T.muted, align=PP_ALIGN.RIGHT)
 
     def closing(self):
         slide = self._new_slide()
-        fill_background(slide, DARK)
-        add_box(slide, -1.6, 3.6, 5.2, 5.2, CORAL, MSO_SHAPE.OVAL)
-        add_box(slide, 11.4, -1.0, 3.0, 3.0, CORAL_DARK, MSO_SHAPE.OVAL)
-        add_text(slide, 3.0, 2.35, 7.33, 1.2, 'Thank you', 54, WHITE, bold=True, align=PP_ALIGN.CENTER)
+        fill_background(slide, T.cover_bg)
+        add_box(slide, -1.6, 3.6, 5.2, 5.2, T.accent, MSO_SHAPE.OVAL)
+        add_box(slide, 11.4, -1.0, 3.0, 3.0, T.accent_strong, MSO_SHAPE.OVAL)
+        add_text(slide, 3.0, 2.35, 7.33, 1.2, 'Thank you', 54, T.cover_text, bold=True, font=T.head_font, align=PP_ALIGN.CENTER)
         name_size = 22 if len(self.title) <= 40 else 18
-        add_text(slide, 2.5, 3.6, 8.33, 0.9, self.title, name_size, CORAL_SOFT, align=PP_ALIGN.CENTER)
-        add_text(slide, 3.0, 4.65, 7.33, 0.5, 'Questions & discussion', 16, RGBColor(0xC9, 0xCD, 0xD4),
+        add_text(slide, 2.5, 3.6, 8.33, 0.9, self.title, name_size, T.accent_soft, align=PP_ALIGN.CENTER)
+        add_text(slide, 3.0, 4.65, 7.33, 0.5, 'Questions & discussion', 16, T.cover_muted,
                  align=PP_ALIGN.CENTER)
 
     # ---- section content ----
@@ -415,6 +459,11 @@ class DeckBuilder:
         height = CONTENT_BOTTOM - CONTENT_TOP
         size = fit_size(rest, body_w, height, READABLE_PT) if rest else MAX_BODY_PT
         pages = [rest] if size else split_blocks(rest, body_w, height)
+        if len(pages) == 2 and text_height(pages[1], body_w, READABLE_PT) < height * 0.3:
+            # Avoid a near-empty continuation slide: allow one point smaller instead
+            tighter = fit_size(rest, body_w, height, READABLE_PT - 1)
+            if tighter:
+                size, pages = tighter, [rest]
         if len(pages) > 1 and lead:
             # Continuation slides have no lead box, so re-flow them at full width
             pages = pages[:1] + split_blocks([b for pg in pages[1:] for b in pg], CONTENT_W, height)
@@ -422,10 +471,10 @@ class DeckBuilder:
             slide = self._new_slide(notes)
             self._chrome(slide, number, name if n == 0 else f'{name} (cont.)')
             if lead and n == 0:
-                add_box(slide, MARGIN, CONTENT_TOP, 4.15, height, CORAL_TINT, MSO_SHAPE.ROUNDED_RECTANGLE, 0.06)
+                add_box(slide, MARGIN, CONTENT_TOP, 4.15, height, T.tint, MSO_SHAPE.ROUNDED_RECTANGLE, 0.06)
                 lead_size = 26 if len(lead) < 110 else 22 if len(lead) < 180 else 19
-                add_text(slide, MARGIN + 0.35, CONTENT_TOP + 0.35, 3.45, height - 0.7, lead, lead_size, INK,
-                         bold=True, anchor=MSO_ANCHOR.MIDDLE, markdown=True, line_spacing=1.1)
+                add_text(slide, MARGIN + 0.35, CONTENT_TOP + 0.35, 3.45, height - 0.7, lead, lead_size, T.ink,
+                         bold=True, font=T.head_font, anchor=MSO_ANCHOR.MIDDLE, markdown=True, line_spacing=1.1)
             elif lead:
                 body_x, body_w = MARGIN, CONTENT_W
             if page:
@@ -459,9 +508,9 @@ class DeckBuilder:
             r, c = divmod(i, cols)
             x = MARGIN + c * (card_w + GAP)
             y = top + r * (card_h + GAP)
-            add_box(slide, x, y, card_w, card_h, PANEL, MSO_SHAPE.ROUNDED_RECTANGLE, 0.08)
+            add_box(slide, x, y, card_w, card_h, T.panel, MSO_SHAPE.ROUNDED_RECTANGLE, 0.08)
             number_badge(slide, x + 0.35, y + 0.35, 0.5, str(i + 1), size=14)
-            add_text(slide, x + 0.35, y + 1.05, text_w, text_h, item, size, BODY, markdown=True, line_spacing=1.1)
+            add_text(slide, x + 0.35, y + 1.05, text_w, text_h, item, size, T.body, markdown=True, line_spacing=1.1)
 
     def _stats_slide(self, number, name, blocks, notes):
         intro = [b for b in blocks if b['type'] in ('para', 'sub')]
@@ -485,12 +534,12 @@ class DeckBuilder:
         for i, item in enumerate(items):
             figure, label = extract_stat(item)
             x = MARGIN + i * (card_w + GAP)
-            add_box(slide, x, top, card_w, card_h, CORAL_TINT, MSO_SHAPE.ROUNDED_RECTANGLE, 0.06)
+            add_box(slide, x, top, card_w, card_h, T.tint, MSO_SHAPE.ROUNDED_RECTANGLE, 0.06)
             fig_size = 44 if len(figure) <= 6 else 36 if len(figure) <= 9 else 28
-            add_text(slide, x + 0.35, top + 0.35, card_w - 0.7, 1.0, figure, fig_size, CORAL_DARK, bold=True,
+            add_text(slide, x + 0.35, top + 0.35, card_w - 0.7, 1.0, figure, fig_size, T.accent_strong, bold=True, font=T.head_font,
                      anchor=MSO_ANCHOR.BOTTOM)
             label_h = card_h - 1.65
-            add_text(slide, x + 0.35, top + 1.5, card_w - 0.7, label_h, label, label_size, BODY,
+            add_text(slide, x + 0.35, top + 1.5, card_w - 0.7, label_h, label, label_size, T.body,
                      markdown=True, line_spacing=1.1)
 
     def _table_slide(self, number, name, blocks, notes):
@@ -522,7 +571,8 @@ class DeckBuilder:
             for c in range(ncols):
                 cell = tbl.cell(r, c)
                 cell.fill.solid()
-                cell.fill.fore_color.rgb = CORAL if r == 0 else (WHITE if r % 2 else PANEL)
+                cell.fill.fore_color.rgb = T.accent if r == 0 else (T.bg if r % 2 else T.panel)
+                _cell_borders(cell, T.line)
                 cell.margin_left = cell.margin_right = Inches(0.15)
                 cell.vertical_anchor = MSO_ANCHOR.MIDDLE
                 tf = cell.text_frame
@@ -531,7 +581,7 @@ class DeckBuilder:
                 text = row[c] if c < len(row) else ''
                 for t, bold, italic in inline_runs(text):
                     run = p.add_run(); run.text = t
-                    _style(run, size, WHITE if r == 0 else (INK if c == 0 or bold else BODY),
+                    _style(run, size, T.on_accent if r == 0 else (T.ink if c == 0 or bold else T.body),
                            r == 0 or c == 0 or bold, italic)
 
 
@@ -609,8 +659,21 @@ def section_notes(name, blocks):
 # ============================================================
 # Public API
 # ============================================================
-def build_pitch_deck(project_title, markdown):
-    """Return a BytesIO containing the finished .pptx."""
+_theme_lock = threading.Lock()
+
+
+def build_pitch_deck(project_title, markdown, theme=DEFAULT_THEME):
+    """Return a BytesIO containing the finished .pptx in the given theme."""
+    global T
+    with _theme_lock:  # T is module state; keep concurrent exports from mixing themes
+        T = THEMES.get(theme, THEMES[DEFAULT_THEME])
+        try:
+            return _build(project_title, markdown)
+        finally:
+            T = THEMES[DEFAULT_THEME]
+
+
+def _build(project_title, markdown):
     deck_title, sections = parse_pitch(markdown)
     title = (project_title or deck_title or 'Pitch Deck').strip()
     title = re.sub(r'\s+pitch deck$', '', title, flags=re.I) or title
