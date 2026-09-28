@@ -32,6 +32,11 @@ OPENROUTER_MODELS = [m.strip() for m in os.getenv(
     'meta-llama/llama-3.3-70b-instruct:free,deepseek/deepseek-chat-v3-0324:free,mistralai/mistral-small-3.2-24b-instruct:free'
 ).split(',') if m.strip()][:3]
 
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
+GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
+
+# Optional last resort (Mistral requires a plan to issue API keys)
 MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY')
 MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions'
 MISTRAL_MODEL = os.getenv('MISTRAL_MODEL', 'mistral-small-latest')
@@ -228,6 +233,13 @@ def _openrouter(prompt, stage_name):
     return result
 
 
+def _groq(prompt, stage_name):
+    if not GROQ_API_KEY:
+        return None
+    return query_openai_compatible(prompt, 'Groq', GROQ_URL, GROQ_API_KEY,
+                                   stage_name, model=GROQ_MODEL)
+
+
 def _mistral(prompt, stage_name):
     if not MISTRAL_API_KEY:
         return None
@@ -238,7 +250,7 @@ def _mistral(prompt, stage_name):
 def query_with_fallback(prompt, stage_name, preferred_models=None):
     """
     Generate text with provider fallback:
-    Gemini (each configured model) -> OpenRouter (free models) -> Mistral.
+    Gemini (each configured model) -> OpenRouter (free models) -> Groq -> Mistral (optional).
     If every provider fails and time remains, wait briefly and do one more round.
 
     Returns:
@@ -248,10 +260,11 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
     providers = []
     if GOOGLE_API_KEY:
         providers.append(_gemini_round)
-    providers += [p for p, key in ((_openrouter, OPENROUTER_API_KEY), (_mistral, MISTRAL_API_KEY)) if key]
+    providers += [p for p, key in ((_openrouter, OPENROUTER_API_KEY), (_groq, GROQ_API_KEY),
+                                   (_mistral, MISTRAL_API_KEY)) if key]
     if not providers:
         log_timestamp(stage_name, "❌ No AI provider API key is set")
-        _record_error("No AI provider API_KEY is set on the server (GOOGLE_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY)")
+        _record_error("No AI provider API_KEY is set on the server (GOOGLE_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY)")
         return None
 
     for round_no in range(2):
