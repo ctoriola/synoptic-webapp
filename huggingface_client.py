@@ -18,11 +18,21 @@ GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 FREE_MODELS = {
     'mistral': os.getenv('GEMINI_MODEL_PRIMARY', 'gemini-flash-latest'),
     'zephyr': os.getenv('GEMINI_MODEL_SECONDARY', 'gemini-flash-lite-latest'),
-    'phi': os.getenv('GEMINI_MODEL_TERTIARY', 'gemini-pro-latest'),
 }
+# Optional third fallback (e.g. a Pro model on a paid key). Pro has no free-tier quota.
+if os.getenv('GEMINI_MODEL_TERTIARY'):
+    FREE_MODELS['phi'] = os.getenv('GEMINI_MODEL_TERTIARY')
+
+# Wall-clock budget for one generation request (Vercel maxDuration is 60s)
+REQUEST_BUDGET_SECONDS = int(os.getenv('GEMINI_REQUEST_BUDGET', '50'))
+_deadline = None
+
+
+def _time_left():
+    return float('inf') if _deadline is None else _deadline - time.monotonic()
 
 # Model fallback priority for each stage
-MODEL_PRIORITY = ['mistral', 'zephyr', 'phi']
+MODEL_PRIORITY = [k for k in ('mistral', 'zephyr', 'phi') if k in FREE_MODELS]
 
 # Depth prompt for investor-grade content
 DEPTH_PROMPT = '''You are PitchPerfectAI, an expert investor and pitch consultant. Create detailed, data-backed, assertive pitch deck content. Write finished, confident paragraphs for investor pitch decks.'''
@@ -156,7 +166,7 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
     return None
 
 
-def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
+def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=3):
     """
     Query Google Gemini (generateContent) with retry logic
     """
@@ -170,7 +180,10 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
     for attempt in range(max_retries):
         try:
             log_timestamp(stage_name, f"Querying {model_id} (attempt {attempt + 1}/{max_retries})")
-            response = requests.post(url, headers=headers, json=payload, timeout=60)
+            if _time_left() < 8:
+                _record_error(f"{model_id}: skipped, request time budget exhausted")
+                return None
+            response = requests.post(url, headers=headers, json=payload, timeout=max(5, min(55, _time_left() - 2)))
 
             if response.status_code == 200:
                 data = response.json()
@@ -197,11 +210,15 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
                 _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:150]}")
                 return None
 
-            # 429 (rate limit) / 5xx: retry with backoff
             log_timestamp(stage_name, f"⚠ {response.status_code}: {response.text[:150]}")
             _record_error(f"{model_id}: HTTP {response.status_code} {response.text[:120]}")
-            if attempt < max_retries - 1:
-                time.sleep(2 * (attempt + 1))
+            if response.status_code == 429:
+                # Quota exhausted for this model - retrying won't help, try the next one
+                return None
+            # 503 overloaded / other 5xx: back off and retry while time allows
+            wait = 3 * (attempt + 1)
+            if attempt < max_retries - 1 and _time_left() > wait + 15:
+                time.sleep(wait)
 
         except requests.exceptions.Timeout:
             log_timestamp(stage_name, f"⏱ Timeout on attempt {attempt + 1}")
@@ -287,134 +304,61 @@ Be concise."""
 
 def intelligent_pitch_generation(startup_name, startup_description):
     """
-    PRODUCTION-READY INTELLIGENT PIPELINE
-    
-    Stage 0: FLAN-T5 (local, optional) - Structural analysis
-    Stage 0.5: DDGS - Market context search
-    Stage 1: AI Model - Problem statement
-    Stage 2: AI Model - Solution overview
-    Stage 3: AI Model - Market analysis
-    Stage 4: AI Model - Business model
-    
-    Uses Gemini with model fallback (see FREE_MODELS)
+    Generate an investor pitch in a single Gemini call.
+
+    Market context from a web search is added when available. One request
+    (instead of one per section) keeps generation within the serverless time
+    limit and makes it far less likely to hit transient 503/429 errors.
     """
-    log_timestamp("PIPELINE", "="*60)
+    global _deadline
+    _deadline = time.monotonic() + REQUEST_BUDGET_SECONDS
     log_timestamp("PIPELINE", f"Starting pitch generation for: {startup_name}")
-    log_timestamp("PIPELINE", "="*60)
-    
-    # Stage 0: FLAN-T5 Pre-processing (optional, local only)
-    log_timestamp("STAGE-0", "FLAN-T5 Structural Analysis (Optional)")
-    structured_summary = preprocess_with_flan(startup_name, startup_description)
-    context_info = f"\nStructured Analysis:\n{structured_summary}\n" if structured_summary else ""
-    
-    # Stage 0.5: Market Context Search
-    log_timestamp("STAGE-0.5", "Market Context Search (DDGS)")
-    context_snippet = get_context_ddgs(f'{startup_name} industry trends 2025')
-    
-    # Stage 1: Problem Statement
-    log_timestamp("STAGE-1", "Problem Statement Generation")
-    problem_prompt = f"""{DEPTH_PROMPT}
 
-Write a comprehensive problem statement for {startup_name}.
+    context_snippet = get_context_ddgs(f'{startup_name} industry trends') or ''
 
+    prompt = f"""{DEPTH_PROMPT}
+
+Write the investor pitch deck content for this startup.
+
+Startup: {startup_name}
 Description: {startup_description}
-{context_info}
-Market Context: {context_snippet[:500]}
+Market context from a web search (may be partial or irrelevant; use only if helpful):
+{context_snippet[:1500]}
 
-Focus on real pain points and market urgency. Write 3-4 detailed paragraphs."""
-    
-    problem = query_with_fallback(problem_prompt, "STAGE-1", ['mistral', 'zephyr', 'phi'])
-    if not problem:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 1 (Problem Statement). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
-    
-    # Stage 2: Solution Overview
-    log_timestamp("STAGE-2", "Solution Overview Generation")
-    solution_prompt = f"""{DEPTH_PROMPT}
+Output Markdown with exactly these five sections, each a level-2 heading, in this order:
+## Problem
+## Solution
+## Market Opportunity
+## Business Model & Competitive Advantage
+## The Ask
 
-Given this problem: {problem[:800]}
-{context_info}
+Rules:
+- Each section: 2-4 substantive paragraphs (bullets allowed for Market and Business Model).
+- Market Opportunity: TAM/SAM/SOM with figures, growth, competitive landscape, target segments.
+- Business Model: revenue model, competitive advantage, go-to-market, funding ask.
+- Do not use level-1 or level-3+ headings, and do not add any text before the first section."""
 
-Write a persuasive solution overview for {startup_name}.
-Description: {startup_description}
+    try:
+        body = query_with_fallback(prompt, "PITCH")
+    finally:
+        _deadline = None
 
-Write 3-4 detailed paragraphs on innovation and differentiation."""
-    
-    solution = query_with_fallback(solution_prompt, "STAGE-2", ['zephyr', 'mistral', 'phi'])
-    if not solution:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 2 (Solution). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
-    
-    # Stage 3: Market Analysis
-    log_timestamp("STAGE-3", "Market Analysis Generation")
-    market_prompt = f"""{DEPTH_PROMPT}
+    if not body:
+        raise Exception(f"PITCH GENERATION FAILED: {'; '.join(LAST_ERRORS) or 'unknown error'}")
 
-Based on {startup_name} solution: {solution[:800]}
+    # Keep the frontend's '##' section split intact
+    body = re.sub(r'^#{3,}\s*(.+?)\s*$', r'**\1**', body, flags=re.M)
+    body = re.sub(r'^#\s+.*\n?', '', body, flags=re.M).strip()
 
-Market Context: {context_snippet[:500]}
-
-Generate market analysis with:
-- TAM with numbers
-- Growth projections
-- Competitive landscape
-- Target segments
-
-Write 3-4 detailed paragraphs."""
-    
-    market = query_with_fallback(market_prompt, "STAGE-3", ['mistral', 'zephyr', 'phi'])
-    if not market:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 3 (Market). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
-    
-    # Stage 4: Business Model & Traction
-    log_timestamp("STAGE-4", "Business Model Generation")
-    business_prompt = f"""{DEPTH_PROMPT}
-
-Using context:
-Problem: {problem[:500]}
-Solution: {solution[:500]}
-Market: {market[:500]}
-{context_info}
-
-Write business model, competitive advantage, and ask for {startup_name}.
-
-Include:
-- Revenue model
-- Competitive advantage
-- GTM strategy
-- Funding ask
-
-Write 3-4 detailed paragraphs."""
-    
-    business = query_with_fallback(business_prompt, "STAGE-4", ['zephyr', 'mistral', 'phi'])
-    if not business:
-        raise Exception(f"PITCH GENERATION FAILED: All models failed at Stage 4 (Business). Reasons: {'; '.join(LAST_ERRORS) or 'unknown'}")
-    
-    # Stage 5: Assembly
-    log_timestamp("STAGE-5", "Assembling Final Pitch Deck")
-    
     final_pitch = f"""# {startup_name} Pitch Deck
 
-## Problem
-{problem}
-
-## Solution
-{solution}
-
-## Market Opportunity
-{market}
-
-## Business Model & Competitive Advantage
-{business}
-
-## The Ask
-Based on our market analysis and business model, we are seeking strategic investment to accelerate growth, expand our team, and capture market opportunity. Our proven traction and strong value proposition position us for significant returns.
+{body}
 
 ---
 
-*Generated by PitchPerfectAI - Intelligent Multi-Stage Pipeline*
-*Powered by Google Gemini*
+*Generated by PitchPerfectAI - Powered by Google Gemini*
 """
-
     log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")
-    log_timestamp("PIPELINE", "="*60)
     return final_pitch
 
 
