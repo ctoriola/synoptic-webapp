@@ -6,6 +6,7 @@ query_with_fallback(), which calls Gemini with model fallback.
 import os
 import requests
 import json
+import re
 import time
 from datetime import datetime
 
@@ -15,9 +16,9 @@ GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 # Keys are kept for backward compatibility with the stage fallback lists below.
 FREE_MODELS = {
-    'mistral': os.getenv('GEMINI_MODEL_PRIMARY', 'gemini-2.5-flash'),
-    'zephyr': os.getenv('GEMINI_MODEL_SECONDARY', 'gemini-2.5-flash-lite'),
-    'phi': os.getenv('GEMINI_MODEL_TERTIARY', 'gemini-2.0-flash'),
+    'mistral': os.getenv('GEMINI_MODEL_PRIMARY', 'gemini-flash-latest'),
+    'zephyr': os.getenv('GEMINI_MODEL_SECONDARY', 'gemini-flash-lite-latest'),
+    'phi': os.getenv('GEMINI_MODEL_TERTIARY', 'gemini-pro-latest'),
 }
 
 # Model fallback priority for each stage
@@ -66,6 +67,47 @@ def get_context_ddgs(query):
         return ''
 
 
+def discover_gemini_model(exclude=()):
+    """
+    Ask the Gemini API which models this key can use and pick the best
+    text model (prefers stable Flash, newest version). Google retires
+    model IDs regularly, so this avoids hardcoding a dead name.
+    """
+    try:
+        response = requests.get(GEMINI_API_BASE, headers={'x-goog-api-key': GOOGLE_API_KEY},
+                                params={'pageSize': 200}, timeout=20)
+        if response.status_code != 200:
+            _record_error(f"ListModels: HTTP {response.status_code} {response.text[:120]}")
+            return None
+        names = [
+            m['name'].split('/', 1)[-1] for m in response.json().get('models', [])
+            if 'generateContent' in m.get('supportedGenerationMethods', [])
+        ]
+    except Exception as e:
+        _record_error(f"ListModels: {e}")
+        return None
+
+    def score(name):
+        n = name.lower()
+        if not n.startswith('gemini') or any(t in n for t in ('image', 'tts', 'audio', 'live', 'embedding', 'vision', 'thinking')):
+            return None
+        m = re.search(r'gemini-(\d+)(?:\.(\d+))?', n)
+        version = (int(m.group(1)), int(m.group(2) or 0)) if m else (0, 0)
+        return (
+            'flash' in n and 'lite' not in n,      # prefer full Flash
+            'preview' not in n and 'exp' not in n, # prefer stable
+            version,                               # prefer newest
+        )
+
+    candidates = [(score(n), n) for n in names if n not in exclude and score(n) is not None]
+    if not candidates:
+        _record_error(f"ListModels: no usable Gemini text model among {names[:10]}")
+        return None
+    best = max(candidates)[1]
+    log_timestamp("MODELS", f"Discovered Gemini model: {best}")
+    return best
+
+
 def verify_endpoint(model_key):
     """
     Check that a model is configured and has not been marked unavailable.
@@ -99,6 +141,16 @@ def query_with_fallback(prompt, stage_name, preferred_models=None):
         result = query_inference_api(prompt, FREE_MODELS[model_key], stage_name, model_key)
         if result:
             return result
+
+    # Configured models unavailable (e.g. retired): discover one this key can use
+    if not any(verify_endpoint(k) for k in FREE_MODELS):
+        discovered = discover_gemini_model()
+        if discovered:
+            FREE_MODELS['mistral'] = discovered
+            VERIFIED_MODELS['mistral'] = True
+            result = query_inference_api(prompt, discovered, stage_name, 'mistral')
+            if result:
+                return result
 
     log_timestamp(stage_name, "❌ All models failed")
     return None
@@ -137,7 +189,7 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=2):
                 # Model not available for this key - don't retry, try next model
                 log_timestamp(stage_name, f"❌ 404 for {model_id}: {response.text[:150]}")
                 VERIFIED_MODELS[model_key] = False
-                _record_error(f"{model_id}: HTTP 404 (model not available)")
+                _record_error(f"{model_id}: HTTP 404 (model not available) {response.text[:100]}")
                 return None
 
             if response.status_code in (400, 401, 403):
