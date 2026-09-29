@@ -716,11 +716,15 @@ def _build(project_title, markdown, slide_count=None):
     sections = [(n, b) for n, b in sections if b] or [('Overview', [{'type': 'para', 'text': 'No pitch content yet.'}])]
 
     if slide_count:
-        from slide_plan import get_plan
-        plan = get_plan(slide_count)
-        sections = fold_sections(sections, len(plan['sections']))
+        from slide_plan import PLANS
         builder.one_slide_per_section = True
-        show_agenda, show_closing = plan['agenda'], plan['closing']
+        plan = PLANS.get(int(slide_count))
+        if plan:
+            sections = fold_sections(sections, len(plan['sections']))
+            show_agenda, show_closing = plan['agenda'], plan['closing']
+        else:
+            # Fixed-length pitch from an older plan: keep its sections, one slide each
+            show_agenda, show_closing = len(sections) >= 8, True
     else:
         show_agenda, show_closing = len(sections) >= 3, True
 

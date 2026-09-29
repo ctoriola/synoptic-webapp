@@ -1,40 +1,35 @@
 """
 Deck length plans shared by pitch generation and the PowerPoint export.
 
-A plan's `total` is the exact number of slides in the exported deck:
-cover + (agenda) + one slide per section + (closing).
+The slide count is the number of content slides: one per pitch section, exactly
+what the user sees on the project page. The PowerPoint export adds a cover and a
+closing slide (and an agenda for longer decks) around them.
 """
 
-SLIDE_COUNTS = (4, 8, 12, 20)
-DEFAULT_SLIDE_COUNT = 12
+SLIDE_COUNTS = (4, 6, 10)
+DEFAULT_SLIDE_COUNT = 6
 
 PLANS = {
     4: {
-        'agenda': False, 'closing': False, 'words': 110,
-        'sections': ['Problem', 'Solution', 'Market & The Ask'],
+        'agenda': False, 'words': 110,
+        'sections': ['Problem', 'Solution', 'Market Opportunity', 'The Ask'],
     },
-    8: {
-        'agenda': False, 'closing': True, 'words': 100,
+    6: {
+        'agenda': False, 'words': 100,
         'sections': ['Problem', 'Solution', 'Market Opportunity', 'Business Model',
                      'Competition', 'The Ask'],
     },
-    12: {
-        'agenda': True, 'closing': True, 'words': 90,
+    10: {
+        'agenda': True, 'words': 85,
         'sections': ['Problem', 'Solution', 'Product', 'Market Opportunity', 'Business Model',
-                     'Competition', 'Go-to-Market', 'Traction & Milestones', 'The Ask'],
-    },
-    20: {
-        'agenda': True, 'closing': True, 'words': 70,
-        'sections': ['Problem', 'Why Now', 'Solution', 'Product', 'How It Works',
-                     'Market Opportunity', 'Target Customers', 'Business Model', 'Competition',
-                     'Competitive Advantage', 'Go-to-Market', 'Traction & Milestones', 'Roadmap',
-                     'Team', 'Financial Projections', 'Use of Funds', 'The Ask'],
+                     'Competition', 'Go-to-Market', 'Traction & Milestones', 'Team', 'The Ask'],
     },
 }
 
 for _n, _plan in PLANS.items():
     _plan['total'] = _n
-    assert 1 + _plan['agenda'] + len(_plan['sections']) + _plan['closing'] == _n
+    _plan['closing'] = True
+    assert len(_plan['sections']) == _n
 
 
 def normalize_slide_count(value):
@@ -45,7 +40,7 @@ def normalize_slide_count(value):
         return DEFAULT_SLIDE_COUNT
     if n in PLANS:
         return n
-    # Older preferences (10, 15) map to the nearest supported length
+    # Older preferences (8, 12, 15, 20) map to the nearest supported length
     return min(SLIDE_COUNTS, key=lambda c: (abs(c - n), c))
 
 

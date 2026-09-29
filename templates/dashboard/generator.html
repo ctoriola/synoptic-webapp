@@ -355,6 +355,8 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
+    let progressTimers = [];
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
@@ -377,9 +379,11 @@ document.addEventListener('DOMContentLoaded', function() {
             const endpoint = '/api/generate-deep-pitch';
             
             // Simulate progress updates
-            setTimeout(() => showStatus('🧠 Step 2/4: Analyzing problem statement...'), 3000);
-            setTimeout(() => showStatus('💡 Step 3/4: Designing solution strategy...'), 8000);
-            setTimeout(() => showStatus('📊 Step 4/4: Building market & business model...'), 15000);
+            progressTimers = [
+                setTimeout(() => showStatus('🧠 Step 2/4: Analyzing problem statement...'), 3000),
+                setTimeout(() => showStatus('💡 Step 3/4: Designing solution strategy...'), 8000),
+                setTimeout(() => showStatus('📊 Step 4/4: Building market & business model...'), 15000)
+            ];
             
             const response = await fetch(endpoint, {
                 method: 'POST',
@@ -425,6 +429,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
             showError(error.message || 'An unexpected error occurred', error.details);
         } finally {
+            // Stop the progress messages so they can't cover the result or an error
+            progressTimers.forEach(clearTimeout);
             setLoading(false);
         }
     });

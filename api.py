@@ -919,8 +919,11 @@ def _pitch_content(project):
 
 
 def _pitch_slide_count(project):
-    """The fixed deck length a pitch was generated for, if any."""
-    return (project.pitch_deck or {}).get('slide_count') if project else None
+    """Number of content slides for a fixed-length pitch (its section count), else None."""
+    if not project or not (project.pitch_deck or {}).get('slide_count'):
+        return None
+    import pitchy
+    return len(pitchy.split_sections(_pitch_content(project))) or None
 
 
 def _pitchy_error(e, action):
@@ -1158,9 +1161,9 @@ def export_project_pptx(project_id):
     content = (project.pitch_deck or {}).get('content', '')
     theme = {'1': 'coral', '2': 'green', '3': 'red'}.get(request.args.get('template', '1'), 'coral')
     # Use the length the pitch was written for; older pitches follow the current preference
-    from slide_plan import user_slide_count, normalize_slide_count
+    from slide_plan import user_slide_count
     stored = (project.pitch_deck or {}).get('slide_count')
-    slide_count = normalize_slide_count(stored) if stored else user_slide_count(current_user)
+    slide_count = int(stored) if stored else user_slide_count(current_user)
     buffer = build_pitch_deck(project.title, content, theme, slide_count)
     
     # Deduct token for export
