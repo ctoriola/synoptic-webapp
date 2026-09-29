@@ -9,11 +9,11 @@
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">AI Pitch Deck Generator</h1>
-                <p class="mt-1 text-sm text-gray-600">Create investor-grade pitch decks using multi-step AI pipeline with real market intelligence</p>
+                <p class="mt-1 text-sm text-gray-600">Create an investor-ready pitch from a short description or straight from a GitHub repository</p>
             </div>
             <div class="flex flex-col sm:text-right gap-2">
                 <div class="flex items-center space-x-2">
-                    <i class="fas fa-coins text-purple-500"></i>
+                    <i class="fas fa-coins text-primary-600"></i>
                     <span class="text-lg font-semibold text-gray-900">{{ current_user.tokens }}</span>
                     <span class="text-sm text-gray-500">tokens left</span>
                 </div>
@@ -42,152 +42,143 @@
 
     <!-- Generator Form -->
     <div class="bg-white shadow rounded-lg mb-8">
+        <!-- Source tabs -->
+        <div class="border-b border-gray-200 px-6 pt-4">
+            <nav class="-mb-px flex gap-6" role="tablist" aria-label="Pitch source">
+                <button type="button" role="tab" id="tab-describe" data-mode="describe" aria-selected="true"
+                        class="mode-tab pb-3 border-b-2 text-sm font-medium">
+                    <i class="fas fa-pen mr-1.5"></i>Describe your startup
+                </button>
+                <button type="button" role="tab" id="tab-github" data-mode="github" aria-selected="false"
+                        class="mode-tab pb-3 border-b-2 text-sm font-medium">
+                    <i class="fab fa-github mr-1.5"></i>From a GitHub repo
+                </button>
+            </nav>
+        </div>
+
         <div class="px-6 py-8">
-            <form id="repo-form" class="space-y-6">
-                <!-- New: Startup Name Field -->
-                <div>
-                    <label for="startupName" class="block text-sm font-medium text-gray-700 mb-2">
-                        Startup/Project Name <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" 
-                           id="startupName" 
-                           name="startupName" 
-                           placeholder="e.g., TechStartup, HealthAI, EduLearn"
-                           required 
-                           class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
-                    <p class="mt-2 text-sm text-gray-500">
-                        Enter your startup or project name (2-4 words recommended)
-                    </p>
-                </div>
-
-                <!-- Updated: Project Description -->
-                <div>
-                    <label for="projectDescription" class="block text-sm font-medium text-gray-700 mb-2">
-                        Project Description <span class="text-red-500">*</span>
-                    </label>
-                    <textarea id="projectDescription" 
-                              name="projectDescription" 
-                              rows="6"
-                              placeholder="Describe what your startup does and the problem it solves. Example: 'AI-powered health monitoring platform that helps doctors detect diseases early through continuous patient data analysis'"
-                              required 
-                              class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm resize-vertical"></textarea>
-                    <p class="mt-2 text-sm text-gray-500">
-                        <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
-                        Be specific about your core value proposition (1-2 sentences). The AI will use this to generate detailed, investor-grade content.
-                    </p>
-                </div>
-
-                <!-- New: Deep Pipeline Info Badge -->
-                <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
-                    <div class="flex items-start">
-                        <div class="flex-shrink-0">
-                            <i class="fas fa-rocket text-purple-600 text-xl"></i>
-                        </div>
-                        <div class="ml-3">
-                            <h4 class="text-sm font-semibold text-purple-900">Multi-Step Deep Pipeline</h4>
-                            <p class="mt-1 text-xs text-purple-700">
-                                Our AI generates comprehensive pitch decks in 4 strategic steps: Problem Analysis → Solution Design → Market Research → Business Strategy. Includes real-time market intelligence from web search.
-                            </p>
-                        </div>
+            <form id="generate-form" class="space-y-6" novalidate>
+                <!-- Describe mode -->
+                <div id="panel-describe" class="space-y-6">
+                    <div>
+                        <label for="startupName" class="block text-sm font-medium text-gray-700 mb-2">
+                            Startup/Project Name <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="startupName" name="startupName" maxlength="80"
+                               placeholder="e.g., TechStartup, HealthAI, EduLearn"
+                               class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                    </div>
+                    <div>
+                        <label for="projectDescription" class="block text-sm font-medium text-gray-700 mb-2">
+                            Project Description <span class="text-red-500">*</span>
+                        </label>
+                        <textarea id="projectDescription" name="projectDescription" rows="6" maxlength="4000"
+                                  placeholder="Describe what your startup does and the problem it solves. Example: 'AI-powered health monitoring platform that helps doctors detect diseases early through continuous patient data analysis'"
+                                  class="block w-full px-4 py-3 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm resize-vertical"></textarea>
+                        <p class="mt-2 text-sm text-gray-500">
+                            <i class="fas fa-lightbulb text-yellow-500 mr-1"></i>
+                            Be specific about your core value proposition. The more concrete, the better the pitch.
+                        </p>
                     </div>
                 </div>
-                
+
+                <!-- GitHub mode -->
+                <div id="panel-github" class="space-y-4" hidden>
+                    <div>
+                        <label for="repoInput" class="block text-sm font-medium text-gray-700 mb-2">
+                            Repository <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex rounded-md shadow-sm">
+                            <span class="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                                <i class="fab fa-github"></i>
+                            </span>
+                            <input type="text" id="repoInput" name="repo" value="{{ repo }}" autocomplete="off" spellcheck="false"
+                                   placeholder="owner/repository or https://github.com/owner/repository"
+                                   class="block w-full min-w-0 px-4 py-3 border border-gray-300 rounded-r-md placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">
+                            We read the README, description, topics and languages to write the pitch.
+                        </p>
+                    </div>
+                    <div class="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-md p-3">
+                        {% if current_user.github_token %}
+                            <i class="fas fa-check-circle text-green-600 mr-1"></i>
+                            GitHub connected. <a href="{{ url_for('auth.select_repo') }}" class="text-primary-600 hover:text-primary-700 font-medium">Pick from your repositories</a>
+                        {% elif current_user.github_id %}
+                            <i class="fas fa-lock text-gray-500 mr-1"></i>
+                            Public repositories work right away. For private ones,
+                            <a href="{{ url_for('auth.request_repo_access') }}" class="text-primary-600 hover:text-primary-700 font-medium">grant repository access</a>.
+                        {% else %}
+                            <i class="fas fa-lock text-gray-500 mr-1"></i>
+                            Public repositories work right away. For private ones,
+                            <a href="{{ url_for('auth.connect_github') }}" class="text-primary-600 hover:text-primary-700 font-medium">connect your GitHub account</a>.
+                        {% endif %}
+                    </div>
+                </div>
+
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <button type="submit" 
-                            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700
-                            focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors">
+                    <button type="submit" id="submit-btn"
+                            class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
                         <i class="fas fa-magic mr-2"></i>
-                        <span id="button-text">
-                            Generate Pitch Deck
-                        </span>
+                        <span id="button-text">Generate Pitch Deck</span>
                     </button>
-                    
                     <div class="text-sm text-gray-500 text-center sm:text-left">
                         <i class="fas fa-layer-group mr-1"></i>
                         {{ user_slide_count(current_user) }}-slide deck
                         &middot; <a href="{{ url_for('dashboard.settings') }}" class="text-primary-600 hover:text-primary-700">Change in Settings</a>
-                        <span class="block sm:inline sm:ml-2"><i class="fas fa-clock mr-1"></i>Takes 15-35 seconds</span>
+                        <span class="block sm:inline sm:ml-2"><i class="fas fa-clock mr-1"></i>Takes 15-45 seconds</span>
                     </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Status Messages -->
-    <div id="status" class="mb-6" style="display: none;">
-        <div class="rounded-md bg-blue-50 p-4">
-            <div class="flex">
-                <div class="flex-shrink-0">
-                    <i class="fas fa-spinner fa-spin text-blue-400"></i>
-                </div>
-                <div class="ml-3">
-                    <p class="text-sm font-medium text-blue-800" id="status-text">
-                        Processing your request...
-                    </p>
-                </div>
+    <!-- Status -->
+    <div id="status" class="mb-6" hidden>
+        <div class="rounded-md bg-blue-50 p-4" role="status">
+            <div class="flex items-center">
+                <i class="fas fa-circle-notch fa-spin text-blue-400"></i>
+                <p class="ml-3 text-sm font-medium text-blue-800" id="status-text">Working…</p>
             </div>
         </div>
     </div>
 
-    <!-- Error Messages -->
-    <div id="error" class="mb-6" style="display: none;">
-        <div class="rounded-md bg-red-50 p-4">
+    <!-- Error -->
+    <div id="error" class="mb-6" hidden>
+        <div class="rounded-md bg-red-50 p-4" role="alert">
             <div class="flex">
                 <div class="flex-shrink-0">
                     <i class="fas fa-exclamation-circle text-red-400"></i>
                 </div>
                 <div class="ml-3">
-                    <p class="text-sm font-medium text-red-800" id="error-text">
-                        An error occurred
-                    </p>
-                    <button type="button" id="error-details-toggle" class="mt-2 text-sm text-red-700 underline hover:text-red-900" style="display: none;">Learn more</button>
-                    <pre id="error-details" class="mt-2 text-xs text-red-700 whitespace-pre-wrap break-words" style="display: none;"></pre>
+                    <p class="text-sm font-medium text-red-800" id="error-text">An error occurred</p>
+                    <button type="button" id="error-details-toggle" class="mt-2 text-sm text-red-700 underline hover:text-red-900" hidden>Learn more</button>
+                    <pre id="error-details" class="mt-2 text-xs text-red-700 whitespace-pre-wrap break-words" hidden></pre>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Generated Content -->
-    <div id="proposal" class="bg-white shadow rounded-lg" style="display: none;">
-        <div class="px-6 py-8">
-            <div class="flex items-center justify-between mb-6">
-                <h2 id="proposal-title" class="text-xl font-bold text-gray-900">Generated Content</h2>
-                
-                
-                
-                
-                
-                
-                
-            </div>
-
-            <div class="prose max-w-none">
-                <div id="content-display" class="space-y-8 select-none" style="user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;">
-                    <!-- Content will be dynamically populated based on generation type -->
-                </div>
-            </div>
-
-            <div class="mt-8 pt-6 border-t border-gray-200">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <p class="text-sm text-gray-500">
-                        <i class="fas fa-check-circle text-green-500 mr-1"></i>
-                        <span id="save-message">Content saved to your projects</span>
-                    </p>
-                    <div class="flex gap-3">
-                        <button id="regenerate-btn"
-                                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                            <i class="fas fa-redo mr-2"></i>
-                            Regenerate
-                        </button>
-                        <a id="view-project-btn" 
-                           href="#" 
-                           class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
-                            <i class="fas fa-eye mr-2"></i>
-                            View in Projects
-                        </a>
-                    </div>
-                </div>
-            </div>
+    <!-- Generated pitch (same rendering and styles as the project page) -->
+    <div id="result" class="bg-white shadow rounded-lg" hidden>
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between gap-3">
+            <h2 class="text-lg font-medium text-gray-900">Investor Pitch Deck</h2>
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <i class="fas fa-check-circle mr-1"></i>Saved to your projects
+            </span>
+        </div>
+        <div class="px-6 py-6">
+            <article id="pitch-preview" class="pitch-doc select-none"></article>
+        </div>
+        <div class="px-6 py-4 border-t border-gray-200 flex flex-col sm:flex-row sm:justify-end gap-3">
+            <button type="button" id="regenerate-btn"
+                    class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-redo mr-2"></i>Generate another
+            </button>
+            <a id="view-project-btn" href="{{ url_for('dashboard.projects') }}"
+               class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i class="fas fa-arrow-right mr-2"></i>Open project (export &amp; Pitchy)
+            </a>
         </div>
     </div>
 
@@ -199,22 +190,22 @@
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-search text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">Market Intelligence</h4>
-                <p class="text-sm text-gray-600">We search for real-time industry trends and competitive landscape data</p>
+                <h4 class="font-medium text-gray-900 mb-2">Context</h4>
+                <p class="text-sm text-gray-600">Your description or repository, plus a quick web search for industry context</p>
             </div>
             <div class="text-center">
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-brain text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">Multi-Step Generation</h4>
-                <p class="text-sm text-gray-600">Dual AI models create Problem, Solution, Market, and Business sections sequentially</p>
+                <h4 class="font-medium text-gray-900 mb-2">Structured writing</h4>
+                <p class="text-sm text-gray-600">One slide per section, at the deck length you chose in Settings</p>
             </div>
             <div class="text-center">
                 <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-3">
                     <i class="fas fa-file-alt text-primary-600"></i>
                 </div>
-                <h4 class="font-medium text-gray-900 mb-2">Investor-Ready Output</h4>
-                <p class="text-sm text-gray-600">Receive a structured, professional pitch deck ready for investor meetings</p>
+                <h4 class="font-medium text-gray-900 mb-2">Refine &amp; export</h4>
+                <p class="text-sm text-gray-600">Improve it with Pitchy, then export a styled PowerPoint deck</p>
             </div>
         </div>
     </div>
@@ -224,281 +215,160 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('repo-form');
-    const input = document.getElementById('repoUrl');
-    const generationType = document.getElementById('generationType');
-    const statusDiv = document.getElementById('status');
-    const statusText = document.getElementById('status-text');
-    const errorDiv = document.getElementById('error');
-    const errorText = document.getElementById('error-text');
-    const proposalDiv = document.getElementById('proposal');
-    const buttonText = document.getElementById('button-text');
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const contentDisplay = document.getElementById('content-display');
-    const proposalTitle = document.getElementById('proposal-title');
-    const saveMessage = document.getElementById('save-message');
+    const $ = id => document.getElementById(id);
+    const form = $('generate-form');
+    const submitBtn = $('submit-btn');
+    const tabs = document.querySelectorAll('.mode-tab');
+    let mode = 'describe';
+    let progressTimers = [];
+    let busy = false;
 
-    function showStatus(message) {
-        statusText.textContent = message;
-        statusDiv.style.display = 'block';
-        errorDiv.style.display = 'none';
-        proposalDiv.style.display = 'none';
+    // ---------- tabs ----------
+    function setMode(next) {
+        mode = next;
+        tabs.forEach(tab => {
+            const active = tab.dataset.mode === next;
+            tab.setAttribute('aria-selected', active);
+            tab.classList.toggle('border-primary-600', active);
+            tab.classList.toggle('text-primary-700', active);
+            tab.classList.toggle('border-transparent', !active);
+            tab.classList.toggle('text-gray-500', !active);
+        });
+        $('panel-describe').hidden = next !== 'describe';
+        $('panel-github').hidden = next !== 'github';
+        hideMessages();
     }
+    tabs.forEach(tab => tab.addEventListener('click', () => !busy && setMode(tab.dataset.mode)));
 
-    const errorDetails = document.getElementById('error-details');
-    const errorDetailsToggle = document.getElementById('error-details-toggle');
-
-    errorDetailsToggle.addEventListener('click', function() {
-        const open = errorDetails.style.display !== 'none';
-        errorDetails.style.display = open ? 'none' : 'block';
-        errorDetailsToggle.textContent = open ? 'Learn more' : 'Hide details';
+    // ---------- messages ----------
+    function showStatus(message) {
+        $('status-text').textContent = message;
+        $('status').hidden = false;
+        $('error').hidden = true;
+    }
+    function hideMessages() {
+        $('status').hidden = true;
+        $('error').hidden = true;
+    }
+    function showError(message, details) {
+        $('status').hidden = true;
+        $('error-text').textContent = message;
+        // Technical details are only sent by the server to admins
+        $('error-details').textContent = details || '';
+        $('error-details').hidden = true;
+        $('error-details-toggle').textContent = 'Learn more';
+        $('error-details-toggle').hidden = !details;
+        if (details) console.error('Pitch generation failed:', details);
+        $('error').hidden = false;
+        $('error').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    $('error-details-toggle').addEventListener('click', function() {
+        const open = !$('error-details').hidden;
+        $('error-details').hidden = open;
+        this.textContent = open ? 'Learn more' : 'Hide details';
     });
 
-    function showError(message, details) {
-        errorText.textContent = message;
-        // Full technical details are only sent by the server to admins
-        errorDetails.textContent = details || '';
-        errorDetails.style.display = 'none';
-        errorDetailsToggle.textContent = 'Learn more';
-        errorDetailsToggle.style.display = details ? 'inline' : 'none';
-        errorDiv.style.display = 'block';
-        statusDiv.style.display = 'none';
-    }
-
-    function hideMessages() {
-        statusDiv.style.display = 'none';
-        errorDiv.style.display = 'none';
-    }
-
     function setLoading(loading) {
+        busy = loading;
         submitBtn.disabled = loading;
-        buttonText.textContent = loading ? 'Generating...' : 'Generate Pitch Deck';
+        $('button-text').textContent = loading ? 'Generating…' : 'Generate Pitch Deck';
     }
 
-    function showContent(data, type) {
-        let content = '';
-        let title = 'Investor-Grade Pitch Deck';
-        let message = 'Pitch deck saved to your projects';
-        
-        // Handle deep pitch content (markdown format)
-        if (data.pitch) {
-            // Convert markdown to HTML with better formatting
-            content = `<div class="prose max-w-none pitch-deck-content">`;
-            
-            // Split by sections
-            const sections = data.pitch.split('##').filter(s => s.trim());
-            
-            sections.forEach(section => {
-                const lines = section.trim().split('\n');
-                const sectionTitle = lines[0].trim();
-                const sectionContent = lines.slice(1).join('\n').trim();
-                
-                if (sectionTitle && sectionContent) {
-                    content += `
-                        <div class="mb-8 pb-6 border-b border-gray-200 last:border-0">
-                            <h2 class="text-2xl font-bold text-gray-900 mb-4">${sectionTitle}</h2>
-                            <div class="text-gray-700 leading-relaxed whitespace-pre-wrap">${sectionContent}</div>
-                        </div>
-                    `;
-                }
-            });
-            
-            content += `</div>`;
-        } else if (data.pitch_deck && data.pitch_deck.content) {
-            // Fallback to old format
-            content = `<div class="prose max-w-none pitch-deck-content">${data.pitch_deck.content.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>`;
-        } else {
-            content = '<div class="prose max-w-none">No pitch deck content available</div>';
-        }
-        
-        proposalTitle.textContent = title;
-        saveMessage.textContent = message;
-        contentDisplay.innerHTML = content;
-        
-        // Update view project button
-        if (data.project_id) {
-            const viewBtn = document.getElementById('view-project-btn');
-            viewBtn.href = `/dashboard/projects/${data.project_id}`;
-        }
-        
+    function startProgress(steps) {
+        showStatus(steps[0][1]);
+        progressTimers = steps.slice(1).map(([ms, text]) => setTimeout(() => showStatus(text), ms));
+    }
+    function stopProgress() {
+        progressTimers.forEach(clearTimeout);
+        progressTimers = [];
+    }
+
+    // ---------- result ----------
+    function showResult(data) {
+        $('pitch-preview').innerHTML = data.html;  // rendered and escaped server-side
+        $('view-project-btn').href = `/dashboard/projects/${encodeURIComponent(data.project_id)}`;
         hideMessages();
-        proposalDiv.style.display = 'block';
-        proposalDiv.scrollIntoView({ behavior: 'smooth' });
+        $('result').hidden = false;
+        $('result').scrollIntoView({ behavior: 'smooth' });
     }
 
-    function renderProposalContent(proposal) {
-        return `
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Introduction</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.introduction || 'Not available'}</div>
-            </section>
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Problem Statement</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.problem_statement || 'Not available'}</div>
-            </section>
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Proposed Solution</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.solution || 'Not available'}</div>
-            </section>
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Target Audience</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.target_audience || 'Not available'}</div>
-            </section>
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Technology Stack</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.technology_stack || 'Not available'}</div>
-            </section>
-            <section>
-                <h3 class="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2 mb-4">Future Scope</h3>
-                <div class="text-gray-700 whitespace-pre-wrap">${proposal.future_scope || 'Not available'}</div>
-            </section>
-        `;
-    }
-
-    let progressTimers = [];
-
-    form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // Get startup name and description
-        const startupName = document.getElementById('startupName').value.trim();
-        const description = document.getElementById('projectDescription').value.trim();
-        
-        if (!startupName || !description) {
-            showError('Please provide both startup name and description');
-            return;
+    // ---------- submit ----------
+    async function generate() {
+        let url, body, steps;
+        if (mode === 'github') {
+            const repo = $('repoInput').value.trim();
+            if (!repo) return showError('Enter a repository as owner/name or paste its GitHub URL.');
+            url = '/api/generate-from-repo';
+            body = { repo };
+            steps = [[0, 'Reading the repository on GitHub…'], [4000, 'Understanding what the project does…'],
+                     [12000, 'Writing your pitch…'], [30000, 'Almost there, finishing the last sections…']];
+        } else {
+            const name = $('startupName').value.trim();
+            const description = $('projectDescription').value.trim();
+            if (!name || !description) return showError('Please provide both a startup name and a description.');
+            url = '/api/generate-deep-pitch';
+            body = { name, description };
+            steps = [[0, 'Gathering market context…'], [4000, 'Writing your pitch…'],
+                     [25000, 'Almost there, finishing the last sections…']];
         }
 
+        $('result').hidden = true;
         setLoading(true);
-        
-        // Show multi-step progress
-        showStatus('🔍 Step 1/4: Searching for market intelligence...');
-        
+        startProgress(steps);
         try {
-            // Use the new deep pitch generation endpoint
-            const endpoint = '/api/generate-deep-pitch';
-            
-            // Simulate progress updates
-            progressTimers = [
-                setTimeout(() => showStatus('🧠 Step 2/4: Analyzing problem statement...'), 3000),
-                setTimeout(() => showStatus('💡 Step 3/4: Designing solution strategy...'), 8000),
-                setTimeout(() => showStatus('📊 Step 4/4: Building market & business model...'), 15000)
-            ];
-            
-            const response = await fetch(endpoint, {
+            const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    name: startupName,
-                    description: description
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
             });
-
             if (response.status === 403) {
-                setLoading(false);
-                window.location.href = '/dashboard/out-of-tokens';
+                window.location.href = '{{ url_for("dashboard.out_of_tokens") }}';
                 return;
             }
-
-            // Check if response is JSON before parsing
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                const text = await response.text();
-                if (text.includes('<!doctype') || text.includes('<html')) {
-                    throw new Error('Server returned an error page. Please try again or contact support.');
-                }
-                throw new Error('Server returned unexpected response format.');
+            const type = response.headers.get('content-type') || '';
+            if (!type.includes('application/json')) {
+                throw new Error(response.status === 504
+                    ? 'Generation took too long. Please try again.'
+                    : 'The server returned an unexpected response. Please try again.');
             }
-
             const data = await response.json();
-
-            if (!response.ok) {
-                if (data.details) console.error('Pitch generation failed:', data.details);
-                const err = new Error(data.error || 'Failed to generate pitch deck');
+            if (!response.ok || !data.success) {
+                const err = new Error(data.error || 'Failed to generate the pitch deck.');
                 err.details = data.details;
                 throw err;
             }
-
-            // Show success and display content immediately
-            console.log('Generation complete, displaying content...', data);
-            showContent(data, 'deep-pitch');
-            
+            showResult(data);
         } catch (error) {
-            console.error('Error:', error);
-            showError(error.message || 'An unexpected error occurred', error.details);
+            showError(error.message || 'An unexpected error occurred.', error.details);
         } finally {
             // Stop the progress messages so they can't cover the result or an error
-            progressTimers.forEach(clearTimeout);
+            stopProgress();
             setLoading(false);
         }
+    }
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (!busy) generate();
     });
 
-    // Regenerate button functionality
-    document.addEventListener('click', function(e) {
-        if (e.target && (e.target.id === 'regenerate-btn' || e.target.closest('#regenerate-btn'))) {
-            e.preventDefault();
-            // Scroll to form and clear it
-            document.getElementById('repo-form').scrollIntoView({ behavior: 'smooth' });
-            // Hide the result
-            proposalDiv.style.display = 'none';
-            // Optionally clear the form
-            // document.getElementById('startupName').value = '';
-            // document.getElementById('projectDescription').value = '';
-        }
+    $('regenerate-btn').addEventListener('click', function() {
+        $('result').hidden = true;
+        form.scrollIntoView({ behavior: 'smooth' });
     });
 
-    // Copy functionality removed - users can only export
-    
-    // Prevent copying of generated content
-    document.addEventListener('DOMContentLoaded', function() {
-        const contentDisplay = document.getElementById('content-display');
-        
-        // Disable right-click context menu
-        contentDisplay.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            return false;
-        });
-        
-        // Disable keyboard shortcuts for copying
-        contentDisplay.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && (e.key === 'c' || e.key === 'a' || e.key === 'x')) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        // Disable text selection via mouse
-        contentDisplay.addEventListener('selectstart', function(e) {
-            e.preventDefault();
-            return false;
-        });
-    });
+    // ---------- discourage copying the generated text ----------
+    const preview = $('pitch-preview');
+    ['contextmenu', 'selectstart', 'copy'].forEach(evt => preview.addEventListener(evt, e => e.preventDefault()));
 
-    // Export functionality
-    document.getElementById('export-btn').addEventListener('click', function() {
-        const content = contentDisplay.textContent || contentDisplay.innerText;
-        const type = generationType.value;
-        const filename = type === 'proposal' ? 'project-proposal.md' : 
-                        type === 'documentation' ? 'technical-documentation.md' : 
-                        'user-guide.md';
-
-        const blob = new Blob([content], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    });
-
-    // Update button text when generation type changes
-    generationType.addEventListener('change', function() {
-        setLoading(false);
-    });
+    // ---------- start ----------
+    {% if repo %}
+    // Arrived from the repository picker: generate straight away
+    setMode('github');
+    generate();
+    {% else %}
+    setMode('describe');
+    {% endif %}
 });
 </script>
 {% endblock %}

@@ -470,14 +470,21 @@ def _match_sections(generated, headings):
     return {h: body for h, body in matched.items() if body.strip()}
 
 
-def _section_prompt(startup_name, startup_description, context_snippet, headings, words):
+def _section_prompt(startup_name, startup_description, context_snippet, headings, words, from_repo=False):
     heading_list = '\n'.join(f'## {h}' for h in headings)
+    if from_repo:
+        source = ("Source material from the project's GitHub repository (README, metadata, languages):\n"
+                  f"{startup_description[:8000]}\n\n"
+                  "Base every product and technical claim on this material; do not invent features. "
+                  "Translate technical details into business value for investors.")
+    else:
+        source = f"Description: {startup_description}"
     return f"""{DEPTH_PROMPT}
 
 Write the investor pitch deck content for this startup. Each section becomes exactly ONE slide.
 
 Startup: {startup_name}
-Description: {startup_description}
+{source}
 Market context from a web search (may be partial or irrelevant; use only if helpful):
 {context_snippet[:1500]}
 
@@ -493,7 +500,8 @@ Rules:
 - Do not use level-1 or level-3+ headings, and do not add any text before the first section or after the last."""
 
 
-def intelligent_pitch_generation(startup_name, startup_description, slide_count=None):
+def intelligent_pitch_generation(startup_name, startup_description, slide_count=None, from_repo=False,
+                                 budget_seconds=REQUEST_BUDGET_SECONDS):
     """
     Generate an investor pitch whose sections match the user's deck length exactly.
 
@@ -505,12 +513,12 @@ def intelligent_pitch_generation(startup_name, startup_description, slide_count=
     headings = plan['sections']
 
     global _deadline
-    _deadline = time.monotonic() + REQUEST_BUDGET_SECONDS
+    _deadline = time.monotonic() + budget_seconds
     log_timestamp("PIPELINE", f"Starting {plan['total']}-slide pitch for: {startup_name}")
     try:
         context_snippet = get_context_ddgs(f'{startup_name} industry trends') or ''
         body = query_with_fallback(
-            _section_prompt(startup_name, startup_description, context_snippet, headings, plan['words']), "PITCH")
+            _section_prompt(startup_name, startup_description, context_snippet, headings, plan['words'], from_repo), "PITCH")
         if not body:
             raise Exception(f"PITCH GENERATION FAILED: {'; '.join(LAST_ERRORS) or 'unknown error'}")
 
@@ -519,7 +527,7 @@ def intelligent_pitch_generation(startup_name, startup_description, slide_count=
         if missing and _time_left() > 15:
             log_timestamp("PIPELINE", f"Requesting {len(missing)} missing section(s): {missing}")
             extra = query_with_fallback(
-                _section_prompt(startup_name, startup_description, context_snippet, missing, plan['words']),
+                _section_prompt(startup_name, startup_description, context_snippet, missing, plan['words'], from_repo),
                 "PITCH-FILL")
             if extra:
                 sections.update({h: b for h, b in _match_sections(_split_markdown_sections(extra), missing).items()

@@ -96,6 +96,18 @@ def github_login():
     print(f"DEBUG: Generated redirect_uri: {redirect_uri}")  # Debug line
     return github.authorize_redirect(redirect_uri)
 
+def _primary_github_email(github, token):
+    """GitHub hides emails set to private; ask for the primary verified one (user:email scope)."""
+    try:
+        emails = github.get('user/emails', token=token).json()
+        for entry in emails if isinstance(emails, list) else []:
+            if entry.get('primary') and entry.get('verified'):
+                return entry.get('email')
+    except Exception as e:
+        print(f"DEBUG: Could not fetch GitHub emails: {e!r}")
+    return None
+
+
 @auth_bp.route('/github/callback')
 def github_callback():
     """Handle GitHub OAuth callback"""
@@ -103,9 +115,8 @@ def github_callback():
         github = oauth.create_client('github')
         token = github.authorize_access_token()
         
-        # Check if this is a repo access request
-        if session.get('requesting_repo_access'):
-            session.pop('requesting_repo_access', None)
+        # Check if this is a repo access request (only meaningful for a signed-in user)
+        if session.pop('requesting_repo_access', None) and current_user.is_authenticated:
             # Update user's GitHub token with repo access
             current_user.github_token = token.get('access_token')
             current_user.save()
@@ -119,8 +130,8 @@ def github_callback():
             resp = github.get('user', token=token)
             user_info = resp.json()
         
-        github_id = str(user_info.get('id'))
-        email = user_info.get('email')
+        github_id = str(user_info.get('id') or '')
+        email = user_info.get('email') or _primary_github_email(github, token)
         username = user_info.get('login')
         
         if not github_id:
@@ -189,8 +200,8 @@ def github_callback():
                 )
                 user.save()
         
-        # Update GitHub info if changed
-        user.github_id = user_info.get('id')
+        # Update GitHub info if changed (always store the id as a string so lookups match)
+        user.github_id = github_id
         user.github_username = user_info.get('login')
         user.github_token = token.get('access_token')
         user.save()
@@ -202,6 +213,7 @@ def github_callback():
         return redirect(url_for('dashboard.index'))
             
     except Exception as e:
+        print(f"ERROR: GitHub OAuth callback failed: {e!r}")
         flash('GitHub authentication failed. Please try again.', 'error')
         return redirect(url_for('auth.login'))
 
@@ -248,15 +260,8 @@ def select_repo():
             flash('Invalid repository selection', 'error')
             return redirect(url_for('auth.select_repo'))
         
-        # Store repository info in session for project creation
-        session['selected_repo'] = {
-            'url': repo_url,
-            'name': repo_name,
-            'owner': repo_owner
-        }
-        
-        # Redirect to project creation with pre-filled data
-        return redirect(url_for('dashboard.generator', from_github='true'))
+        # The generator page fetches the repository and generates the pitch
+        return redirect(url_for('dashboard.generator', repo=f'{repo_owner}/{repo_name}'))
     
     # Handle GET request - display repository list
     if not current_user.github_token:

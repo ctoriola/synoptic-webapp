@@ -208,7 +208,10 @@ class User(UserMixin):
         """Get user by GitHub ID"""
         db = get_db()
         if db:
-            users = db.collection('users').where('github_id', '==', github_id).limit(1).stream()
+            users = list(db.collection('users').where('github_id', '==', str(github_id)).limit(1).stream())
+            if not users and str(github_id).isdigit():
+                # Older records stored the id as a number
+                users = list(db.collection('users').where('github_id', '==', int(github_id)).limit(1).stream())
             for user in users:
                 data = user.to_dict()
                 return User(
