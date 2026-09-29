@@ -1004,65 +1004,99 @@ def pitchy_apply():
         return jsonify({'error': 'Could not apply the change. Please try again.'}), 500
 
 
+def _save_generated_pitch(title, pitch_content, slide_count, repo=None):
+    """Save a freshly generated pitch as a project and build the JSON response."""
+    from firebase_models import Project
+    project = Project(
+        title=title,
+        repo_url=repo['url'] if repo else "",
+        repo_owner=repo['owner'] if repo else current_user.username,
+        repo_name=repo['name'] if repo else title.lower().replace(' ', '-'),
+        pitch_deck={
+            'content': pitch_content,
+            'generated_at': datetime.utcnow().isoformat(),
+            'version': '2.0',
+            'generation_type': 'github_repo' if repo else 'deep_pipeline',
+            'slide_count': slide_count
+        },
+        user_id=current_user.id
+    )
+    project.save()
+    return jsonify({
+        'success': True,
+        'pitch': pitch_content,
+        # Same rendering as the project page, so the preview matches it
+        'html': current_app.jinja_env.filters['format_markdown'](pitch_content),
+        'title': title,
+        'project_id': project.id,
+        'tokens_remaining': current_user.tokens
+    })
+
+
+def _generation_error(e):
+    from huggingface_client import friendly_error
+    print(f"ERROR: Pitch generation failed for user {current_user.id}: {str(e)}")
+    payload = {'error': friendly_error(e)}
+    if getattr(current_user, 'is_admin', False):
+        payload['details'] = str(e)
+    return jsonify(payload), 500
+
+
 @api_bp.route('/generate-deep-pitch', methods=['POST'])
 @login_required
 def generate_deep_pitch():
     """
-    Generate investor-grade pitch deck using multi-step depth pipeline
+    Generate an investor pitch from a name and description.
     Expects JSON: { "name": "Startup Name", "description": "Brief description" }
     """
-    # Check if user has generation access
     from dashboard import _has_generation_access
     if not _has_generation_access(current_user):
         return jsonify({'error': 'No tokens remaining or access denied'}), 403
-    
+
+    data = request.get_json(silent=True) or {}
+    startup_name = (data.get('name') or '').strip()
+    startup_description = (data.get('description') or '').strip()
+    if not startup_name or not startup_description:
+        return jsonify({'error': 'Both startup name and description are required'}), 400
+
     try:
-        data = request.get_json()
-        startup_name = data.get('name', '').strip()
-        startup_description = data.get('description', '').strip()
-        
-        if not startup_name or not startup_description:
-            return jsonify({'error': 'Both startup name and description are required'}), 400
-        
-        print(f"DEBUG: Generating deep pitch for {startup_name}")
-        
-        # Generate the pitch at the user's preferred deck length
         from slide_plan import user_slide_count
         slide_count = user_slide_count(current_user)
         pitch_content = deep_pitch_generation(startup_name, startup_description, slide_count)
-        
-        # Save to project
-        from firebase_models import Project
-        project = Project(
-            title=startup_name,
-            repo_url="",
-            repo_owner=current_user.username,
-            repo_name=startup_name.lower().replace(' ', '-'),
-            pitch_deck={
-                'content': pitch_content,
-                'generated_at': datetime.utcnow().isoformat(),
-                'version': '2.0',
-                'generation_type': 'deep_pipeline',
-                'slide_count': slide_count
-            },
-            user_id=current_user.id
-        )
-        project.save()
-        
-        return jsonify({
-            'success': True,
-            'pitch': pitch_content,
-            'project_id': project.id,
-            'tokens_remaining': current_user.tokens
-        })
-        
+        return _save_generated_pitch(startup_name, pitch_content, slide_count)
     except Exception as e:
-        from huggingface_client import friendly_error
-        print(f"ERROR: Deep pitch generation failed for user {current_user.id}: {str(e)}")
-        payload = {'error': friendly_error(e)}
-        if getattr(current_user, 'is_admin', False):
-            payload['details'] = str(e)
-        return jsonify(payload), 500
+        return _generation_error(e)
+
+
+@api_bp.route('/generate-from-repo', methods=['POST'])
+@login_required
+def generate_from_repo():
+    """
+    Generate an investor pitch from a GitHub repository.
+    Expects JSON: { "repo": "owner/name" or a github.com URL }
+    """
+    from dashboard import _has_generation_access
+    from github_repo import fetch_repo_context, RepoError
+    from huggingface_client import intelligent_pitch_generation
+    from slide_plan import user_slide_count
+
+    if not _has_generation_access(current_user):
+        return jsonify({'error': 'No tokens remaining or access denied'}), 403
+
+    data = request.get_json(silent=True) or {}
+    try:
+        repo = fetch_repo_context(data.get('repo'), getattr(current_user, 'github_token', None))
+    except RepoError as e:
+        return jsonify({'error': str(e)}), 400
+
+    try:
+        slide_count = user_slide_count(current_user)
+        # Leave room for the GitHub calls already made within Vercel's 60s limit
+        pitch_content = intelligent_pitch_generation(repo['title'], repo['context'], slide_count,
+                                                     from_repo=True, budget_seconds=42)
+        return _save_generated_pitch(repo['title'], pitch_content, slide_count, repo)
+    except Exception as e:
+        return _generation_error(e)
 
 
 @api_bp.route('/projects/<project_id>', methods=['GET'])
