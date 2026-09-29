@@ -117,7 +117,7 @@ DATABASE_URL=postgresql://postgres:password@endpoint:5432/synoptic?sslmode=requi
 
 ## 9. Database Initialization
 
-After deployment, visit your app's `/init-db` endpoint to create tables and admin user.
+After deployment, create your first account through the app and grant it admin rights directly in the database (set `is_admin` to true).
 
 ## 10. Monitoring and Maintenance
 

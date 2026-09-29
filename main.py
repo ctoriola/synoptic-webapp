@@ -12,31 +12,6 @@ def index():
         return redirect(url_for('dashboard.index'))
     return render_template('landing.html')
 
-@main_bp.route('/init-admin')
-def init_admin():
-    """Initialize admin user - for development only"""
-    from firebase_models import User
-    
-    # Check if admin already exists
-    admin = User.get_by_username('admin')
-    if admin:
-        return "Admin user already exists!"
-    
-    # Create admin user
-    admin = User(
-        username='admin',
-        email='admin@PitchPerfectAI.com',
-        is_admin=True,
-        account_tier='pro',
-        tokens=50
-    )
-    admin.set_password('admin123')  # Change this in production!
-    
-    if admin.save():
-        return "Admin user created successfully! Username: admin, Password: admin123"
-    else:
-        return "Failed to create admin user"
-
 @main_bp.route('/migrate-users')
 def migrate_users():
     """Migrate existing users to free tier - run once after deployment"""
@@ -66,36 +41,6 @@ def migrate_users():
             updated_count += 1
     
     return f"Migration completed! Updated {updated_count} users to free tier with 3 tokens."
-
-@main_bp.route('/init-db')
-def init_database():
-    """Initialize Firebase database for production deployment"""
-    try:
-        # Create admin user if it doesn't exist
-        admin = User.get_by_email('admin@PitchPerfectAI.com')
-        if not admin:
-            admin = User(
-                email='admin@PitchPerfectAI.com',
-                username='admin',
-                is_admin=True
-            )
-            admin.set_password('admin123')
-            admin.save()
-            
-        return jsonify({
-            'status': 'success',
-            'message': 'Firebase database initialized successfully',
-            'admin_user_created': True,
-            'admin_credentials': {
-                'email': 'admin@PitchPerfectAI.com',
-                'password': 'admin123'
-            }
-        })
-    except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'message': f'Database initialization failed: {str(e)}'
-        }), 500
 
 @main_bp.route('/features')
 def features():
