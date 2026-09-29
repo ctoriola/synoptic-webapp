@@ -1,0 +1,45 @@
+{% extends "base_public.html" %}
+
+{% block title %}Features — Pitch Perfect{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 md:pt-10 space-y-4 md:space-y-5">
+    <section class="pp-slide pp-glow pp-grain min-h-[320px] flex flex-col">
+        <div class="pp-slide-meta">
+            <span class="pp-kicker">Pitch Perfect</span>
+            <span class="pp-kicker">Features</span>
+        </div>
+        <p class="pp-tagline text-2xl md:text-3xl mt-6 max-w-lg">Everything between a raw idea and a deck you can present.</p>
+        <h1 class="pp-hero-text text-7xl sm:text-8xl md:text-[9rem] mt-auto">Features<span class="align-top text-[0.5em]">+</span></h1>
+    </section>
+
+    {% set features = [
+        ('fas fa-pen', 'Describe your startup', 'Write a name and a couple of sentences. We add market context from a quick web search and write each slide.', 'white'),
+        ('fab fa-github', 'Pitch from a GitHub repo', 'Paste owner/repo or any GitHub link. We read the README, description, topics and languages (or package files when there is no README). Private repos work once you connect GitHub.', 'dark'),
+        ('fas fa-layer-group', 'Exact deck length', 'Pick 4, 6 or 10 slides in Settings. The pitch has exactly that many sections, and the PowerPoint adds a cover and closing slide around them.', 'white'),
+        ('fas fa-robot', 'Pitchy, your pitch coach', 'Pitchy scores every section, explains what investors will find weak, and rewrites a section on request. Apply with one click, undo anytime.', 'glow'),
+        ('fas fa-file-powerpoint', 'Styled PowerPoint export', 'Widescreen decks with an agenda, stat callouts, cards and speaker notes. Choose Synoptic Coral, Modern Green or Bold Red.', 'white'),
+        ('fas fa-shield-halved', 'Reliable generation', 'If an AI provider is overloaded, generation falls back to another automatically, and errors come with clear next steps.', 'dark'),
+    ] %}
+    <section class="grid gap-4 md:gap-5 md:grid-cols-2" aria-label="Feature list">
+        {% for icon, title, text, tone in features %}
+        <article class="pp-slide pp-card-lift min-h-[240px] flex flex-col {% if tone == 'dark' %}pp-glow-dark{% elif tone == 'glow' %}pp-glow pp-grain{% else %}bg-white{% endif %}">
+            <div class="pp-slide-meta">
+                <i class="{{ icon }} text-2xl {% if tone == 'white' %}text-primary-500{% elif tone == 'dark' %}text-primary-400{% endif %}"></i>
+                <span class="pp-kicker {% if tone == 'white' %}text-gray-400{% else %}text-white/60{% endif %}">{{ '%02d' % loop.index }}</span>
+            </div>
+            <h2 class="text-3xl md:text-4xl mt-6">{{ title }}</h2>
+            <p class="mt-3 text-sm md:text-base leading-relaxed max-w-lg {% if tone == 'white' %}text-gray-600{% else %}text-white/80{% endif %}">{{ text }}</p>
+        </article>
+        {% endfor %}
+    </section>
+
+    <section class="pp-slide pp-glow-dark pp-grain flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+        <h2 class="text-5xl md:text-7xl">Try it free<span class="text-primary-500">.</span></h2>
+        <div class="flex flex-col sm:flex-row gap-3">
+            <a href="{{ url_for('auth.register') }}" class="pp-btn pp-btn-primary">Get started <i class="fas fa-arrow-right text-xs"></i></a>
+            <a href="{{ url_for('main.pricing') }}" class="pp-btn pp-btn-ghost">See pricing</a>
+        </div>
+    </section>
+</div>
+{% endblock %}

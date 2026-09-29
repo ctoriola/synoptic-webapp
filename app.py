@@ -50,6 +50,11 @@ def create_app():
     def markdown_filter(text):
         return markdown.markdown(text, extensions=['codehilite', 'fenced_code'])
     
+    @app.context_processor
+    def inject_now_year():
+        from datetime import datetime
+        return {'now_year': datetime.utcnow().year}
+    
     # Deck length helper for templates
     from slide_plan import user_slide_count
     app.jinja_env.globals['user_slide_count'] = user_slide_count
@@ -73,24 +78,6 @@ def create_app():
         # Escape raw HTML first: pitch text comes from AI and users
         source = html.escape('\n'.join(lines), quote=False)
         return markdown.markdown(source, extensions=['sane_lists', 'nl2br', 'tables'])
-    
-    # Create admin user route for Firebase (since we can't do it automatically)
-    @app.route('/init-admin')
-    def init_admin():
-        # Check if admin already exists
-        admin = User.get_by_email('admin@PitchPerfectAI.com')
-        if not admin:
-            admin = User(
-                email='admin@PitchPerfectAI.com',
-                username='admin',
-                is_admin=True
-            )
-            admin.set_password('admin123')
-            if admin.save():
-                return 'Admin user created successfully! Email: admin@PitchPerfectAI.com, Password: admin123'
-            else:
-                return 'Failed to create admin user'
-        return 'Admin user already exists'
     
     return app
 
