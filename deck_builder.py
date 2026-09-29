@@ -353,6 +353,15 @@ def _cell_borders(cell, color, width_pt=0.75):
         tcPr.insert(['a:lnL', 'a:lnR', 'a:lnT', 'a:lnB'].index(tag), ln)
 
 
+def _shrink_on_overflow(box):
+    """Ask PowerPoint to shrink text that still doesn't fit its box."""
+    bodyPr = box.text_frame._txBody.bodyPr
+    for tag in ('a:noAutofit', 'a:spAutoFit', 'a:normAutofit'):
+        for el in bodyPr.findall(qn(tag)):
+            bodyPr.remove(el)
+    bodyPr.append(bodyPr.makeelement(qn('a:normAutofit'), {}))
+
+
 def number_badge(slide, x, y, d, label, fill=None, color=None, size=None):
     fill, color = fill or T.accent, color or T.on_accent
     circle = add_box(slide, x, y, d, d, fill, MSO_SHAPE.OVAL)
@@ -378,6 +387,7 @@ class DeckBuilder:
         self.title = deck_title
         self.subtitle = subtitle
         self.page = 0
+        self.one_slide_per_section = False  # set for fixed-length decks
 
     def _new_slide(self, notes=None):
         slide = self.prs.slides.add_slide(self.blank)
@@ -415,16 +425,20 @@ class DeckBuilder:
         add_text(slide, MARGIN, 0.55, 5, 0.9, 'Agenda', 36, T.ink, bold=True, font=T.head_font)
         add_text(slide, MARGIN, 1.4, 4.4, 1.2, f'What we\'ll cover in the next {len(section_names)} sections.', 16, T.muted)
         # Two columns of numbered rows on the right
-        names = section_names[:10]
+        names = section_names[:20]
         per_col = math.ceil(len(names) / 2) if len(names) > 5 else len(names)
         col_w = 3.7 if len(names) > 5 else 6.6
-        row_h = min(0.95, 4.9 / max(per_col, 1))
+        row_h = min(0.95, 5.6 / max(per_col, 1))
+        badge = min(0.55, row_h - 0.1)
+        name_size = 18 if row_h >= 0.8 else 15 if row_h >= 0.6 else 13
         for i, name in enumerate(names):
             col, row = divmod(i, per_col)
             x = 5.35 + col * (col_w + 0.35)
-            y = 1.1 + row * row_h
-            number_badge(slide, x, y + (row_h - 0.55) / 2, 0.55, f'{i + 1:02d}', fill=T.tint, color=T.accent_strong, size=14)
-            add_text(slide, x + 0.75, y, col_w - 0.8, row_h, name, 18, T.ink, bold=True, anchor=MSO_ANCHOR.MIDDLE)
+            y = 0.95 + row * row_h
+            number_badge(slide, x, y + (row_h - badge) / 2, badge, f'{i + 1:02d}', fill=T.tint, color=T.accent_strong,
+                         size=14 if badge >= 0.5 else 11)
+            add_text(slide, x + badge + 0.2, y, col_w - badge - 0.25, row_h, name, name_size, T.ink, bold=True,
+                     anchor=MSO_ANCHOR.MIDDLE)
         add_text(slide, MARGIN, 7.0, 8, 0.3, self.title, 10, T.muted)
         add_text(slide, SLIDE_W - MARGIN - 1, 7.0, 1, 0.3, str(self.page), 10, T.muted, align=PP_ALIGN.RIGHT)
 
@@ -454,12 +468,19 @@ class DeckBuilder:
     def _text_slides(self, number, name, blocks, notes):
         """Lead statement on the left, body on the right; continues if too long."""
         lead, rest = split_lead(blocks)
+        height = CONTENT_BOTTOM - CONTENT_TOP
+        if self.one_slide_per_section and lead and not fit_size(rest, CONTENT_W - 4.55, height):
+            lead, rest = None, blocks  # give the body the full width rather than overflow
         body_x = MARGIN + 4.55 if lead else MARGIN
         body_w = SLIDE_W - MARGIN - body_x
-        height = CONTENT_BOTTOM - CONTENT_TOP
-        size = fit_size(rest, body_w, height, READABLE_PT) if rest else MAX_BODY_PT
-        pages = [rest] if size else split_blocks(rest, body_w, height)
-        if len(pages) == 2 and text_height(pages[1], body_w, READABLE_PT) < height * 0.3:
+        if self.one_slide_per_section:
+            # Fixed-length deck: everything on one slide, shrinking text as needed
+            size = (fit_size(rest, body_w, height) or MIN_BODY_PT) if rest else MAX_BODY_PT
+            pages = [rest]
+        else:
+            size = fit_size(rest, body_w, height, READABLE_PT) if rest else MAX_BODY_PT
+            pages = [rest] if size else split_blocks(rest, body_w, height)
+        if not self.one_slide_per_section and len(pages) == 2 and text_height(pages[1], body_w, READABLE_PT) < height * 0.3:
             # Avoid a near-empty continuation slide: allow one point smaller instead
             tighter = fit_size(rest, body_w, height, READABLE_PT - 1)
             if tighter:
@@ -479,7 +500,9 @@ class DeckBuilder:
                 body_x, body_w = MARGIN, CONTENT_W
             if page:
                 page_size = size or READABLE_PT  # one size across continuation slides
-                add_rich_text(slide, body_x, CONTENT_TOP + 0.05, body_w, height, page, page_size)
+                box = add_rich_text(slide, body_x, CONTENT_TOP + 0.05, body_w, height, page, page_size)
+                if self.one_slide_per_section and not fit_size(page, body_w, height):
+                    _shrink_on_overflow(box)
 
     def _cards_slide(self, number, name, blocks, notes):
         intro = [b for b in blocks if b['type'] in ('para', 'sub')]
@@ -662,29 +685,52 @@ def section_notes(name, blocks):
 _theme_lock = threading.Lock()
 
 
-def build_pitch_deck(project_title, markdown, theme=DEFAULT_THEME):
-    """Return a BytesIO containing the finished .pptx in the given theme."""
+def build_pitch_deck(project_title, markdown, theme=DEFAULT_THEME, slide_count=None):
+    """
+    Return a BytesIO containing the finished .pptx in the given theme.
+    With slide_count, the deck follows that length plan exactly (see slide_plan.py).
+    """
     global T
     with _theme_lock:  # T is module state; keep concurrent exports from mixing themes
         T = THEMES.get(theme, THEMES[DEFAULT_THEME])
         try:
-            return _build(project_title, markdown)
+            return _build(project_title, markdown, slide_count)
         finally:
             T = THEMES[DEFAULT_THEME]
 
 
-def _build(project_title, markdown):
+def fold_sections(sections, limit):
+    """Merge trailing extra sections into the one before them (as subsections)."""
+    sections = [(n, list(b)) for n, b in sections]
+    while len(sections) > limit > 0:
+        name, blocks = sections.pop()
+        sections[-1][1].extend([{'type': 'sub', 'text': name}] + blocks)
+    return sections
+
+
+def _build(project_title, markdown, slide_count=None):
     deck_title, sections = parse_pitch(markdown)
     title = (project_title or deck_title or 'Pitch Deck').strip()
     title = re.sub(r'\s+pitch deck$', '', title, flags=re.I) or title
     builder = DeckBuilder(title)
-    builder.cover()
     sections = [(n, b) for n, b in sections if b] or [('Overview', [{'type': 'para', 'text': 'No pitch content yet.'}])]
-    if len(sections) >= 3:
+
+    if slide_count:
+        from slide_plan import get_plan
+        plan = get_plan(slide_count)
+        sections = fold_sections(sections, len(plan['sections']))
+        builder.one_slide_per_section = True
+        show_agenda, show_closing = plan['agenda'], plan['closing']
+    else:
+        show_agenda, show_closing = len(sections) >= 3, True
+
+    builder.cover()
+    if show_agenda:
         builder.agenda([n for n, _ in sections])
     for i, (name, blocks) in enumerate(sections, start=1):
         builder.section(i, name, blocks)
-    builder.closing()
+    if show_closing:
+        builder.closing()
     buffer = BytesIO()
     builder.prs.save(buffer)
     buffer.seek(0)
