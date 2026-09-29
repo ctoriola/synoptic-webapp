@@ -1,0 +1,88 @@
+/* =====================================================================
+   App pages (dashboard, projects, settings, admin, auth, pricing)
+   Same design language as the landing page, toned down for daily use:
+   only page titles get the condensed uppercase display type.
+   ===================================================================== */
+
+.pp-app { background: var(--canvas); }
+
+/* Section / card headings: display font, normal case, readable */
+.pp-app h2, .pp-app h3, .pp-app h4 {
+    font-family: var(--display);
+    font-stretch: 90%;
+    text-transform: none;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+}
+.pp-app h2 { font-weight: 700; }
+.pp-app h3, .pp-app h4 { font-weight: 650; }
+
+/* Page titles keep the condensed uppercase look */
+.pp-app main h1 {
+    font-family: var(--display);
+    font-stretch: 76%;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: -0.015em;
+    line-height: 0.95;
+}
+
+/* The pitch document mirrors the exported deck: uppercase section titles */
+.pp-app .pitch-doc h1, .pp-app .pitch-doc h2 {
+    font-stretch: 74%;
+    font-weight: 800;
+    text-transform: uppercase;
+    line-height: 0.95;
+}
+
+/* Small uppercase labels used for card eyebrows and table headers */
+.pp-app .text-xs.uppercase, .pp-app .text-sm.uppercase { letter-spacing: 0.12em; }
+
+/* Page header pattern: kicker + title + optional actions */
+.pp-page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 1rem; }
+.pp-page-head .pp-kicker { color: var(--o-600); }
+
+/* Stat tile */
+.pp-stat {
+    border-radius: 1.5rem;
+    padding: 1.25rem 1.4rem;
+    background: #fff;
+    box-shadow: 0 1px 0 rgba(14, 14, 14, 0.04), 0 18px 40px -30px rgba(14, 14, 14, 0.35);
+}
+.pp-stat-value {
+    font-family: var(--display);
+    font-stretch: 74%;
+    font-weight: 800;
+    font-size: 2.25rem;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+/* Gentle highlight panel (the landing page glow, dialled down) */
+.pp-panel-glow {
+    border-radius: var(--radius-card);
+    background-color: var(--ink);
+    background-image:
+        radial-gradient(80% 120% at 100% 100%, rgba(255, 90, 31, 0.7) 0%, rgba(255, 90, 31, 0) 60%),
+        radial-gradient(50% 80% at 0% 0%, rgba(255, 176, 32, 0.18) 0%, rgba(255, 176, 32, 0) 60%);
+    color: #fff;
+}
+
+/* Status badges keep their semantic colours but get the pill shape */
+.pp-app main .rounded-full.text-xs.font-medium { letter-spacing: 0.01em; }
+
+/* Dropdowns and modals share the card radius */
+.pp-app main .absolute.shadow-lg.rounded-md { border-radius: 1rem; }
+.pp-app .fixed.inset-0 .rounded-md.bg-white,
+.pp-app .fixed.inset-0 .relative.bg-white { border-radius: var(--radius-card); }
+
+/* Links inside prose-y content */
+.pp-app main a.text-primary-600:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* Tables: softer rows */
+.pp-app main table tbody tr:hover { background: var(--o-50); }
+.pp-app main .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--line); }
+
+/* Dark buttons in existing templates get the same pill shape */
+.pp-app main a.bg-gray-800, .pp-app main button.bg-gray-800,
+.pp-app main a.bg-gray-900, .pp-app main button.bg-gray-900 { border-radius: 9999px; font-weight: 600; }

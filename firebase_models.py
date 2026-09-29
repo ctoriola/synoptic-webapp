@@ -652,6 +652,28 @@ class Coupon:
         return None
     
     @staticmethod
+    def get_by_id(coupon_id):
+        """Get coupon by document id"""
+        db = get_db()
+        if db and coupon_id:
+            doc = db.collection('coupons').document(coupon_id).get()
+            if doc.exists:
+                data = doc.to_dict()
+                return Coupon(
+                    id=doc.id,
+                    code=data.get('code'),
+                    discount_type=data.get('discount_type', 'percentage'),
+                    discount_value=data.get('discount_value', 0),
+                    applies_to=data.get('applies_to', 'all'),
+                    max_uses=data.get('max_uses'),
+                    current_uses=data.get('current_uses', 0),
+                    expires_at=data.get('expires_at'),
+                    is_active=data.get('is_active', True),
+                    created_at=data.get('created_at')
+                )
+        return None
+
+    @staticmethod
     def get_all():
         """Get all coupons"""
         db = get_db()

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}My Projects - Synoptic{% endblock %}
+{% block title %}My Projects - PitchPerfectAI{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -215,9 +215,9 @@
 <script>
 function copyProjectUrl(url) {
     navigator.clipboard.writeText(url).then(() => {
-        SynopticUtils.showNotification('Project link copied to clipboard!', 'success');
+        PitchPerfectAIUtils.showNotification('Project link copied to clipboard!', 'success');
     }).catch(() => {
-        SynopticUtils.showNotification('Failed to copy link', 'error');
+        PitchPerfectAIUtils.showNotification('Failed to copy link', 'error');
     });
 }
 
