@@ -10,7 +10,7 @@ class User(UserMixin):
                  is_admin=False, account_tier='free', tokens=0, github_id=None, 
                  github_username=None, github_token=None, created_at=None, is_deleted=False, is_whitelisted=False,
                  stripe_customer_id=None, stripe_subscription_id=None, survey_completed=False, 
-                 survey_export_used=False, coupon_code=None):
+                 survey_export_used=False, coupon_code=None, preferences=None):
         self.id = id or str(uuid.uuid4())
         self.email = email
         self.username = username
@@ -29,6 +29,7 @@ class User(UserMixin):
         self.survey_completed = survey_completed
         self.survey_export_used = survey_export_used
         self.coupon_code = coupon_code
+        self.preferences = preferences or {}
     
     def set_password(self, password):
         """Set password hash"""
@@ -102,7 +103,8 @@ class User(UserMixin):
             'stripe_subscription_id': self.stripe_subscription_id,
             'survey_completed': self.survey_completed,
             'survey_export_used': self.survey_export_used,
-            'coupon_code': self.coupon_code
+            'coupon_code': self.coupon_code,
+            'preferences': self.preferences
         }
     
     def save(self):
@@ -137,6 +139,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False),
                     stripe_customer_id=data.get('stripe_customer_id'),
@@ -167,6 +170,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code')
                 )
         return None
@@ -194,6 +198,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code')
                 )
         return None
@@ -221,6 +226,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code')
                 )
         return None
@@ -248,6 +254,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False),
                     stripe_customer_id=data.get('stripe_customer_id'),
@@ -303,6 +310,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False)
                 ))
@@ -373,6 +381,7 @@ class User(UserMixin):
                     is_deleted=data.get('is_deleted', False),
                     survey_completed=data.get('survey_completed', False),
                     survey_export_used=data.get('survey_export_used', False),
+                    preferences=data.get('preferences'),
                     coupon_code=data.get('coupon_code'),
                     is_whitelisted=data.get('is_whitelisted', False)
                 ))

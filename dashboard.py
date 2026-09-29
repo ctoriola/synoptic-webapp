@@ -1225,15 +1225,24 @@ def settings():
         'total_projects': len(user_projects)
     }
     
-    # Get user preferences from session
-    preferences = session.get('user_preferences', {
-        'default_style': 'investor',
-        'slide_count': '12',
-        'include_financials': True,
-        'include_competition': True
-    })
+    preferences = _user_preferences(current_user)
     
     return render_template('dashboard/settings.html', stats=stats, preferences=preferences)
+
+def _user_preferences(user):
+    """Stored preferences with defaults (older session-only values still honoured)."""
+    from slide_plan import normalize_slide_count, DEFAULT_SLIDE_COUNT
+    prefs = {
+        'default_style': 'investor',
+        'slide_count': DEFAULT_SLIDE_COUNT,
+        'include_financials': True,
+        'include_competition': True
+    }
+    prefs.update(session.get('user_preferences') or {})
+    prefs.update(getattr(user, 'preferences', None) or {})
+    prefs['slide_count'] = normalize_slide_count(prefs.get('slide_count'))
+    return prefs
+
 
 @dashboard_bp.route('/settings/profile', methods=['POST'])
 @login_required
@@ -1297,15 +1306,24 @@ def update_password():
 def update_preferences():
     """Update user preferences"""
     try:
-        data = request.get_json()
-        # For now, we'll store preferences in session or could extend User model
-        # This is a placeholder for future preference storage
-        session['user_preferences'] = {
+        from slide_plan import normalize_slide_count, SLIDE_COUNTS
+        data = request.get_json(silent=True) or {}
+        try:
+            slide_count = int(data.get('slide_count', 12))
+        except (TypeError, ValueError):
+            slide_count = None
+        if slide_count not in SLIDE_COUNTS:
+            return jsonify({'error': 'Slide count must be one of ' + ', '.join(map(str, SLIDE_COUNTS))}), 400
+
+        preferences = {
             'default_style': data.get('default_style', 'investor'),
-            'slide_count': data.get('slide_count', '12'),
-            'include_financials': data.get('include_financials', True),
-            'include_competition': data.get('include_competition', True)
+            'slide_count': normalize_slide_count(slide_count),
+            'include_financials': bool(data.get('include_financials', True)),
+            'include_competition': bool(data.get('include_competition', True))
         }
+        current_user.preferences = preferences
+        current_user.save()
+        session['user_preferences'] = preferences
         
         return jsonify({'success': True, 'message': 'Preferences saved successfully'})
     

@@ -918,6 +918,11 @@ def _pitch_content(project):
     return (project.pitch_deck or {}).get('content', '') if project else ''
 
 
+def _pitch_slide_count(project):
+    """The fixed deck length a pitch was generated for, if any."""
+    return (project.pitch_deck or {}).get('slide_count') if project else None
+
+
 def _pitchy_error(e, action):
     """Log the raw failure; return a friendly message (raw details for admins)."""
     from huggingface_client import friendly_error
@@ -941,7 +946,7 @@ def pitchy_review():
     if not content.strip():
         return jsonify({'error': 'This project has no pitch deck to review yet.'}), 400
     try:
-        return jsonify({'success': True, **pitchy.review_pitch(project.title, content)})
+        return jsonify({'success': True, **pitchy.review_pitch(project.title, content, _pitch_slide_count(project))})
     except Exception as e:
         return _pitchy_error(e, 'review')
 
@@ -960,7 +965,7 @@ def pitchy_chat():
         return jsonify({'error': 'Project not found'}), 404
     history = data.get('history') if isinstance(data.get('history'), list) else []
     try:
-        result = pitchy.chat(project.title, _pitch_content(project), history, message)
+        result = pitchy.chat(project.title, _pitch_content(project), history, message, _pitch_slide_count(project))
         return jsonify({'success': True, **result})
     except Exception as e:
         return _pitchy_error(e, 'chat')
@@ -980,6 +985,9 @@ def pitchy_apply():
         return jsonify({'error': 'Project not found'}), 404
     if not section or not new_body:
         return jsonify({'error': 'Section and content are required'}), 400
+    if _pitch_slide_count(project) and not pitchy.section_exists(_pitch_content(project), section):
+        return jsonify({'error': f'This deck is fixed at {_pitch_slide_count(project)} slides, so new sections '
+                                 'can\'t be added. Ask Pitchy to fold this into an existing section.'}), 400
     try:
         updated, heading = pitchy.replace_section(_pitch_content(project), section[:80], new_body[:8000])
         save_pitch_version(project, updated, 'pitchy_ai')
@@ -1015,8 +1023,10 @@ def generate_deep_pitch():
         
         print(f"DEBUG: Generating deep pitch for {startup_name}")
         
-        # Generate investor-grade pitch using multi-step pipeline
-        pitch_content = deep_pitch_generation(startup_name, startup_description)
+        # Generate the pitch at the user's preferred deck length
+        from slide_plan import user_slide_count
+        slide_count = user_slide_count(current_user)
+        pitch_content = deep_pitch_generation(startup_name, startup_description, slide_count)
         
         # Save to project
         from firebase_models import Project
@@ -1029,7 +1039,8 @@ def generate_deep_pitch():
                 'content': pitch_content,
                 'generated_at': datetime.utcnow().isoformat(),
                 'version': '2.0',
-                'generation_type': 'deep_pipeline'
+                'generation_type': 'deep_pipeline',
+                'slide_count': slide_count
             },
             user_id=current_user.id
         )
@@ -1146,7 +1157,11 @@ def export_project_pptx(project_id):
     from deck_builder import build_pitch_deck
     content = (project.pitch_deck or {}).get('content', '')
     theme = {'1': 'coral', '2': 'green', '3': 'red'}.get(request.args.get('template', '1'), 'coral')
-    buffer = build_pitch_deck(project.title, content, theme)
+    # Use the length the pitch was written for; older pitches follow the current preference
+    from slide_plan import user_slide_count, normalize_slide_count
+    stored = (project.pitch_deck or {}).get('slide_count')
+    slide_count = normalize_slide_count(stored) if stored else user_slide_count(current_user)
+    buffer = build_pitch_deck(project.title, content, theme, slide_count)
     
     # Deduct token for export
     current_user.use_token()

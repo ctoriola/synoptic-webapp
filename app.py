@@ -50,6 +50,10 @@ def create_app():
     def markdown_filter(text):
         return markdown.markdown(text, extensions=['codehilite', 'fenced_code'])
     
+    # Deck length helper for templates
+    from slide_plan import user_slide_count
+    app.jinja_env.globals['user_slide_count'] = user_slide_count
+    
     # Render pitch deck Markdown as safe, structured HTML
     @app.template_filter('format_markdown')
     def format_markdown_filter(text):

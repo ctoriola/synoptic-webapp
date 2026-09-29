@@ -105,7 +105,35 @@ def _generate(prompt, stage):
     return text
 
 
-def review_pitch(title, content):
+def _missing_rule(slide_count):
+    if slide_count:
+        return (f"The deck is fixed at {slide_count} slides, one per section, so do NOT suggest adding "
+                "sections. If something investors expect is missing, name the existing section that "
+                "should cover it in that section's suggestion.")
+    return ("Also flag up to two important MISSING sections investors expect (e.g. Traction, Team, "
+            "Competition, Financials, Go-to-Market) with score 0.")
+
+
+def _length_rule(slide_count):
+    if not slide_count:
+        return ''
+    return (f"The deck is fixed at {slide_count} slides, one per section: only rewrite EXISTING sections "
+            "(use their exact heading), never create a new one, and keep each rewrite short enough for "
+            "a single slide (under 110 words). If asked for a new section, fold that content into the "
+            "most relevant existing section instead.")
+
+
+def section_exists(content, section):
+    """True if the pitch has a '## ' section matching this name (loosely)."""
+    target = _normalize(section)
+    for heading, _ in split_sections(content):
+        name = _normalize(heading)
+        if name == target or (target and (target in name or name in target)):
+            return True
+    return False
+
+
+def review_pitch(title, content, slide_count=None):
     """
     Score each section of the pitch and suggest improvements.
     Returns {'summary': str, 'sections': [{'name', 'score', 'issue', 'suggestion'}]}
@@ -121,9 +149,8 @@ PITCH DECK (Markdown):
 
 Existing sections: {', '.join(section_names) or 'none'}
 
-Score each existing section from 1 (weak) to 5 (investor-ready). Also flag up to
-two important MISSING sections investors expect (e.g. Traction, Team, Competition,
-Financials, Go-to-Market) with score 0.
+Score each existing section from 1 (weak) to 5 (investor-ready).
+{_missing_rule(slide_count)}
 
 Respond with ONLY a JSON object, no prose, in exactly this shape:
 {{"summary": "one or two sentences on the deck's overall strength and the single biggest gap",
@@ -156,7 +183,7 @@ Respond with ONLY a JSON object, no prose, in exactly this shape:
     return {'summary': str(data.get('summary', ''))[:600], 'sections': sections}
 
 
-def chat(title, content, history, message):
+def chat(title, content, history, message, slide_count=None):
     """
     Answer a user message about their pitch.
     Returns {'reply': markdown str, 'rewrite': None | {'section': str, 'content': str}}
@@ -186,6 +213,7 @@ User: {message[:MAX_MESSAGE_CHARS]}
 Reply helpfully and concisely (under 180 words; short paragraphs or bullets).
 If the user asks you to rewrite, improve, strengthen, expand or add a section,
 ALSO provide the full replacement text for that ONE section so they can apply it.
+{_length_rule(slide_count)}
 The rewrite must be complete, investor-ready Markdown for the section body only
 (no '## ' heading line), 2-4 paragraphs, and built on the existing content.
 

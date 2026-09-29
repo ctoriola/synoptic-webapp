@@ -199,7 +199,7 @@ def query_openai_compatible(prompt, provider, url, api_key, stage_name, model=No
     payload = {
         'messages': [{'role': 'user', 'content': prompt[:30000]}],
         'temperature': 0.7,
-        'max_tokens': 2048,
+        'max_tokens': 4096,
     }
     if models:
         payload['models'] = models  # OpenRouter-native fallback list
@@ -302,7 +302,7 @@ def query_inference_api(prompt, model_id, stage_name, model_key, max_retries=3):
     url = f"{GEMINI_API_BASE}/{model_id}:generateContent"
     payload = {
         'contents': [{'role': 'user', 'parts': [{'text': prompt[:30000]}]}],
-        'generationConfig': {'temperature': 0.7, 'topP': 0.95, 'maxOutputTokens': 2048},
+        'generationConfig': {'temperature': 0.7, 'topP': 0.95, 'maxOutputTokens': 8192},
     }
     headers = {'Content-Type': 'application/json', 'x-goog-api-key': GOOGLE_API_KEY}
 
@@ -431,63 +431,119 @@ Be concise."""
         return None
 
 
-def intelligent_pitch_generation(startup_name, startup_description):
-    """
-    Generate an investor pitch in a single Gemini call.
+def _split_markdown_sections(text):
+    """Return [(heading, body)] for each '## ' section."""
+    sections, current = [], None
+    for line in (text or '').splitlines():
+        m = re.match(r'^##\s+(.+?)\s*$', line)
+        if m and not line.startswith('###'):
+            current = [m.group(1).strip(' #*'), []]
+            sections.append(current)
+        elif current is not None:
+            current[1].append(line)
+    return [(h, '\n'.join(b).strip()) for h, b in sections]
 
-    Market context from a web search is added when available. One request
-    (instead of one per section) keeps generation within the serverless time
-    limit and makes it far less likely to hit transient 503/429 errors.
-    """
-    global _deadline
-    _deadline = time.monotonic() + REQUEST_BUDGET_SECONDS
-    log_timestamp("PIPELINE", f"Starting pitch generation for: {startup_name}")
 
-    context_snippet = get_context_ddgs(f'{startup_name} industry trends') or ''
+def _norm(name):
+    return re.sub(r'[^a-z0-9]+', ' ', (name or '').lower().replace('&', ' and ')).strip()
 
-    prompt = f"""{DEPTH_PROMPT}
 
-Write the investor pitch deck content for this startup.
+def _match_sections(generated, headings):
+    """Map generated sections onto the planned headings (exact, then loose, then by position)."""
+    remaining = list(generated)
+    matched = {}
+    for pass_no in range(2):
+        for heading in headings:
+            if heading in matched:
+                continue
+            for item in remaining:
+                a, b = _norm(item[0]), _norm(heading)
+                if a == b if pass_no == 0 else (a and b and (a in b or b in a)):
+                    matched[heading] = item[1]
+                    remaining.remove(item)
+                    break
+    # A renamed heading: take the unmatched section at the same position, never one from elsewhere
+    for i, heading in enumerate(headings):
+        if heading not in matched and i < len(generated) and generated[i] in remaining:
+            matched[heading] = generated[i][1]
+            remaining.remove(generated[i])
+    return {h: body for h, body in matched.items() if body.strip()}
+
+
+def _section_prompt(startup_name, startup_description, context_snippet, headings, words):
+    heading_list = '\n'.join(f'## {h}' for h in headings)
+    return f"""{DEPTH_PROMPT}
+
+Write the investor pitch deck content for this startup. Each section becomes exactly ONE slide.
 
 Startup: {startup_name}
 Description: {startup_description}
 Market context from a web search (may be partial or irrelevant; use only if helpful):
 {context_snippet[:1500]}
 
-Output Markdown with exactly these five sections, each a level-2 heading, in this order:
-## Problem
-## Solution
-## Market Opportunity
-## Business Model & Competitive Advantage
-## The Ask
+Output Markdown with EXACTLY these {len(headings)} sections, in this order, each a level-2
+heading written exactly as shown. Do not add, remove, merge, rename or reorder sections.
+{heading_list}
 
 Rules:
-- Each section: 2-4 substantive paragraphs (bullets allowed for Market and Business Model).
-- Market Opportunity: TAM/SAM/SOM with figures, growth, competitive landscape, target segments.
-- Business Model: revenue model, competitive advantage, go-to-market, funding ask.
-- Do not use level-1 or level-3+ headings, and do not add any text before the first section."""
+- Keep each section to at most {words} words so it fits on a single slide.
+- Prefer a short opening sentence followed by 2-4 bullet points; use figures where they help.
+- Where a fact about the company is unknown (team names, traction, revenue), write a clearly
+  marked placeholder in square brackets, e.g. [Add founder name and background].
+- Do not use level-1 or level-3+ headings, and do not add any text before the first section or after the last."""
 
+
+def intelligent_pitch_generation(startup_name, startup_description, slide_count=None):
+    """
+    Generate an investor pitch whose sections match the user's deck length exactly.
+
+    The slide plan (see slide_plan.py) fixes the section headings; the exported deck
+    has one slide per section plus cover/agenda/closing, totalling the chosen count.
+    """
+    from slide_plan import get_plan
+    plan = get_plan(slide_count)
+    headings = plan['sections']
+
+    global _deadline
+    _deadline = time.monotonic() + REQUEST_BUDGET_SECONDS
+    log_timestamp("PIPELINE", f"Starting {plan['total']}-slide pitch for: {startup_name}")
     try:
-        body = query_with_fallback(prompt, "PITCH")
+        context_snippet = get_context_ddgs(f'{startup_name} industry trends') or ''
+        body = query_with_fallback(
+            _section_prompt(startup_name, startup_description, context_snippet, headings, plan['words']), "PITCH")
+        if not body:
+            raise Exception(f"PITCH GENERATION FAILED: {'; '.join(LAST_ERRORS) or 'unknown error'}")
+
+        sections = _match_sections(_split_markdown_sections(body), headings)
+        missing = [h for h in headings if h not in sections]
+        if missing and _time_left() > 15:
+            log_timestamp("PIPELINE", f"Requesting {len(missing)} missing section(s): {missing}")
+            extra = query_with_fallback(
+                _section_prompt(startup_name, startup_description, context_snippet, missing, plan['words']),
+                "PITCH-FILL")
+            if extra:
+                sections.update({h: b for h, b in _match_sections(_split_markdown_sections(extra), missing).items()
+                                 if h in missing})
     finally:
         _deadline = None
 
-    if not body:
-        raise Exception(f"PITCH GENERATION FAILED: {'; '.join(LAST_ERRORS) or 'unknown error'}")
-
-    # Keep the frontend's '##' section split intact
-    body = re.sub(r'^#{3,}\s*(.+?)\s*$', r'**\1**', body, flags=re.M)
-    body = re.sub(r'^#\s+.*\n?', '', body, flags=re.M).strip()
+    parts = []
+    for heading in headings:
+        text = sections.get(heading) or (
+            f"[This section couldn't be generated. Ask Pitchy to write the {heading} section.]")
+        # Keep the one-'##'-per-section structure intact
+        text = re.sub(r'^#{3,}\s*(.+?)\s*$', r'**\1**', text, flags=re.M)
+        text = re.sub(r'^#{1,2}\s+.*\n?', '', text, flags=re.M).strip()
+        parts.append(f"## {heading}\n{text}")
 
     final_pitch = f"""# {startup_name} Pitch Deck
 
-{body}
-
+{chr(10).join(p + chr(10) for p in parts)}
 ---
 
 *Generated by PitchPerfectAI*
 """
-    log_timestamp("PIPELINE", f"✓ Complete - {len(final_pitch)} chars generated")
+    log_timestamp("PIPELINE", f"✓ Complete - {len(headings)} sections, {len(final_pitch)} chars")
     return final_pitch
 
 
@@ -580,9 +636,9 @@ Provide improved content that is specific, data-driven, and compelling."""
     return result if result else draft_content
 
 
-def deep_pitch_generation(startup_name, startup_description):
+def deep_pitch_generation(startup_name, startup_description, slide_count=None):
     """Backward compatibility wrapper"""
-    return intelligent_pitch_generation(startup_name, startup_description)
+    return intelligent_pitch_generation(startup_name, startup_description, slide_count)
 
 
 # Test function
